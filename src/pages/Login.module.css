@@ -156,14 +156,9 @@
   color: var(--ink-3);
 }
 
-.newHere,
-.footnote {
+.newHere {
   text-align: center;
   font-size: var(--t-small);
-  color: var(--ink-3);
-}
-
-.newHere {
   color: var(--ink-2);
 }
 
@@ -172,8 +167,4 @@
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.footnote {
-  margin-top: var(--s-2);
 }

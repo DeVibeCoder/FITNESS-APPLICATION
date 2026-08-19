@@ -128,8 +128,6 @@ export function Login() {
         <p className={styles.newHere}>
           New here? <Link to="/setup" className={styles.inlineLink}>Set up your account</Link>
         </p>
-
-        <p className={styles.footnote}>3 people training together</p>
       </div>
     </div>
   )
