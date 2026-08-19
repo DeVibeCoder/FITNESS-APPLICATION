@@ -26,3 +26,6 @@ dist-ssr
 # Local secrets
 .env
 .env.local
+
+# Wrangler local build cache and emulator state
+.wrangler
