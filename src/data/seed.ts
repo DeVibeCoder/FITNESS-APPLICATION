@@ -501,10 +501,47 @@ function buildFood(): FoodEntry[] {
     })
   }
 
+  /*
+   * Anchored to a weekday inside a week, the way sessions are.
+   *
+   * Day offsets alone slide across the week boundary: seeded on a Monday they
+   * reach back into last week, but by Thursday the same offsets sit entirely
+   * inside this one — and the weekly review, which deliberately reports a
+   * *complete* week, then finds no food at all. This keeps last week populated
+   * whatever day the app is opened.
+   */
+  const pushOn = (userId: string, date: DateKey, meals: SeedFood[], tag: string) => {
+    meals.forEach((meal, index) => {
+      if (date > TODAY) return
+      entries.push({
+        id: `f_${userId}_${tag}_${index}`,
+        userId,
+        date,
+        meal: meal.meal,
+        name: meal.name,
+        portion: meal.portion,
+        kcal: meal.kcal,
+        proteinG: meal.proteinG,
+        carbsG: meal.carbsG,
+        fatG: meal.fatG,
+        source: 'manual',
+        createdAt: atOn(date, meal.hour),
+      })
+    })
+  }
+
   push('u_ahmed', 0, AHMED_TODAY_FOOD, 'today')
   for (const offset of [-1, -2, -3, -4]) push('u_ahmed', offset, GENERIC_DAY, `d${offset}`)
   for (const offset of [0, -1, -3]) push('u_nadia', offset, GENERIC_DAY, `d${offset}`)
   for (const offset of [0, -1, -2, -3, -4, -5]) push('u_samir', offset, GENERIC_DAY, `d${offset}`)
+
+  // Last week, for everyone — four logged days each, so the weekly review has
+  // a complete week to report on however far into this one we are.
+  for (const weekday of [1, 2, 4, 5]) {
+    pushOn('u_ahmed', inWeek(-1, weekday), GENERIC_DAY, `lw${weekday}`)
+    pushOn('u_nadia', inWeek(-1, weekday), GENERIC_DAY, `lw${weekday}`)
+    pushOn('u_samir', inWeek(-1, weekday), GENERIC_DAY, `lw${weekday}`)
+  }
   return entries
 }
 
@@ -724,6 +761,29 @@ function buildSocial(sessions: WorkoutSession[]): {
       height: 1920,
       createdAt: agoMinutes(150),
     },
+    /*
+     * The feed leads with pictures, so the two posts people look at most —
+     * the weekly weigh-in and the motivation clip — carry one each. Still
+     * drawn by the UI: see mediaService for why nothing here is a photograph.
+     */
+    {
+      id: 'media_scale',
+      kind: 'image',
+      ref: 'placeholder:scale',
+      mimeType: 'image/webp',
+      width: 1200,
+      height: 960,
+      createdAt: agoMinutes(41),
+    },
+    {
+      id: 'media_pulse',
+      kind: 'image',
+      ref: 'placeholder:pulse',
+      mimeType: 'image/webp',
+      width: 1200,
+      height: 960,
+      createdAt: agoMinutes(71),
+    },
   ]
 
   const posts: Post[] = [
@@ -781,7 +841,7 @@ function buildSocial(sessions: WorkoutSession[]): {
       text: "Saw this and it stuck: you don't have to be extreme, just consistent.",
       createdAt: agoMinutes(70),
       visibility: 'group',
-      mediaIds: [],
+      mediaIds: ['media_pulse'],
       reactionCount: 1,
       commentCount: 0,
     },
@@ -792,7 +852,7 @@ function buildSocial(sessions: WorkoutSession[]): {
       text: 'Weekly weigh-in done. Slow week but it went the right way.',
       createdAt: agoMinutes(40),
       visibility: 'group',
-      mediaIds: [],
+      mediaIds: ['media_scale'],
       sharedType: 'weigh_in',
       sharedDataId: `w_u_ahmed_${OFFICIAL_WEIGHTS.u_ahmed.length - 1}`,
       reactionCount: 2,

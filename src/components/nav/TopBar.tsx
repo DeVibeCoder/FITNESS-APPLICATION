@@ -27,7 +27,7 @@ const DESKTOP_LINKS = [
 
 /** Page titles for the compact mobile header. First match wins, so order. */
 const TITLES: [RegExp, string][] = [
-  [/^\/$/, 'Home'],
+  [/^\/$/, 'Circuit'],
   [/^\/activity/, 'Activity'],
   [/^\/chat\/thread/, 'Fitness group'],
   [/^\/chat/, 'Chat'],
@@ -80,11 +80,18 @@ export function TopBar() {
         </Link>
 
         <Link to="/" className={styles.brandMobile} aria-label="Circuit — Today">
-          <LogoMark size={22} />
+          <LogoMark size={30} />
         </Link>
 
-        {/* Announced as the page heading on phones, where there is no room for links. */}
-        <h1 className={styles.title}>{titleFor(pathname)}</h1>
+        {/*
+          Announced as the page heading on phones, where there is no room for
+          links. On Home it is the brand, which is why it is set as a wordmark
+          there and as an ordinary page name everywhere else — the bar has to
+          answer "where am I" on twenty screens, not just this one.
+        */}
+        <h1 className={[styles.title, pathname === '/' ? styles.wordmark : ''].join(' ')}>
+          {titleFor(pathname)}
+        </h1>
 
         <nav className={styles.links} aria-label="Main">
           {DESKTOP_LINKS.map((link) => (
@@ -102,9 +109,15 @@ export function TopBar() {
         </nav>
 
         <div className={styles.actions}>
+          {/*
+            Was desktop-only while the bottom bar carried a raised +. That slot
+            is gone, so this is now the single entry point to logging on every
+            screen size — which is why it is the one filled, coloured control
+            in the bar.
+          */}
           <button className={styles.create} onClick={() => open()}>
-            <Plus size={16} strokeWidth={2.8} />
-            Create
+            <Plus size={17} strokeWidth={3} />
+            <span className={styles.createLabel}>Log</span>
           </button>
 
           <NavLink

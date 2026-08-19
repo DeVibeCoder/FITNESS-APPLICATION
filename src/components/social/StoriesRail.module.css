@@ -21,9 +21,9 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-2);
+  gap: 0.4375rem;
   flex: none;
-  width: 4.5rem;
+  width: 4.75rem;
 }
 
 .add {
@@ -43,10 +43,27 @@
  * you have already watched goes quiet, and your own is a dashed outline until
  * you post something.
  */
+/*
+ * A thicker ring than before. At 2.5px the gradient read as a hairline and the
+ * difference between "live" and "seen" was easy to miss on a dark page; at 3px
+ * with a gap inside it, the ring is unmistakably a status and the avatar still
+ * reads as the subject.
+ */
 .ring {
   display: grid;
   place-items: center;
-  padding: 2.5px;
+  padding: 3.5px;
+  border-radius: var(--r-pill);
+  background-origin: border-box;
+}
+
+/*
+ * The gap that stops the ring touching the avatar. It has to be painted in the
+ * page colour rather than the card's, because the rail sits directly on the
+ * background — 2px was enough to separate them without eating the ring.
+ */
+.ring > * {
+  box-shadow: 0 0 0 2px var(--bg);
   border-radius: var(--r-pill);
 }
 

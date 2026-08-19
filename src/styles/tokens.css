@@ -1,54 +1,70 @@
 /**
  * Circuit design tokens.
  *
- * The palette is semantic, not decorative. Violet is the brand and carries
- * navigation, identity and overall progress. Coral means *do a workout*. Green
- * means done. Blue means movement. Gold means earned. Red means something is
- * actually wrong — nothing else.
+ * The palette is semantic, not decorative.
  *
- * `--accent` is the brand violet. It keeps its name because 184 declarations
- * across 55 stylesheets already point at it, and a rename would be churn
- * without benefit. Components that mean a specific thing — a workout button, a
- * step count, an achievement — opt into `--energy`, `--move` or `--gold`.
+ *   --accent   ember orange. The brand, and every primary action: the Log
+ *              button, the active tab, a link worth following, a reaction.
+ *   --violet   the secondary voice. Category chips, story rings, the ambient
+ *              washes behind the page. It used to be the brand; it now frames
+ *              rather than leads.
+ *   --energy   *do a workout*. A warmer orange than --accent so "train" and
+ *              "primary action" stay distinguishable side by side.
+ *   --success  done, or moving the right way.  --move  steps and distance.
+ *   --gold     earned.  --danger  something is actually wrong, nothing else.
+ *
+ * `--accent` keeps its name through the change of hue: 184 declarations across
+ * 55 stylesheets already point at it, and every one of them means "the brand
+ * colour" rather than "violet". Renaming would be churn without benefit.
  */
 
 :root {
   /* --- Surfaces: light ------------------------------------------------- */
   /*
-   * Pale lavender, not grey. The identity of this app is purple, and a warm
-   * neutral page made the brand look like an accent someone added afterwards.
-   * The background is tinted just enough to belong to the palette while
-   * staying light enough that body text sits comfortably on it.
+   * A barely-violet white. Light is the counterpart of the plum dark theme,
+   * not a different product: the same violet frames the page and the same
+   * ember leads the actions, both pulled back far enough that body text sits
+   * comfortably on it.
    */
-  --bg: #eee7ff;
-  --bg-sunk: #e1d6fc;
+  --bg: #f7f2fb;
+  --bg-sunk: #ebe2f4;
   --surface: #ffffff;
-  --surface-2: #f8f4ff;
+  --surface-2: #fdfaff;
   --surface-inverse: #191231;
-  --line: #ded1f9;
-  --line-strong: #c6b1f0;
+  --line: #e6dcf0;
+  --line-strong: #cdbde3;
 
-  /* Ink carries the same violet cast, so nothing looks pasted on. */
-  --ink: #1d1435;
-  --ink-2: #57496f;
-  --ink-3: #8a7ea6;
+  /* Ink keeps a violet cast, so nothing looks pasted onto the page. */
+  --ink: #1c1229;
+  --ink-2: #574a68;
+  --ink-3: #8b7fa0;
   --ink-inverse: #f7f3ff;
 
-  /* --- Brand: premium purple -------------------------------------------- */
-  --accent: #6d35e8;
-  --accent-strong: #5726c4;
+  /* --- Brand: ember orange ---------------------------------------------- */
+  --accent: #e8500f;
+  --accent-strong: #c43f08;
   --accent-ink: #ffffff;
-  --accent-soft: #ebe2ff;
+  --accent-soft: #ffe9dd;
   /* The lighter end of the brand, for gradients and highlights only. */
-  --accent-lift: #8b5cf6;
+  --accent-lift: #ff7a3d;
   /* The deep end, for the atmosphere and the darkest gradient stops. */
-  --accent-deep: #4c1d95;
+  --accent-deep: #8a2c05;
   /*
    * Sky and cyan. Ambient only — they light the background and nothing else,
    * so they never compete with the semantic roles below for meaning.
    */
   --sky: #38bdf8;
   --cyan: #22d3ee;
+
+  /*
+   * Violet was the brand until the redesign; it is now the secondary voice —
+   * category chips, story rings, the ambient washes. Keeping it as its own
+   * token rather than folding it into --accent is what stops the whole app
+   * turning a single colour.
+   */
+  --violet: #7c3aed;
+  --violet-soft: #efe6ff;
+  --violet-ink: #ffffff;
 
   /* --- Semantic roles --------------------------------------------------- */
   /*
@@ -124,20 +140,18 @@
    */
   --ambient:
     /* Warm white key light, high and centred. */
-    radial-gradient(44% 26% at 50% 4%, rgba(255, 255, 255, 0.62), transparent 72%),
-    /* The large blurred violet form, upper left. */
-    radial-gradient(74% 44% at -8% -10%, rgba(109, 53, 232, 0.28), transparent 64%),
-    /* Blue then cyan along the top right — the coolest part of the page. */
-    radial-gradient(58% 34% at 106% 0%, rgba(56, 189, 248, 0.22), transparent 62%),
-    radial-gradient(46% 28% at 86% 16%, rgba(34, 211, 238, 0.16), transparent 66%),
-    /* Violet returns, lower right, to close the composition. */
-    radial-gradient(80% 44% at 100% 106%, rgba(139, 92, 246, 0.26), transparent 64%),
-    radial-gradient(58% 32% at 2% 98%, rgba(182, 156, 255, 0.24), transparent 66%);
+    radial-gradient(44% 26% at 50% 4%, rgba(255, 255, 255, 0.7), transparent 72%),
+    /* Violet frames the page from the top corners. */
+    radial-gradient(70% 42% at -8% -10%, rgba(124, 58, 237, 0.16), transparent 64%),
+    radial-gradient(56% 32% at 106% 0%, rgba(157, 107, 255, 0.14), transparent 62%),
+    /* One ember low and right, so the accent belongs to the room. */
+    radial-gradient(72% 42% at 100% 106%, rgba(232, 80, 15, 0.11), transparent 64%),
+    radial-gradient(54% 30% at 0% 100%, rgba(124, 58, 237, 0.12), transparent 66%);
 
   /* The geometry. One colour for lines, one for dots, one for rings. */
-  --structure-line: rgba(76, 29, 149, 0.05);
-  --structure-dot: rgba(109, 53, 232, 0.075);
-  --structure-ring: rgba(109, 53, 232, 0.075);
+  --structure-line: rgba(88, 42, 140, 0.045);
+  --structure-dot: rgba(109, 53, 232, 0.07);
+  --structure-ring: rgba(232, 80, 15, 0.09);
 
   --structure:
     /* Training rings: two, wide, off the edges, never complete on screen. */
@@ -151,7 +165,7 @@
   --structure-position: 92% -18vmin, -26vmin 84%, 0 0, 0 0;
   --structure-repeat: no-repeat, no-repeat, repeat, repeat;
 
-  --accent-glow: 0 8px 24px -10px rgba(109, 53, 232, 0.6);
+  --accent-glow: 0 8px 24px -10px rgba(232, 80, 15, 0.55);
   --energy-glow: 0 8px 22px -10px rgba(238, 79, 43, 0.5);
   --success-glow: 0 8px 22px -10px rgba(22, 163, 74, 0.45);
 
@@ -165,8 +179,14 @@
   --glow-gold: 0 0 0 1px color-mix(in srgb, var(--gold) 26%, transparent), var(--shadow);
   --glow-move: 0 0 0 1px color-mix(in srgb, var(--move) 24%, transparent), var(--shadow);
 
-  /* The brand gradient. Used on hero fills and the logo, nowhere casual. */
-  --brand-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-lift) 100%);
+  /*
+   * The brand gradient: ember into violet.
+   *
+   * Both halves of the identity in one sweep, which is what the story rings
+   * are for — they are the first thing on the screen and the place the two
+   * colours are supposed to meet. Used on hero fills and rings, nowhere casual.
+   */
+  --brand-gradient: linear-gradient(135deg, var(--accent) 0%, var(--accent-lift) 42%, var(--violet) 100%);
   /*
    * Weight and goal progress are green, not brand violet — green means
    * "moving the right way" everywhere in this app, and the hero is the one
@@ -277,32 +297,35 @@
  * ----------------------------------------------------------------------- */
 
 :root[data-theme='dark'] {
-  --bg: #0b0b12;
-  --bg-sunk: #07070c;
-  --surface: #16161f;
-  --surface-2: #1d1d28;
+  --bg: #150c20;
+  --bg-sunk: #0e0716;
+  --surface: #221532;
+  --surface-2: #2b1b3e;
   --surface-inverse: #f4f4f8;
-  --line: #262632;
-  --line-strong: #37374a;
+  --line: #33204a;
+  --line-strong: #4a3067;
 
-  --ink: #f2f1f7;
-  --ink-2: #a5a5b8;
-  --ink-3: #75758c;
+  --ink: #f5eefb;
+  --ink-2: #b6a7c8;
+  --ink-3: #8b7aa6;
   --ink-inverse: #14141c;
 
-  --accent: #8b6cff;
-  --accent-strong: #a78bff;
-  --accent-ink: #12081f;
-  --accent-soft: rgba(139, 108, 255, 0.17);
-  --accent-lift: #b79bff;
-  --accent-deep: #4c1d95;
+  --accent: #ff5f1f;
+  --accent-strong: #ff7d47;
+  --accent-ink: #240a00;
+  --accent-soft: rgba(255, 95, 31, 0.16);
+  --accent-lift: #ff9b6b;
+  --accent-deep: #7a2a06;
   --sky: #56c7fb;
   --cyan: #4fdeef;
+  --violet: #9d6bff;
+  --violet-soft: rgba(157, 107, 255, 0.18);
+  --violet-ink: #150c20;
 
-  --energy: #ff6b3d;
-  --energy-strong: #ff8560;
-  --energy-soft: rgba(255, 107, 61, 0.17);
-  --energy-ink: #240c02;
+  --energy: #ff8a3d;
+  --energy-strong: #ffa367;
+  --energy-soft: rgba(255, 138, 61, 0.16);
+  --energy-ink: #241000;
 
   --success: #4ade80;
   --success-soft: rgba(74, 222, 128, 0.17);
@@ -334,30 +357,29 @@
    * a saturated glow on black carries much further than it does on lavender.
    */
   --ambient:
-    radial-gradient(76% 44% at -8% -10%, rgba(139, 108, 255, 0.3), transparent 66%),
-    radial-gradient(56% 32% at 106% 0%, rgba(56, 189, 248, 0.15), transparent 64%),
-    radial-gradient(44% 26% at 86% 16%, rgba(34, 211, 238, 0.09), transparent 68%),
-    radial-gradient(78% 44% at 100% 106%, rgba(139, 108, 255, 0.18), transparent 66%),
-    radial-gradient(56% 32% at 2% 98%, rgba(92, 157, 255, 0.12), transparent 68%);
+    radial-gradient(72% 42% at -6% -8%, rgba(124, 58, 237, 0.30), transparent 66%),
+    radial-gradient(58% 34% at 104% 2%, rgba(157, 107, 255, 0.20), transparent 64%),
+    radial-gradient(66% 38% at 100% 104%, rgba(255, 95, 31, 0.16), transparent 66%),
+    radial-gradient(60% 34% at 0% 100%, rgba(255, 95, 31, 0.12), transparent 68%);
 
-  --accent-glow: 0 8px 26px -10px rgba(139, 108, 255, 0.7);
-  --energy-glow: 0 8px 26px -10px rgba(255, 107, 61, 0.6);
+  --accent-glow: 0 8px 26px -10px rgba(255, 95, 31, 0.65);
+  --energy-glow: 0 8px 26px -10px rgba(255, 138, 61, 0.55);
   --success-glow: 0 8px 26px -10px rgba(74, 222, 128, 0.5);
 
 /*
  * The geometry is much fainter here: on a near-black page, structure at
  * light-theme opacity reads as a visible mesh rather than as texture.
  */
---structure-line: rgba(167, 139, 250, 0.045);
---structure-dot: rgba(167, 139, 250, 0.075);
---structure-ring: rgba(139, 108, 255, 0.09);
+--structure-line: rgba(196, 150, 255, 0.05);
+--structure-dot: rgba(196, 150, 255, 0.08);
+--structure-ring: rgba(255, 95, 31, 0.10);
 
 /*
  * Highlights. Used on the hero, the progress indicators, the active
  * control and the primary action — never on an ordinary card, or the
  * whole screen turns into neon.
  */
---glow-accent: 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 10px 30px -12px rgba(139, 108, 255, 0.55);
+--glow-accent: 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 10px 30px -12px rgba(255, 95, 31, 0.5);
 --glow-success: 0 0 0 1px color-mix(in srgb, var(--success) 34%, transparent), 0 10px 30px -12px rgba(74, 222, 128, 0.5);
 --glow-energy: 0 0 0 1px color-mix(in srgb, var(--energy) 34%, transparent), 0 10px 30px -12px rgba(255, 107, 61, 0.5);
 --glow-gold: 0 0 0 1px color-mix(in srgb, var(--gold) 34%, transparent), 0 10px 30px -12px rgba(232, 180, 74, 0.45);
@@ -367,32 +389,35 @@
 /* Follows the OS when the user has not made an explicit choice. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --bg: #0b0b12;
-    --bg-sunk: #07070c;
-    --surface: #16161f;
-    --surface-2: #1d1d28;
+    --bg: #150c20;
+    --bg-sunk: #0e0716;
+    --surface: #221532;
+    --surface-2: #2b1b3e;
     --surface-inverse: #f4f4f8;
-    --line: #262632;
-    --line-strong: #37374a;
+    --line: #33204a;
+    --line-strong: #4a3067;
 
-    --ink: #f2f1f7;
-    --ink-2: #a5a5b8;
-    --ink-3: #75758c;
+    --ink: #f5eefb;
+    --ink-2: #b6a7c8;
+    --ink-3: #8b7aa6;
     --ink-inverse: #14141c;
 
-    --accent: #8b6cff;
-    --accent-strong: #a78bff;
-    --accent-ink: #12081f;
-    --accent-soft: rgba(139, 108, 255, 0.17);
-    --accent-lift: #b79bff;
-    --accent-deep: #4c1d95;
+    --accent: #ff5f1f;
+    --accent-strong: #ff7d47;
+    --accent-ink: #240a00;
+    --accent-soft: rgba(255, 95, 31, 0.16);
+    --accent-lift: #ff9b6b;
+    --accent-deep: #7a2a06;
     --sky: #56c7fb;
     --cyan: #4fdeef;
+    --violet: #9d6bff;
+    --violet-soft: rgba(157, 107, 255, 0.18);
+    --violet-ink: #150c20;
 
-    --energy: #ff6b3d;
-    --energy-strong: #ff8560;
-    --energy-soft: rgba(255, 107, 61, 0.17);
-    --energy-ink: #240c02;
+    --energy: #ff8a3d;
+    --energy-strong: #ffa367;
+    --energy-soft: rgba(255, 138, 61, 0.16);
+    --energy-ink: #241000;
 
     --success: #4ade80;
     --success-soft: rgba(74, 222, 128, 0.17);
@@ -424,30 +449,29 @@
      * because a saturated glow on black carries much further than on lavender.
      */
     --ambient:
-      radial-gradient(76% 44% at -8% -10%, rgba(139, 108, 255, 0.3), transparent 66%),
-      radial-gradient(56% 32% at 106% 0%, rgba(56, 189, 248, 0.15), transparent 64%),
-      radial-gradient(44% 26% at 86% 16%, rgba(34, 211, 238, 0.09), transparent 68%),
-      radial-gradient(78% 44% at 100% 106%, rgba(139, 108, 255, 0.18), transparent 66%),
-      radial-gradient(56% 32% at 2% 98%, rgba(92, 157, 255, 0.12), transparent 68%);
+      radial-gradient(72% 42% at -6% -8%, rgba(124, 58, 237, 0.30), transparent 66%),
+      radial-gradient(58% 34% at 104% 2%, rgba(157, 107, 255, 0.20), transparent 64%),
+      radial-gradient(66% 38% at 100% 104%, rgba(255, 95, 31, 0.16), transparent 66%),
+      radial-gradient(60% 34% at 0% 100%, rgba(255, 95, 31, 0.12), transparent 68%);
 
-    --accent-glow: 0 8px 26px -10px rgba(139, 108, 255, 0.7);
-    --energy-glow: 0 8px 26px -10px rgba(255, 107, 61, 0.6);
+    --accent-glow: 0 8px 26px -10px rgba(255, 95, 31, 0.65);
+    --energy-glow: 0 8px 26px -10px rgba(255, 138, 61, 0.55);
     --success-glow: 0 8px 26px -10px rgba(74, 222, 128, 0.5);
 
   /*
    * The geometry is much fainter here: on a near-black page, structure at
    * light-theme opacity reads as a visible mesh rather than as texture.
    */
-  --structure-line: rgba(167, 139, 250, 0.045);
-  --structure-dot: rgba(167, 139, 250, 0.075);
-  --structure-ring: rgba(139, 108, 255, 0.09);
+  --structure-line: rgba(196, 150, 255, 0.05);
+  --structure-dot: rgba(196, 150, 255, 0.08);
+  --structure-ring: rgba(255, 95, 31, 0.10);
 
   /*
    * Highlights. Used on the hero, the progress indicators, the active
    * control and the primary action — never on an ordinary card, or the
    * whole screen turns into neon.
    */
-  --glow-accent: 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 10px 30px -12px rgba(139, 108, 255, 0.55);
+  --glow-accent: 0 0 0 1px color-mix(in srgb, var(--accent) 34%, transparent), 0 10px 30px -12px rgba(255, 95, 31, 0.5);
   --glow-success: 0 0 0 1px color-mix(in srgb, var(--success) 34%, transparent), 0 10px 30px -12px rgba(74, 222, 128, 0.5);
   --glow-energy: 0 0 0 1px color-mix(in srgb, var(--energy) 34%, transparent), 0 10px 30px -12px rgba(255, 107, 61, 0.5);
   --glow-gold: 0 0 0 1px color-mix(in srgb, var(--gold) 34%, transparent), 0 10px 30px -12px rgba(232, 180, 74, 0.45);

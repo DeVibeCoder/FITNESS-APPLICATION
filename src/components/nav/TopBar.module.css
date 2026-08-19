@@ -22,6 +22,9 @@ header.bar {
   top: 0;
   z-index: var(--z-header);
   height: calc(var(--header-h) + var(--safe-t));
+  /* Opaque, not frosted: the brand row is chrome, and the feed scrolling
+     through it made the wordmark hard to read. */
+  background: var(--surface);
   /* The bar itself provides the frost; the border only shows underneath. */
   border-width: 0 0 1px;
   border-radius: 0;
@@ -31,7 +34,7 @@ header.bar {
 .inner {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 0.5rem;
   height: 100%;
   padding-inline: max(var(--gutter), var(--safe-l)) max(var(--gutter), var(--safe-r));
   max-width: var(--content-max);
@@ -50,13 +53,23 @@ header.bar {
 
 .title {
   flex: 1;
+  min-width: 0;
   font-size: var(--t-h2);
-  font-weight: 650;
+  font-weight: 700;
   letter-spacing: -0.02em;
   /* A long page name truncates rather than pushing the actions off screen. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Home only: the title *is* the brand, so it is set as one. */
+.wordmark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.0625rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .links {
@@ -198,37 +211,68 @@ header.bar {
 }
 
 /*
- * Create, for desktop only. On a phone the raised + in the bottom bar owns
- * this action; up here there is no bottom bar, so the header has to carry it.
+ * Log. The one filled control in the bar, on every screen size.
+ *
+ * It used to be desktop-only because the bottom bar carried a raised +. That
+ * slot is gone, so this is the single way into logging anywhere — which is
+ * exactly why it earns the colour and the glow.
  */
 .create {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3125rem;
+  flex: none;
+  min-height: 36px;
+  padding: 0 0.875rem;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--accent-glow);
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.create:hover {
+  background: var(--accent-strong);
+}
+
+.create:active {
+  transform: scale(0.96);
+}
+
+/*
+ * Below 360px the label is dropped and the button becomes a round +. It keeps
+ * its accessible name through the button's own text content, which stays in
+ * the tree — clipped, not removed.
+ */
+@media (max-width: 22.5rem) {
+  .createLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+  }
+
+  .create {
+    gap: 0;
+    width: 36px;
+    padding: 0;
+  }
 }
 
 @media (min-width: 64rem) {
   .create {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--s-2);
     min-height: 38px;
     padding: 0 var(--s-4);
     margin-right: var(--s-2);
-    border-radius: var(--r-pill);
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-size: var(--t-small);
-    font-weight: 660;
-    box-shadow: var(--accent-glow);
-    transition:
-      background var(--fast) var(--ease),
-      transform var(--fast) var(--ease);
-  }
-
-  .create:hover {
-    background: var(--accent-strong);
-  }
-
-  .create:active {
-    transform: scale(0.96);
+    font-size: var(--t-body);
   }
 }

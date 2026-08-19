@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { BottomNav } from '@/components/nav/BottomNav'
 import { TopBar } from '@/components/nav/TopBar'
-import { LogSheetProvider, useLogSheet } from '@/context/LogSheetContext'
+import { LogSheetProvider } from '@/context/LogSheetContext'
 import styles from './AppShell.module.css'
 
 /**
@@ -20,7 +20,6 @@ export function AppShell() {
 }
 
 function Shell() {
-  const { open } = useLogSheet()
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -33,7 +32,7 @@ function Shell() {
       <main className={styles.main}>
         <Outlet />
       </main>
-      <BottomNav onCreate={() => open()} />
+      <BottomNav />
     </div>
   )
 }

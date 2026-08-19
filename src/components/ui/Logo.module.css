@@ -1,23 +1,23 @@
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: 0.625rem;
 }
 
-.tile {
-  display: grid;
-  place-items: center;
-  width: var(--tile, 42px);
-  height: var(--tile, 42px);
-  border-radius: 30%;
-  background: var(--surface);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--shadow-sm);
+/*
+ * The mark carries its own shape, so it needs no tile behind it. The previous
+ * version sat in a rounded square with a border, which at app-bar size read as
+ * a button and invited a tap that did nothing.
+ */
+.mark {
+  flex: none;
+  filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--accent) 38%, transparent));
 }
 
 .name {
   font-family: var(--font-display);
   font-size: var(--t-h2);
-  font-weight: 680;
-  letter-spacing: -0.03em;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
 }

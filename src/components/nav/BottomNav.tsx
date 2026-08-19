@@ -1,21 +1,22 @@
 import { NavLink } from 'react-router-dom'
-import { House, Activity, Users, MessageCircle, TrendingUp, User, Plus } from 'lucide-react'
+import { House, Activity, Users, MessageCircle, TrendingUp, User } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { chatService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
 import styles from './BottomNav.module.css'
 
 /**
- * Six destinations and one action.
+ * Six destinations, and no action.
  *
- * Chat and Progress are peers now rather than things you find inside Group and
- * Activity. Both were a second tap away from a screen that was already busy,
- * and both are checked several times a day — Chat because someone is waiting,
- * Progress because it is the reason any of this is being logged.
+ * Logging moved to the Log button in the header, which freed the centre slot
+ * the raised + used to occupy. That is a straight win: the raised button was
+ * the widest thing in the bar and it was not a destination, so it cost a
+ * column and broke the rhythm of the row for a control that belongs with the
+ * other one-off actions.
  *
- * Seven slots is more than the usual five. The bar is built for it: the labels
- * shrink a step below 380px, the columns can go to zero rather than forcing the
- * grid open, and Create keeps its own raised slot in the middle.
+ * Chat and Progress are peers rather than things you find inside Group and
+ * Activity — both are checked several times a day, Chat because someone is
+ * waiting and Progress because it is the reason any of this is being logged.
  */
 export const NAV_ITEMS = [
   { to: '/', label: 'Home', icon: House, end: true },
@@ -26,9 +27,8 @@ export const NAV_ITEMS = [
   { to: '/me', label: 'Me', icon: User, end: false },
 ]
 
-/** Fixed floating bar with Create raised in the middle. Phones and tablets. */
-export function BottomNav({ onCreate }: { onCreate: () => void }) {
-  const [home, activity, group, chat, progress, me] = NAV_ITEMS
+/** Fixed bar across the foot of the screen. Phones and tablets. */
+export function BottomNav() {
   const { user } = useAuth()
   // Unread chat lives here and nowhere else. The bell is for mentions.
   const summary = useLiveQuery(() => (user ? chatService.summary(user.id) : undefined), [user?.id])
@@ -38,23 +38,14 @@ export function BottomNav({ onCreate }: { onCreate: () => void }) {
     // list inside it. Insetting the fixed element itself made it resolve
     // against a containing block wider than the screen and overflow.
     <nav className={styles.nav} aria-label="Main">
-      <ul className={`glass ${styles.list}`}>
-        <NavItem key={home.to} {...home} />
-        <NavItem key={activity.to} {...activity} />
-        <NavItem key={group.to} {...group} />
-
-        <li className={styles.logSlot}>
-          <button className={styles.logButton} onClick={onCreate} aria-label="Create">
-            <Plus size={22} strokeWidth={2.7} />
-          </button>
-          <span className={styles.logLabel} aria-hidden="true">
-            Create
-          </span>
-        </li>
-
-        <NavItem key={chat.to} {...chat} badge={summary?.unread ?? 0} />
-        <NavItem key={progress.to} {...progress} />
-        <NavItem key={me.to} {...me} />
+      <ul className={styles.list}>
+        {NAV_ITEMS.map((item) => (
+          <NavItem
+            key={item.to}
+            {...item}
+            badge={item.to === '/chat' ? (summary?.unread ?? 0) : 0}
+          />
+        ))}
       </ul>
     </nav>
   )
@@ -77,7 +68,7 @@ function NavItem({
         {({ isActive }) => (
           <>
             <span className={styles.iconWrap}>
-              <Icon size={19} strokeWidth={isActive ? 2.5 : 1.9} />
+              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.9} />
               {badge > 0 ? (
                 <span className={styles.badge}>
                   {badge > 9 ? '9+' : badge}

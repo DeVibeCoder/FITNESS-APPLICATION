@@ -1,9 +1,11 @@
 /*
- * A floating bar rather than a full-width strip.
+ * A flat bar across the foot of the screen, not a floating pill.
  *
- * Inset from the edges with its own radius and shadow, so it reads as a
- * control hovering over the page — which is what native fitness apps do and
- * what makes the app feel less like a web page in a browser.
+ * The floating version existed to feel native while the raised Create button
+ * gave it a reason to have its own shape. With logging moved to the header,
+ * six equal tabs read better edge to edge: the row has one rhythm, the labels
+ * get the width back that the inset was taking, and the bar stops competing
+ * with the cards it sits under.
  */
 .nav {
   position: fixed;
@@ -22,40 +24,24 @@
    * never be the reason the screen scrolls.
    */
   max-width: 100vw;
-  /*
-   * Positioning only — no background, so nothing here can overflow. The inset
-   * is tighter than the page gutter: seven columns need every pixel, and the
-   * bar reads as inset at 10px just as well as at 18px.
-   */
-  padding: 0 max(0.375rem, var(--safe-l)) calc(var(--safe-b) + 0.5rem)
-    max(0.375rem, var(--safe-r));
-  pointer-events: none;
+  padding-bottom: var(--safe-b);
+  padding-inline: max(0.25rem, var(--safe-l)) max(0.25rem, var(--safe-r));
+  background: var(--surface);
+  border-top: 1px solid var(--line);
 }
 
-/* The floating card: inset by the nav's padding, capped, and centred. */
 .list {
   display: grid;
   /*
    * minmax(0, 1fr), not 1fr. A bare 1fr floors each column at its min-content
-   * width, and seven of those together comfortably exceed 320px — which would
-   * push the whole bar wider than the screen. Letting the columns shrink
-   * removes the floor.
+   * width, and six of those together exceed 320px — which would push the whole
+   * bar wider than the screen. Letting the columns shrink removes the floor.
    */
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   height: var(--nav-h);
-  max-width: calc(var(--content-max) - var(--gutter));
+  max-width: var(--content-max);
   margin-inline: auto;
-  border-radius: var(--r-xl);
-  box-shadow: var(--shadow-lg);
-  pointer-events: auto;
-  /*
-   * More opaque than the standard glass, and tinted toward the brand. The bar
-   * floats over whatever the page happens to be showing — a chart, a photo,
-   * the ambient washes — and 10px labels need to stay readable against all of
-   * it, so legibility wins over translucency here.
-   */
-  background: color-mix(in srgb, var(--surface) 91%, var(--accent) 4%);
 }
 
 .item {
@@ -71,7 +57,7 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.125rem;
+  gap: 0.1875rem;
   width: 100%;
   height: var(--nav-h);
   color: var(--ink-3);
@@ -83,114 +69,35 @@
 }
 
 /*
- * The active item gets a soft brand pad behind the icon plus a short bar above
- * it. At 19px an icon alone is a weak signal on a busy bar, and colour alone
- * fails for anyone who cannot distinguish it.
- *
- * The pad is sized in percentages so it narrows with the column instead of
- * spilling past it at 320px, and the icon never moves between states — a tab
- * that jumps a pixel when selected reads as a rendering fault.
+ * No pill behind the active icon any more. The reference marks the current tab
+ * with colour alone on a flat bar, and a filled pad under a 22px icon on a
+ * borderless row read as a stray chip. Weight and colour carry it instead —
+ * and the label bolds too, so it does not rely on hue alone.
  */
 .iconWrap {
   position: relative;
   display: grid;
   place-items: center;
-  width: 100%;
-  max-width: 38px;
-  height: 26px;
-  border-radius: var(--r-pill);
-  transition: background var(--med) var(--ease);
+  height: 24px;
 }
 
 .active {
   color: var(--accent);
 }
 
-.active .iconWrap {
-  background: var(--accent-soft);
+.active .label {
+  font-weight: 750;
 }
 
-/* The indicator: a short accent rule riding the top edge of the active tab. */
-.active::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  width: 16px;
-  height: 2px;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  box-shadow: var(--accent-glow);
-}
-
-/*
- * Labels stay. Seven of them fit because the type steps down rather than
- * because anything was abbreviated or hidden — "Progress" and "Activity" are
- * the two that decide the size, and both are measured at 320px in QA.
- */
 .label {
   max-width: 100%;
-  font-size: 0.5625rem;
-  font-weight: 660;
+  font-size: 0.625rem;
+  font-weight: 600;
   letter-spacing: -0.005em;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.logSlot {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.125rem;
-}
-
-/*
- * Coral, because this button starts a workout log and coral means training
- * everywhere else. It is the only coral in the navigation.
- *
- * Wider than its column on purpose: it is raised clear of the bar, so the
- * overhang sits over empty air rather than over its neighbours' hit areas.
- */
-.logButton {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  margin-top: -1.375rem;
-  border-radius: 15px;
-  background: var(--energy);
-  color: var(--energy-ink);
-  box-shadow: var(--energy-glow);
-  transition:
-    transform var(--fast) var(--ease),
-    background-color var(--fast) var(--ease);
-}
-
-.logButton:active {
-  transform: scale(0.9);
-  background: var(--energy-strong);
-}
-
-.logLabel {
-  font-size: 0.5625rem;
-  font-weight: 660;
-  letter-spacing: -0.005em;
-  line-height: 1.1;
-  color: var(--ink-3);
-}
-
-/* A little more room once the screen allows it. */
-@media (min-width: 23.75rem) {
-  .label,
-  .logLabel {
-    font-size: 0.625rem;
-  }
-
-  .nav {
-    padding-inline: max(var(--gutter), var(--safe-l)) max(var(--gutter), var(--safe-r));
-  }
 }
 
 @media (min-width: 64rem) {
@@ -200,22 +107,23 @@
 }
 
 /*
- * Unread chat, on the one tab it concerns. Coral so it reads as "someone is
- * waiting" rather than as brand decoration, and capped at 9+.
+ * Unread chat, on the one tab it concerns. It rides the icon's top-right and
+ * is capped at 9+ so it cannot widen the column.
  */
 .badge {
   position: absolute;
-  top: -3px;
-  right: 2px;
-  min-width: 15px;
-  height: 15px;
-  padding: 0 3px;
+  top: -5px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
   display: grid;
   place-items: center;
   border-radius: var(--r-pill);
-  background: var(--energy);
-  color: var(--energy-ink);
+  background: var(--accent);
+  color: var(--accent-ink);
   font-size: 0.5625rem;
-  font-weight: 750;
+  font-weight: 800;
   line-height: 1;
+  border: 2px solid var(--surface);
 }

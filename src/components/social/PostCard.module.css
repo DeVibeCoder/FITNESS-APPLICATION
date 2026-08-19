@@ -2,13 +2,16 @@
  * Posts are opaque, not glass. They are the body content of the feed — the one
  * place where legibility beats effect, and where a translucent background
  * would put running text over whatever happened to scroll behind it.
+ *
+ * Padding lives on the rows rather than the card, because media runs full
+ * bleed to the edges and a padded card cannot do that without negative
+ * margins that fight the border radius.
  */
 .card {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
-  padding: var(--s-4) var(--s-5) var(--s-3);
-  border-radius: var(--card-radius);
+  overflow: hidden;
+  border-radius: var(--r-lg);
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
@@ -17,7 +20,8 @@
 .head {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: 0.625rem;
+  padding: var(--s-4) var(--s-4) 0.625rem;
 }
 
 .avatar {
@@ -27,32 +31,55 @@
 
 .who {
   min-width: 0;
+  flex: 1;
 }
 
 .name {
   font-size: var(--t-body);
-  font-weight: 680;
+  font-weight: 720;
   letter-spacing: -0.01em;
 }
 
 .when {
   display: flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 0.4375rem;
   font-size: var(--t-small);
   color: var(--ink-3);
 }
 
-/* What kind of post it is, when that is not obvious from the text. */
+/*
+ * What kind of post it is. Violet rather than the ember accent: this is a
+ * label, not an action, and the two must not be confused at a glance.
+ */
 .kind {
-  padding: 0.0625rem 0.4375rem;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
+  padding: 0.125rem 0.4375rem;
+  border-radius: 6px;
+  background: var(--violet-soft);
+  color: var(--violet);
   font-size: var(--t-micro);
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+/* Edge to edge. The card's overflow:hidden clips it to the radius. */
+.media {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-sunk);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: 0.875rem var(--s-4) 0;
+}
+
+.body:empty {
+  display: none;
 }
 
 .text {
@@ -69,9 +96,17 @@
 .footer {
   display: flex;
   align-items: center;
-  gap: var(--s-5);
-  padding-top: var(--s-2);
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: 0.875rem;
+  padding: 0.625rem var(--s-4) 0.875rem;
   border-top: 1px solid var(--line);
+}
+
+.counts {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-5);
 }
 
 /*
@@ -81,8 +116,28 @@
 .count {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-2);
+  gap: 0.375rem;
   font-size: var(--t-small);
-  font-weight: 600;
+  font-weight: 650;
   color: var(--ink-3);
+}
+
+/* A post somebody actually reacted to gets a filled heart. */
+.hearted {
+  color: var(--accent);
+  fill: var(--accent);
+}
+
+/*
+ * How the group answered, in a word. Warm, right-aligned, and deliberately not
+ * a control — see the note in PostCard.tsx.
+ */
+.reaction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: var(--t-small);
+  font-weight: 750;
+  color: var(--accent);
+  white-space: nowrap;
 }

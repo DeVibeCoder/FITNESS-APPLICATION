@@ -323,28 +323,34 @@ section('Information architecture')
 const ia = []
 
 const navSource = read(join(ROOT, 'src/components/nav/BottomNav.tsx'))
+// Desktop has no bottom bar, so the top bar has to offer the same destinations.
+const topSource = read(join(ROOT, 'src/components/nav/TopBar.tsx'))
 const navLabels = [...navSource.matchAll(/label:\s*'([^']+)'/g)].map((m) => m[1])
 const EXPECTED_NAV = ['Home', 'Activity', 'Group', 'Chat', 'Progress', 'Me']
 if (navLabels.join(',') !== EXPECTED_NAV.join(',')) {
   ia.push(`bottom nav is [${navLabels.join(', ')}], expected [${EXPECTED_NAV.join(', ')}]`)
 }
-// Create is an action rather than a destination, so it is not in NAV_ITEMS —
-// but it must still be rendered, in the middle, as its own raised slot.
-if (!/logSlot/.test(navSource) || !/aria-label="Create"/.test(navSource)) {
-  ia.push('the Create slot is missing from the bottom bar')
+/*
+ * Logging lives in the header now, not in a raised centre slot. The bottom bar
+ * is six destinations and nothing else — so the checks are the mirror image of
+ * what they were: the bar must NOT carry a Create control, and the header MUST.
+ */
+if (/logSlot/.test(navSource) || /aria-label="Create"/.test(navSource)) {
+  ia.push('the bottom bar has grown a Create slot again — logging belongs in the header')
+}
+if (!/useLogSheet/.test(topSource) || !/styles\.create/.test(topSource)) {
+  ia.push('the header has no Log button, so there is no way to log on a phone')
 }
 const columns = /grid-template-columns:\s*repeat\((\d+),\s*minmax\(0/.exec(
   read(join(ROOT, 'src/components/nav/BottomNav.module.css')),
 )
-if (columns?.[1] !== '7') {
-  ia.push(`the bar is laid out in ${columns?.[1] ?? '?'} columns, expected 7`)
+if (columns?.[1] !== '6') {
+  ia.push(`the bar is laid out in ${columns?.[1] ?? '?'} columns, expected 6`)
 }
 if (!/max-width:\s*100vw/.test(read(join(ROOT, 'src/components/nav/BottomNav.module.css')))) {
   ia.push('the fixed nav is not capped at the viewport — it can widen the document')
 }
 
-// Desktop has no bottom bar, so the top bar has to offer the same destinations.
-const topSource = read(join(ROOT, 'src/components/nav/TopBar.tsx'))
 for (const target of ['/chat', '/progress', '/group', '/activity']) {
   if (!topSource.includes(`to: '${target}'`)) {
     ia.push(`${target} is unreachable on desktop — not in the top bar`)
