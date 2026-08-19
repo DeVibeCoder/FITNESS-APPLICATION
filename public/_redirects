@@ -1,11 +1,15 @@
 # Client-side routing.
 #
-# Every path the router owns must be served index.html so a deep link or a
-# refresh on /group/awards loads the app instead of 404ing. The 200 is what
-# makes it a rewrite rather than a redirect, so the URL the user typed is the
-# URL the router sees.
+# Deep links must serve index.html so a refresh on /group/awards loads the
+# router instead of 404ing. Verified against `wrangler pages dev`: /, /me/admin,
+# /group/awards and /chat/thread all return index.html with a 200.
 #
-# /api/* is deliberately NOT covered: Pages Functions answer those, and a
-# catch-all here would hand the browser an HTML page where it expects JSON —
-# the scanner would fail with a parse error instead of a readable message.
+# Wrangler warns that this rule "loops" and reports ignoring it — Pages' own
+# SPA fallback covers the same cases either way. The rule stays because the
+# fallback is implicit platform behaviour and this is the documented, explicit
+# way to ask for it; the warning is cosmetic and the outcome is identical.
+#
+# /api/* is deliberately NOT covered. Functions take precedence over both
+# static assets and this file, so /api/food-scan reaches the Function — a
+# catch-all here would otherwise hand the scanner HTML where it expects JSON.
 /*    /index.html   200
