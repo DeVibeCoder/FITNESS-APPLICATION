@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "verify": "tsx --tsconfig tsconfig.app.json scripts/verify-data.ts",
     "icons": "node scripts/generate-icons.mjs",
-    "audit": "node scripts/audit.mjs"
+    "audit": "node scripts/audit.mjs",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name fitness-application --branch main"
   },
   "dependencies": {
     "dexie": "^4.4.5",
