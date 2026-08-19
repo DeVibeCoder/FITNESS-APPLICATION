@@ -1,0 +1,43 @@
+.figure {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  max-width: 20rem;
+  aspect-ratio: 5 / 3;
+  margin: 0 auto;
+  border-radius: var(--r-xl);
+  background: color-mix(in srgb, var(--wp-fg, #f7f6f3) 7%, transparent);
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.mark {
+  width: 100%;
+  height: 100%;
+}
+
+.ring {
+  fill: none;
+  stroke: color-mix(in srgb, var(--wp-fg, #f7f6f3) 22%, transparent);
+  stroke-width: 10;
+}
+
+.dot {
+  fill: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+
+.groups {
+  position: absolute;
+  bottom: 0.625rem;
+  font-size: var(--t-micro);
+  font-weight: 650;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--wp-fg, #f7f6f3) 45%, transparent);
+}

@@ -1,0 +1,476 @@
+/*
+ * The page fills what is left of the viewport under the app bar, so the
+ * composer sits at the bottom even when there are only two messages.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100dvh - var(--header-offset) - var(--s-4) - var(--scroll-pad));
+  /*
+   * The shell pads every page clear of the bottom bar, but the dock already
+   * carries that clearance itself. Without cancelling it the document ended
+   * with ~160px of dead space that you had to scroll through to reach the
+   * composer.
+   */
+  margin-bottom: calc(var(--scroll-pad) * -1);
+}
+
+/*
+ * Back, who is here, faces. Nothing else competes with the conversation.
+ *
+ * Sticky, and deliberately not in normal flow: the header used to scroll away
+ * with the thread, so a few hundred messages up there was no way back without
+ * scrolling all the way down again. It pins below the app bar, bleeds into the
+ * page gutters so nothing shows past its sides, and carries its own frosted
+ * ground so messages passing underneath stay readable.
+ */
+.head {
+  position: sticky;
+  top: var(--header-offset);
+  z-index: var(--z-sticky-inner);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-inline: calc(var(--gutter) * -1);
+  padding: var(--s-3) var(--gutter);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  border-bottom: 1px solid var(--line);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .head {
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+    backdrop-filter: blur(var(--blur)) saturate(180%);
+  }
+}
+
+@media (min-width: 64rem) {
+  .head {
+    /* The desktop app bar is taller. */
+    top: calc(var(--header-h-desktop) + var(--safe-t));
+    margin-inline: calc(var(--s-5) * -1);
+    padding-inline: var(--s-5);
+  }
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  margin-left: calc(var(--s-2) * -1);
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  transition: background var(--fast) var(--ease);
+}
+
+.back:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.faces {
+  display: flex;
+  flex: none;
+}
+
+.face {
+  border-radius: var(--r-pill);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+.face + .face {
+  margin-left: -0.5rem;
+}
+
+.thread {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-top: var(--s-2);
+}
+
+/*
+ * The bottom padding clears the dock's opaque ground. Without it the newest
+ * message sat under the composer at full scroll — technically on screen, and
+ * unreadable, which is the worse of the two failures.
+ */
+.list {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: var(--s-3);
+}
+
+/* --- Empty state ---------------------------------------------------------- */
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  align-items: center;
+  text-align: center;
+  padding: var(--s-10) var(--s-4);
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 660;
+  letter-spacing: -0.02em;
+}
+
+.emptyBody {
+  font-size: var(--t-body);
+  color: var(--ink-2);
+}
+
+/* --- Dock: quick shares + composer ---------------------------------------- */
+
+/*
+ * Sticks above the bottom bar rather than under it. The offset is the bar's
+ * height plus the safe area; on desktop the bar is gone, so it drops to a
+ * plain margin.
+ */
+.dock {
+  position: sticky;
+  /*
+   * Pinned to the very bottom, with the bar's height taken as padding instead
+   * of an offset. Offsetting it left a live strip underneath through which
+   * messages scrolled past in full view; this way the dock's own background
+   * covers everything down to the edge, and the composer still sits clear of
+   * the bottom bar.
+   */
+  bottom: 0;
+  padding-bottom: calc(var(--nav-h) + var(--safe-b) + 1.375rem);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-8);
+  /*
+   * The thread scrolls underneath, so the dock needs its own ground — without
+   * it, messages showed through the gaps between the share chips. The gradient
+   * fades the page out above rather than cutting it off with a hard edge, and
+   * the bleed widens the cover into the page gutters so nothing peeks past the
+   * sides.
+   */
+  background: linear-gradient(to bottom, transparent, var(--bg) 2rem);
+  margin-inline: calc(var(--gutter) * -1);
+  padding-inline: var(--gutter);
+}
+
+/*
+ * A four-column grid rather than a scrolling row. Four chips did not fit 390px
+ * side by side, and a row that has to be swiped hides whatever is off the end —
+ * which is exactly what a quick action must not do. The grid fits at 320px.
+ */
+.shareRow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+.share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-micro);
+  font-weight: 640;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+/* The icon is the anchor; on the narrowest phones the label can go. */
+.share svg {
+  flex: none;
+}
+
+/*
+ * Below ~360px four labels cannot fit without truncating mid-word. The label
+ * is hidden visually but stays in the accessibility tree — clipped, not
+ * display:none — so the button keeps its name for a screen reader.
+ */
+@media (max-width: 23rem) {
+  .shareLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .share {
+    gap: 0;
+  }
+}
+
+/* The second row holds two, so they sit under the first two columns. */
+.shareRow + .shareRow .share {
+  grid-column: span 2;
+}
+
+.share:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.share:active {
+  transform: scale(0.96);
+}
+
+.composer {
+  border-radius: var(--r-xl);
+  padding: var(--s-2);
+}
+
+.inputRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  /* Matches the send button so a single line sits centred against it. */
+  min-height: 40px;
+  max-height: 7.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: var(--r);
+  background: transparent;
+  font-size: var(--t-body);
+  line-height: 1.4;
+  resize: none;
+  overflow-y: auto;
+}
+
+.input:focus {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+  transition:
+    transform var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
+}
+
+.send:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+/*
+ * --surface-2, not --bg-sunk. In dark, sunk is nearly black and the disabled
+ * arrow all but vanished against the composer it sits inside — a control you
+ * cannot see is worse than one you cannot press yet.
+ */
+.send:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* --- Reply banner --------------------------------------------------------- */
+
+.replying {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-2) var(--s-2) var(--s-3);
+  margin-bottom: var(--s-1);
+  border-radius: var(--r);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-sunk);
+}
+
+.replyingText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.replyingName {
+  font-size: var(--t-small);
+  font-weight: 640;
+  color: var(--accent-strong);
+}
+
+.replyingBody {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cancelReply {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-pill);
+  color: var(--ink-3);
+}
+
+.cancelReply:hover {
+  color: var(--ink);
+}
+
+/* --- Desktop: centred column, no bottom bar to clear ---------------------- */
+
+@media (min-width: 64rem) {
+  .page {
+    min-height: calc(100dvh - 4rem - var(--s-6) - var(--s-10));
+    max-width: 46rem;
+    margin-inline: auto;
+    /* Desktop drops the bottom bar, so the shell's padding is smaller. */
+    margin-bottom: calc(var(--s-10) * -1);
+    width: 100%;
+  }
+
+  .dock {
+    padding-bottom: var(--s-4);
+    margin-inline: calc(var(--s-5) * -1);
+    padding-inline: var(--s-5);
+  }
+}
+
+/* --- New-messages divider ------------------------------------------------- */
+
+/*
+ * A rule across the thread with a label in the middle. Scroll position lands
+ * here on open, so this is what answers "where was I".
+ */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin: var(--s-5) 0 var(--s-2);
+  /* Enough room above so the label is not flush against the previous bubble. */
+  scroll-margin-top: 34vh;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: color-mix(in srgb, var(--accent) 32%, transparent);
+}
+
+.divider span {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* --- New-message indicator ------------------------------------------------ */
+
+.newMessage {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: center;
+  min-height: 34px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--t-small);
+  font-weight: 650;
+  box-shadow: var(--accent-glow);
+  animation: rise var(--med) var(--ease-out);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/*
+ * Quieter sibling: being scrolled up is not news, so this is a plain surface
+ * chip rather than the brand pill. Only "someone said something" gets colour.
+ */
+.jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  align-self: center;
+  min-height: 34px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 650;
+  box-shadow: var(--shadow);
+}
+
+.jump:hover {
+  color: var(--ink);
+}
+
+/* The More chip stays lit while its extra row is open. */
+.sharePressed {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}

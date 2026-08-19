@@ -1,0 +1,266 @@
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+}
+
+body {
+  min-height: 100%;
+  /* Just the paper. The atmosphere and the geometry are layers of their own. */
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: var(--t-body);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* No rubber-band bounce revealing the page behind the app shell. */
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
+ * The background, in two fixed layers behind everything.
+ *
+ * `position: fixed` rather than `background-attachment: fixed` on the body:
+ * a fixed attachment forces the browser to repaint the whole gradient stack on
+ * every scroll frame, which is exactly the thing that makes a web app feel like
+ * a web app on a phone. A fixed layer is composited once and left alone.
+ *
+ * `inset: -1px` hides the hairline some engines leave along the edge when a
+ * gradient is sampled at a fractional device pixel. `z-index: -1` puts both
+ * behind #root without either of them being able to catch a tap.
+ */
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* Layer 1–3: the soft violet forms, the blue/cyan glow, the white key light. */
+body::before {
+  background: var(--ambient);
+}
+
+/* Layer 4–6: speed lines, dotted grid, training rings. */
+body::after {
+  background: var(--structure);
+  background-size: var(--structure-size);
+  background-position: var(--structure-position);
+  background-repeat: var(--structure-repeat);
+}
+
+#root {
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+/*
+ * Theme switch: ease the colours, nothing else.
+ *
+ * Restricted to these five properties on purpose. A blanket `transition: all`
+ * would also animate layout and transforms, so every hover and every mounting
+ * card would drift for 180ms. `prefers-reduced-motion` below drops it to
+ * nothing, and no transition is declared on the root itself — the tokens
+ * change instantly and each element eases to its own new value.
+ */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-duration: 180ms;
+  transition-timing-function: var(--ease);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 650;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--t-h1);
+}
+h2 {
+  font-size: var(--t-h2);
+}
+h3 {
+  font-size: var(--t-h3);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+img,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+ul,
+ol {
+  list-style: none;
+  padding: 0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
+/* Numbers in stats must not jitter as they update. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/*
+ * The one number a card is about: weight, steps, calories, a percentage.
+ * Tight tracking and heavy weight are what make a figure read as athletic
+ * rather than as a cell in a table.
+ */
+.stat {
+  font-family: var(--font-display);
+  font-weight: 750;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+/* The unit that follows a stat — present, but never competing with it. */
+.unit {
+  font-family: var(--font);
+  font-size: 0.42em;
+  font-weight: 620;
+  letter-spacing: 0.01em;
+  color: var(--ink-2);
+}
+
+/*
+ * Brand-gradient text, for a hero figure that should carry the identity.
+ * Used once per screen at most.
+ */
+.gradientText {
+  background: var(--brand-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Small uppercase section label, e.g. TODAY / OUR PROGRESS */
+.eyebrow {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/*
+ * Frosted surface. Applied to the app bars, sheets and the one headline card
+ * per screen — never to ordinary cards, where translucency would only make
+ * text harder to read.
+ *
+ * The sheen is a separate layer so the lit top edge survives whatever
+ * background the element sits on.
+ */
+.glass {
+  position: relative;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow);
+}
+
+@supports (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)) {
+  .glass {
+    -webkit-backdrop-filter: blur(var(--blur)) saturate(180%);
+    backdrop-filter: blur(var(--blur)) saturate(180%);
+  }
+}
+
+.glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--glass-sheen);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Content inside a glass surface has to sit above the sheen. */
+.glass > * {
+  position: relative;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

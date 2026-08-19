@@ -1,0 +1,135 @@
+import { Link } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { PenLine } from 'lucide-react'
+import { LoadingScreen } from '@/components/ui/EmptyState'
+import { Section } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { StoriesRail } from '@/components/social/StoriesRail'
+import { PostCard } from '@/components/social/PostCard'
+import { GroupList } from '@/components/group/GroupList'
+import { ChallengeCard } from '@/components/group/ChallengeCard'
+import { HomeMotivation } from '@/components/motivation/HomeMotivation'
+import { useAuth } from '@/context/AuthContext'
+import { useLogSheet } from '@/context/LogSheetContext'
+import { postService, progressService } from '@/services'
+import { formatFullDate, greeting, todayKey } from '@/utils/date'
+import { firstName } from '@/utils/format'
+import { encouragementLine } from '@/data/messages'
+import styles from './Home.module.css'
+
+/**
+ * Home is the feed. Only the feed.
+ *
+ * Greeting, stories, a prompt to post, then posts — and nothing pinned below
+ * them. That last part is the constraint that matters: a feed grows, so
+ * anything parked underneath it drifts further out of reach with every post.
+ * Group, Chat, Progress and Activity are all one tap away in the bottom bar,
+ * which is a fixed distance no matter how much the group has been talking.
+ *
+ * The desktop rail is the exception, and only because it sits beside the feed
+ * rather than after it.
+ *
+ * Phase 1 renders the feed read-only from seeded posts. Writing, reacting and
+ * commenting are Phase 2.
+ */
+export function Home() {
+  const { user } = useAuth()
+  const { open } = useLogSheet()
+  const today = todayKey()
+
+  const posts = useLiveQuery(() => (user ? postService.feed(user.id) : undefined), [user?.id])
+  // Desktop rail only; the mobile layout never renders it.
+  const group = useLiveQuery(() => progressService.groupSnapshot(today), [today])
+
+  if (!user || posts === undefined) return <LoadingScreen />
+
+  return (
+    <div className={styles.page}>
+      <header className={styles.greeting}>
+        <h2 className={styles.hello}>
+          {greeting()}, {firstName(user.name)} <span aria-hidden="true">👋</span>
+        </h2>
+        <p className={styles.date}>
+          {formatFullDate(today)} · {encouragementLine(user.id, today)}
+        </p>
+      </header>
+
+      <StoriesRail />
+
+      {/*
+        No shortcut strip under the stories. Group, Chat and Challenge each
+        have a real destination now — three chips repeating what the bottom bar
+        already offers were costing the feed its first screen and nothing else.
+      */}
+      <div className={styles.columns}>
+        <div className={styles.main}>
+          {/* The one prompt on the screen: say something. */}
+          <button className={`glass ${styles.composer}`} onClick={() => open('post')}>
+            <span className={styles.composerIcon}>
+              <PenLine size={16} strokeWidth={2.2} />
+            </span>
+            <span className={styles.composerText}>Share something with the group…</span>
+          </button>
+
+          {posts.length === 0 ? (
+            <div className={styles.empty}>
+              <p className={styles.emptyTitle}>Nothing here yet.</p>
+              <p className={styles.emptyBody}>
+                When someone posts, it shows up here for the three of you.
+              </p>
+              <Button onClick={() => open('post')}>Write the first one</Button>
+            </div>
+          ) : (
+            <ul className={styles.feed}>
+              {posts.map((post) => (
+                <li key={post.id}>
+                  <PostCard post={post} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/*
+          Desktop only, and beside the feed rather than after it. Contextual
+          summaries — not a second copy of the primary navigation, which lives
+          in the top bar on this breakpoint.
+        */}
+        <aside className={styles.rail}>
+          <Section
+            title="Our group"
+            action={
+              <Link to="/group" className={styles.sectionLink}>
+                Open
+              </Link>
+            }
+          >
+            {group ? <GroupList members={group} currentUserId={user.id} /> : null}
+          </Section>
+
+          <Section
+            title="This week's challenge"
+            action={
+              <Link to="/group/challenge" className={styles.sectionLink}>
+                Details
+              </Link>
+            }
+          >
+            <ChallengeCard />
+          </Section>
+
+          <Section
+            title="This week's motivation"
+            action={
+              <Link to="/motivation" className={styles.sectionLink}>
+                More
+              </Link>
+            }
+          >
+            <HomeMotivation userId={user.id} />
+          </Section>
+        </aside>
+      </div>
+    </div>
+  )
+}

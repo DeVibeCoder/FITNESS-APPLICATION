@@ -1,0 +1,95 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: var(--s-2);
+}
+
+.item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: var(--s-4) 0.625rem;
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  text-align: center;
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .item:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/*
+ * An earned badge: a hexagonal gold plate with a thin ring and a warm glow.
+ * The shape is what makes it read as an award rather than as an app icon, and
+ * clip-path costs nothing — no images, no sprite sheet.
+ */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  font-size: 1.25rem;
+  line-height: 1;
+  background: linear-gradient(150deg, var(--gold-soft), color-mix(in srgb, var(--gold) 26%, transparent));
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--gold) 34%, transparent));
+}
+
+/* Earned badges carry a hairline gold edge, drawn as a slightly larger plate. */
+.item:not(.locked)::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--s-4) - 2px);
+  width: calc(3rem + 4px);
+  height: calc(3rem + 4px);
+  background: color-mix(in srgb, var(--gold) 45%, transparent);
+  clip-path: polygon(50% 0%, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%);
+  z-index: 0;
+}
+
+.item > * {
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  font-size: var(--t-small);
+  font-weight: 680;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+.meta {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+/*
+ * Locked badges keep the same silhouette so the set reads as a map of what is
+ * possible. They are quieter, not greyed into invisibility — a goal you cannot
+ * see is not a goal.
+ */
+.locked {
+  background: var(--surface-2);
+  border-style: dashed;
+}
+
+.locked .icon {
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+  filter: none;
+}
+
+.locked .title {
+  color: var(--ink-2);
+}

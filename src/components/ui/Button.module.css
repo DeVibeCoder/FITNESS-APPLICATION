@@ -1,0 +1,109 @@
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: var(--r);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    transform var(--fast) var(--ease),
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
+}
+
+.button:active:not(:disabled) {
+  transform: scale(0.975);
+}
+
+.button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.button svg {
+  flex-shrink: 0;
+}
+
+/* --- Sizes: all comfortably thumb-sized --- */
+.sm {
+  min-height: 36px;
+  padding: 0 0.75rem;
+  font-size: var(--t-small);
+  border-radius: var(--r-sm);
+}
+
+.md {
+  min-height: var(--tap);
+  padding: 0 1rem;
+  font-size: var(--t-body);
+}
+
+.lg {
+  min-height: 54px;
+  padding: 0 1.25rem;
+  font-size: 1rem;
+  border-radius: var(--r-lg);
+}
+
+.block {
+  display: flex;
+  width: 100%;
+}
+
+/* --- Variants --- */
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+}
+
+.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  transform: translateY(-1px);
+}
+
+/*
+ * A disabled primary must not be a dimmed accent. At 45% the orange goes muddy
+ * — especially on a dark background — and reads as a broken button rather than
+ * one that is waiting. Neutral makes "not yet" unmistakably different from "go".
+ */
+.primary:disabled {
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+  box-shadow: none;
+  opacity: 1;
+}
+
+.secondary {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.secondary:hover:not(:disabled) {
+  border-color: var(--line-strong);
+}
+
+.ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+.danger {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.danger:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}

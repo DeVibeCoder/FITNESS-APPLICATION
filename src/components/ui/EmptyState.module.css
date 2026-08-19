@@ -1,0 +1,82 @@
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.375rem;
+  padding: var(--s-8) var(--s-5);
+  background: var(--surface);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-lg);
+}
+
+.compact {
+  padding: var(--s-5) var(--s-4);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-weight: 650;
+  font-size: var(--t-h3);
+  letter-spacing: -0.01em;
+}
+
+.body {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  max-width: 26ch;
+}
+
+.action {
+  margin-top: var(--s-3);
+}
+
+.skeleton {
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--bg-sunk) 25%,
+    var(--surface-2) 50%,
+    var(--bg-sunk) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.loading {
+  display: grid;
+  place-items: center;
+  min-height: 60dvh;
+}
+
+.spinner {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  border: 2.5px solid var(--line);
+  border-top-color: var(--accent);
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

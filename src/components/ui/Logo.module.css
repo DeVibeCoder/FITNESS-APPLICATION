@@ -1,0 +1,23 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.tile {
+  display: grid;
+  place-items: center;
+  width: var(--tile, 42px);
+  height: var(--tile, 42px);
+  border-radius: 30%;
+  background: var(--surface);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 680;
+  letter-spacing: -0.03em;
+}

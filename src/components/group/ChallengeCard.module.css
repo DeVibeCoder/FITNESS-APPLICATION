@@ -1,0 +1,149 @@
+/*
+ * The shared push: brand violet while it is running, green once it is done.
+ * Two states, two highlights, and the change is the reward.
+ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
+  box-shadow: var(--glow-accent);
+}
+
+.complete {
+  border-color: color-mix(in srgb, var(--success) 34%, transparent);
+  box-shadow: var(--glow-success);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+/* The challenge is a shared push, so it borrows the coral energy colour. */
+.icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r);
+  background: var(--energy-soft);
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.headText {
+  min-width: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 720;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.blurb {
+  margin-top: 2px;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+.done {
+  padding: var(--s-2) var(--s-3);
+  border-radius: var(--r-sm);
+  background: var(--success-soft);
+  color: var(--success);
+  font-size: var(--t-small);
+  font-weight: 620;
+}
+
+.bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* The running total is the headline figure of this card. */
+.tally {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.tally em {
+  font-style: normal;
+  font-weight: 550;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* --- Contributions -------------------------------------------------------- */
+
+.people {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.name {
+  flex: 1;
+  font-size: var(--t-small);
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.value {
+  font-size: var(--t-small);
+  font-weight: 640;
+  color: var(--ink-2);
+}
+
+.met {
+  color: var(--success);
+}
+
+.of {
+  color: var(--ink-3);
+  font-weight: 500;
+}
+
+/*
+ * A finished challenge gets one short celebration — a single sweep of light
+ * across the banner, then it stops. Anything looping would be noise.
+ */
+@keyframes sweep {
+  from {
+    background-position: -140% 0;
+  }
+  to {
+    background-position: 240% 0;
+  }
+}
+
+.complete .done {
+  background:
+    linear-gradient(
+      100deg,
+      var(--success-soft) 0%,
+      color-mix(in srgb, var(--success) 26%, transparent) 48%,
+      var(--success-soft) 100%
+    );
+  background-size: 220% 100%;
+  animation: sweep 1.4s var(--ease-out) 1;
+}

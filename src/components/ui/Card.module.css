@@ -1,0 +1,63 @@
+/*
+ * The base of the shared card system.
+ *
+ * Every property here is a token, so a hero, a challenge card and a weigh-in
+ * differ by variant rather than by whichever padding their author happened to
+ * pick. Opaque on purpose: the page background is atmospheric now, and body
+ * text running over gradients is exactly what §33 rules out.
+ */
+.card {
+  display: block;
+  background: var(--surface);
+  border: var(--card-border);
+  border-radius: var(--card-radius);
+  padding: var(--card-pad-tight);
+  box-shadow: var(--shadow-sm);
+}
+
+.flush {
+  padding: 0;
+  overflow: hidden;
+}
+
+.inverse {
+  background: var(--surface-inverse);
+  border-color: transparent;
+  color: var(--ink-inverse);
+}
+
+.accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.interactive {
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+.interactive:hover {
+  border-color: var(--line-strong);
+  box-shadow: var(--shadow);
+}
+
+.interactive:active {
+  transform: scale(0.99);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 1.25rem;
+  padding-inline: 0.125rem;
+}

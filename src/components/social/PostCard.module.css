@@ -1,0 +1,88 @@
+/*
+ * Posts are opaque, not glass. They are the body content of the feed — the one
+ * place where legibility beats effect, and where a translucent background
+ * would put running text over whatever happened to scroll behind it.
+ */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-5) var(--s-3);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.avatar {
+  flex: none;
+  border-radius: var(--r-pill);
+}
+
+.who {
+  min-width: 0;
+}
+
+.name {
+  font-size: var(--t-body);
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.when {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* What kind of post it is, when that is not obvious from the text. */
+.kind {
+  padding: 0.0625rem 0.4375rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.text {
+  font-size: var(--t-body);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* The shared record sits inset, so it reads as an attachment not the post. */
+.shared > * {
+  box-shadow: none;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  padding-top: var(--s-2);
+  border-top: 1px solid var(--line);
+}
+
+/*
+ * Counts, not buttons. Reacting and commenting arrive in Phase 2; until then
+ * these state what has happened without inviting a tap that goes nowhere.
+ */
+.count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}

@@ -1,0 +1,264 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* --- Current plan --- */
+.planCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.planHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.planName {
+  font-size: var(--t-h2);
+  letter-spacing: -0.025em;
+}
+
+.planMeta {
+  margin-top: 0.1875rem;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-transform: capitalize;
+}
+
+.planDesc {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.progressRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: var(--s-2);
+}
+
+.progressLabel {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.progressPct {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--slow) var(--ease-out);
+}
+
+/* --- Day list --- */
+.days {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.day {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5625rem var(--s-4);
+  font-size: var(--t-small);
+}
+
+.day + .day {
+  border-top: 1px solid var(--line);
+}
+
+.dayMark {
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  color: transparent;
+}
+
+.done .dayMark {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.current .dayMark {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+.rest .dayMark {
+  border-style: dashed;
+  color: var(--ink-3);
+}
+
+.dayNumber {
+  min-width: 3.75rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.dayName {
+  flex: 1;
+  min-width: 0;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.done .dayName,
+.done .dayNumber {
+  color: var(--ink);
+}
+
+.current {
+  background: var(--accent-soft);
+}
+
+.current .dayName,
+.current .dayNumber {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.rest .dayName,
+.todo .dayName {
+  color: var(--ink-3);
+}
+
+.todayTag {
+  flex-shrink: 0;
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--r-sm);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
+  padding-inline: 0.125rem;
+}
+
+/* --- Plan options --- */
+.planList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.optionActive {
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+}
+
+.optionHead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.optionName {
+  font-size: var(--t-h3);
+  letter-spacing: -0.02em;
+}
+
+.optionBadge {
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.optionDesc {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.tags li {
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  font-size: var(--t-micro);
+  font-weight: 650;
+  color: var(--ink-2);
+  text-transform: capitalize;
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 46rem;
+  }
+}
+
+/* Names the external app the plan is followed in, above the plan's own name. */
+.planApp {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-1);
+  font-size: var(--t-small);
+  font-weight: 620;
+  color: var(--ink-2);
+}
+
+.planAppLabel {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}

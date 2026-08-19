@@ -1,0 +1,101 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.range {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.tone {
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-2);
+}
+
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 0.0625rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.1;
+}
+
+.of {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+  font-weight: 650;
+}
+
+.stats dt {
+  margin-top: 0.125rem;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.down {
+  color: var(--success);
+}
+
+.up {
+  color: var(--ink);
+}
+
+.flat {
+  color: var(--ink-3);
+}
+
+.parts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6875rem;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.partHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.3125rem;
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.partHead span:last-child {
+  color: var(--ink-3);
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+@media (max-width: 24rem) {
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--s-3);
+  }
+}

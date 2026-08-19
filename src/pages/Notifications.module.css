@@ -1,0 +1,102 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.item {
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+/* Unread carries a faint brand wash, so the list is scannable at a glance. */
+.unread {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 62px;
+  padding: var(--s-3) var(--s-4);
+  text-align: left;
+  border-radius: inherit;
+}
+
+.avatar {
+  position: relative;
+  flex: none;
+}
+
+/* A small mark showing what kind of thing happened, over the actor's avatar. */
+.kindBadge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 2px solid var(--surface);
+}
+
+.iconOnly {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.message {
+  font-size: var(--t-small);
+  line-height: 1.4;
+}
+
+.when {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 40rem;
+  }
+}

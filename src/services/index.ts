@@ -1,0 +1,25 @@
+/**
+ * The app talks to data only through these services. Swapping IndexedDB for a
+ * real backend means rewriting the bodies here — no screen has to change.
+ */
+export { authService, AuthError } from './authService'
+export { accountService, hasRole, isApproved, validateEmail, checkPassword } from './accountService'
+export { userService } from './userService'
+export { workoutService } from './workoutService'
+export { weightService } from './weightService'
+export { nutritionService } from './nutritionService'
+export { stepsService } from './stepsService'
+export { measurementService } from './measurementService'
+export { progressService } from './progressService'
+export { achievementService } from './achievementService'
+export { motivationService } from './motivationService'
+export { challengeService } from './challengeService'
+export { chatService } from './chatService'
+export { postService, canView, DEFAULT_VISIBILITY } from './postService'
+export { storyService } from './storyService'
+export { mediaService, isPlaceholder, isTemporaryRef } from './mediaService'
+export { notificationService } from './notificationService'
+export { checkinService } from './checkinService'
+export { updateService } from './updateService'
+export { storageService } from './storageService'
+export { assertOwner, assertOwnerOf, OwnershipError } from './ownership'

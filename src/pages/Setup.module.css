@@ -1,0 +1,239 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: start center;
+  padding: calc(var(--safe-t) + var(--s-5)) var(--gutter) calc(var(--safe-b) + var(--s-8));
+}
+
+.inner {
+  width: 100%;
+  max-width: 27rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  min-height: var(--tap);
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--fast) var(--ease);
+}
+
+.back:active {
+  transform: scale(0.94);
+}
+
+.dots {
+  display: flex;
+  gap: var(--s-2);
+  flex: 1;
+}
+
+.dot {
+  height: 4px;
+  flex: 1;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  transition: background var(--med) var(--ease);
+}
+
+.dotDone {
+  background: var(--accent);
+  opacity: 0.45;
+}
+
+.dotOn {
+  background: var(--accent);
+  opacity: 1;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--r-xl);
+}
+
+.title {
+  font-size: var(--t-h1);
+  letter-spacing: -0.03em;
+}
+
+.sub {
+  margin-top: var(--s-2);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+
+/* --- Choice lists --------------------------------------------------------- */
+
+.goals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.goal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+  padding: var(--s-3) var(--s-8) var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.goal:active {
+  transform: scale(0.99);
+}
+
+.goalOn {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.goalLabel {
+  font-weight: 620;
+}
+
+.goalHint {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.goalCheck {
+  position: absolute;
+  right: var(--s-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--accent);
+}
+
+/* --- Workout apps --------------------------------------------------------- */
+
+.apps {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.appsLegend {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--s-2);
+}
+
+.appRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.app {
+  min-height: 40px;
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 580;
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+
+.appOn {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.5;
+}
+
+/* --- Summary -------------------------------------------------------------- */
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--line);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+}
+
+.row dt {
+  color: var(--ink-2);
+  font-size: var(--t-small);
+}
+
+.row dd {
+  font-weight: 620;
+}
+
+.rowStrong dd {
+  color: var(--accent);
+  font-size: var(--t-h2);
+}
+
+.error {
+  color: var(--danger);
+  font-size: var(--t-small);
+  font-weight: 550;
+}
+
+/* Waiting on a decision — stated plainly, not dressed up as success. */
+.pending {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.55;
+}
+
+.backToLogin {
+  align-self: center;
+  padding: var(--s-2);
+  font-size: var(--t-small);
+  font-weight: 640;
+  color: var(--accent);
+}

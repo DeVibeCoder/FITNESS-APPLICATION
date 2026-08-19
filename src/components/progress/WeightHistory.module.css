@@ -1,0 +1,136 @@
+.filters {
+  display: flex;
+  gap: 0.375rem;
+  margin-bottom: 0.125rem;
+}
+
+.filter {
+  min-height: 34px;
+  padding: 0 0.75rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.filter:hover {
+  border-color: var(--line-strong);
+}
+
+.filterActive {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6875rem var(--s-4);
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+.date {
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4375rem;
+}
+
+.weight {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.kind {
+  padding: 0.0625rem 0.375rem;
+  border-radius: var(--r-sm);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.official {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.daily {
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+}
+
+.note {
+  flex-basis: 100%;
+  font-size: var(--t-small);
+  font-style: italic;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.change {
+  font-size: var(--t-small);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--success);
+}
+
+.up {
+  color: var(--ink-2);
+}
+
+.flat {
+  color: var(--ink-3);
+}
+
+.pencil {
+  color: var(--ink-3);
+}

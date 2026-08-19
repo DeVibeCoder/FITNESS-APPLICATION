@@ -1,0 +1,287 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* --- Today's session --- */
+.sessionHead {
+  padding: var(--s-4) var(--s-4) var(--s-3);
+}
+
+.sessionDay {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.sessionName {
+  font-size: 1.375rem;
+  letter-spacing: -0.03em;
+  margin-top: 0.125rem;
+}
+
+.sessionMeta {
+  margin-top: 0.1875rem;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.exercises {
+  border-top: 1px solid var(--line);
+}
+
+.exercise {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6875rem var(--s-4);
+}
+
+.exercise + .exercise {
+  border-top: 1px solid var(--line);
+}
+
+.exerciseIndex {
+  display: grid;
+  place-items: center;
+  width: 1.375rem;
+  height: 1.375rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.exerciseText {
+  flex: 1;
+  min-width: 0;
+}
+
+.exerciseName {
+  font-size: var(--t-body);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.exerciseCue {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.exerciseSpec {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  font-size: var(--t-small);
+  font-weight: 650;
+}
+
+.exerciseRest {
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.startWrap {
+  padding: var(--s-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+/* --- Done today --- */
+.doneList {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.doneRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.875rem var(--s-4);
+}
+
+.doneRow + .doneRow {
+  border-top: 1px solid var(--line);
+}
+
+.doneCheck {
+  display: grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+}
+
+.doneText {
+  min-width: 0;
+}
+
+.doneName {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.doneMeta {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* --- Week --- */
+.weekCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.weekRange {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.weekStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+}
+
+.weekStats dd {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.weekGoal {
+  font-size: 0.875rem;
+  color: var(--ink-3);
+  font-weight: 650;
+}
+
+.weekStats dt {
+  margin-top: 0.125rem;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.doneNote {
+  margin-top: 0.25rem;
+  font-size: var(--t-small);
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+/* --- Resume banner --- */
+.resume {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.resumeText {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.resumeDot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse 1.8s var(--ease) infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.resumeTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.resumeMeta {
+  font-size: var(--t-small);
+  color: color-mix(in srgb, var(--ink-inverse) 62%, transparent);
+}
+
+.sectionLink {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.sectionLink:hover {
+  color: var(--accent);
+}
+
+.footnote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 46rem;
+  }
+}
+
+/* The primary way a workout gets recorded now: copied from another app. */
+.logCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--r-xl);
+}
+
+.logText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logTitle {
+  font-size: var(--t-h3);
+  font-weight: 650;
+}
+
+.logBody {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  line-height: 1.5;
+}

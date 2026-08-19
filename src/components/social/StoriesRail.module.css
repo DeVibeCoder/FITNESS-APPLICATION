@@ -1,0 +1,89 @@
+/*
+ * A horizontal rail — one of the few places sideways scrolling is right, since
+ * the row is explicitly a row. The page itself never scrolls sideways.
+ */
+.rail {
+  display: flex;
+  gap: var(--s-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+  /* Bleeds into the page gutters so the row runs edge to edge. */
+  margin-inline: calc(var(--gutter) * -1);
+  padding-inline: var(--gutter);
+  padding-block: var(--s-1) var(--s-2);
+}
+
+.rail::-webkit-scrollbar {
+  display: none;
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  width: 4.5rem;
+}
+
+.add {
+  position: relative;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  transition: transform var(--fast) var(--ease);
+}
+
+.add:active {
+  transform: scale(0.94);
+}
+
+/*
+ * The ring is the status: a live unseen story gets the brand gradient, one
+ * you have already watched goes quiet, and your own is a dashed outline until
+ * you post something.
+ */
+.ring {
+  display: grid;
+  place-items: center;
+  padding: 2.5px;
+  border-radius: var(--r-pill);
+}
+
+.ringLive {
+  background: var(--brand-gradient);
+}
+
+.ringSeen {
+  background: var(--line-strong);
+}
+
+.ringOwn {
+  background: transparent;
+  border: 2px dashed var(--line-strong);
+  padding: 0.5px;
+}
+
+.plus {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 2px solid var(--bg);
+}
+
+.name {
+  max-width: 100%;
+  font-size: var(--t-micro);
+  font-weight: 620;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -1,0 +1,25 @@
+.page {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--gutter);
+}
+
+.inner {
+  width: 100%;
+  max-width: 22rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--t-h1);
+  letter-spacing: -0.03em;
+}
+
+.body {
+  font-size: var(--t-body);
+  color: var(--ink-2);
+}

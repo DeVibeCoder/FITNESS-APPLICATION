@@ -1,0 +1,36 @@
+.shell {
+  min-height: 100dvh;
+}
+
+/*
+ * The one content grid.
+ *
+ * Every screen inherits these edges. Pages that set their own horizontal
+ * padding are why Home, Activity, Group and Me never quite lined up — nothing
+ * below this should touch padding-inline again.
+ */
+.main {
+  padding-top: var(--s-4);
+  padding-bottom: var(--scroll-pad);
+  padding-inline: max(var(--gutter), var(--safe-l)) max(var(--gutter), var(--safe-r));
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* Tablets: keep the phone column but let it breathe. */
+@media (min-width: 40rem) and (max-width: 63.999rem) {
+  .main {
+    max-width: 34rem;
+  }
+}
+
+/* Desktop: the bottom bar is gone, so the page only needs ordinary padding. */
+@media (min-width: 64rem) {
+  .main {
+    max-width: var(--desktop-max);
+    margin-inline: auto;
+    padding-top: var(--s-6);
+    padding-bottom: var(--s-10);
+    padding-inline: var(--s-8);
+  }
+}

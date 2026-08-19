@@ -1,0 +1,131 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
+  border: 0;
+  animation: fade var(--med) var(--ease) both;
+  backdrop-filter: blur(2px);
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-height: min(88dvh, 46rem);
+  background: var(--bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp var(--slow) var(--ease-out) both;
+  padding-bottom: var(--safe-b);
+}
+
+.grabber {
+  width: 2.25rem;
+  height: 4px;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+  margin: 0.5rem auto 0;
+  flex-shrink: 0;
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--gutter) var(--s-2);
+}
+
+.title {
+  font-size: var(--t-h2);
+  letter-spacing: -0.02em;
+}
+
+.subtitle {
+  margin-top: 0.125rem;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.close:hover {
+  color: var(--ink);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--s-2) var(--gutter) var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.footer {
+  padding: var(--s-3) var(--gutter) var(--s-4);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+  display: flex;
+  gap: var(--s-3);
+}
+
+.footer > * {
+  flex: 1;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(3%);
+    opacity: 0;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (min-width: 40rem) {
+  .root {
+    align-items: center;
+    padding: var(--s-6);
+  }
+
+  .panel {
+    max-width: 30rem;
+    border-radius: var(--r-xl);
+    padding-bottom: 0;
+    overflow: hidden;
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .head {
+    padding-top: var(--s-5);
+  }
+}

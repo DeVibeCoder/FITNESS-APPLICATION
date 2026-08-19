@@ -1,0 +1,126 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--r);
+  background: var(--bg-sunk);
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  min-height: 38px;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.tabOn {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.feed,
+.logs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.stories,
+.weighIns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.story {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.storyType {
+  flex: none;
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.storyText {
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weighIn {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+
+.weighDate {
+  flex: 1;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.weighValue {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.weighChange {
+  min-width: 4rem;
+  text-align: right;
+  font-size: var(--t-small);
+  font-weight: 620;
+  color: var(--ink-2);
+}
+
+.sectionLink {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+  transition: color var(--fast) var(--ease);
+}
+
+.sectionLink:hover {
+  color: var(--accent);
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 44rem;
+  }
+}

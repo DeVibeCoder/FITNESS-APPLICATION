@@ -1,0 +1,31 @@
+.shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+/*
+ * The outlet gets the standard section rhythm so a swapped tab lines up with
+ * the tab strip above it exactly as the previous one did.
+ */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+}
+
+/*
+ * Capped on a wide screen. The shell inherits the desktop content width, and a
+ * member row stretched across 78rem puts the name and the streak so far apart
+ * that they stop reading as one row. The Progress tab opts back out — it has a
+ * two-column layout of its own and genuinely wants the room.
+ */
+@media (min-width: 64rem) {
+  .shell {
+    max-width: 52rem;
+  }
+
+  .shell:has(.section > [data-wide]) {
+    max-width: none;
+  }
+}

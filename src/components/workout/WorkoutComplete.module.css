@@ -1,0 +1,223 @@
+/**
+ * This screen commits to one dark look in both themes. Inverting it would mean
+ * a full-brightness flash at the end of an evening workout.
+ */
+.screen {
+  --ws-bg: #15161a;
+  --ws-fg: #f7f6f3;
+
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  overflow-y: auto;
+  background: var(--ws-bg);
+  color: var(--ws-fg);
+  animation: fadeIn var(--med) var(--ease) both;
+}
+
+.inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+  width: 100%;
+  max-width: 26rem;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: calc(var(--safe-t) + var(--s-10)) var(--gutter) calc(var(--safe-b) + var(--s-6));
+  justify-content: center;
+}
+
+.headline {
+  animation: riseIn 500ms var(--ease-out) both;
+}
+
+.kicker {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.title {
+  font-size: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin-top: 0.25rem;
+}
+
+.session {
+  animation: riseIn 500ms 80ms var(--ease-out) both;
+}
+
+.day {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ws-fg) 50%, transparent);
+}
+
+.name {
+  font-family: var(--font-display);
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  margin-top: 0.125rem;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  padding: var(--s-5) 0;
+  border-top: 1px solid color-mix(in srgb, var(--ws-fg) 14%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ws-fg) 14%, transparent);
+  animation: riseIn 500ms 160ms var(--ease-out) both;
+}
+
+.stats dd {
+  font-family: var(--font-display);
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+}
+
+.stats dt {
+  margin-top: 0.1875rem;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ws-fg) 50%, transparent);
+}
+
+.feedback {
+  animation: riseIn 500ms 240ms var(--ease-out) both;
+}
+
+.question {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: color-mix(in srgb, var(--ws-fg) 62%, transparent);
+  margin-bottom: 0.625rem;
+}
+
+.options {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.option {
+  min-height: 48px;
+  padding: 0 0.5rem;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--ws-fg) 18%, transparent);
+  background: transparent;
+  color: color-mix(in srgb, var(--ws-fg) 78%, transparent);
+  font-size: var(--t-small);
+  font-weight: 650;
+  transition:
+    transform var(--fast) var(--ease),
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.option:active {
+  transform: scale(0.96);
+}
+
+.optionActive {
+  background: var(--ws-fg);
+  border-color: var(--ws-fg);
+  color: var(--ws-bg);
+}
+
+.skipped {
+  font-size: var(--t-small);
+  color: color-mix(in srgb, var(--ws-fg) 55%, transparent);
+  animation: riseIn 500ms 200ms var(--ease-out) both;
+}
+
+.note {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 0.625rem;
+  padding: 0 0.875rem;
+  border-radius: var(--r);
+  border: 1px solid color-mix(in srgb, var(--ws-fg) 20%, transparent);
+  background: color-mix(in srgb, var(--ws-fg) 6%, transparent);
+  color: var(--ws-fg);
+  font-size: 1rem;
+}
+
+.note::placeholder {
+  color: color-mix(in srgb, var(--ws-fg) 38%, transparent);
+}
+
+.note:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.noteToggle {
+  margin-top: 0.625rem;
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border-radius: var(--r);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: color-mix(in srgb, var(--ws-fg) 60%, transparent);
+}
+
+.noteToggle:hover {
+  color: var(--ws-fg);
+  background: color-mix(in srgb, var(--ws-fg) 8%, transparent);
+}
+
+.finish {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 58px;
+  border-radius: var(--r-lg);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  transition:
+    transform var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
+}
+
+.finish:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.finish:disabled {
+  opacity: 0.55;
+}
+
+.footnote {
+  text-align: center;
+  font-size: var(--t-micro);
+  color: color-mix(in srgb, var(--ws-fg) 42%, transparent);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}

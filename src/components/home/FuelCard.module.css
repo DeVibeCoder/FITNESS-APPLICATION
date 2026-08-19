@@ -1,0 +1,174 @@
+.card {
+  display: grid;
+}
+
+.half {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  padding: var(--s-4);
+}
+
+.half + .half {
+  border-top: 1px solid var(--line);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-height: 1.5rem;
+}
+
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1875rem;
+  min-height: 32px;
+  padding: 0 0.5rem;
+  margin-right: -0.5rem;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+.action:hover {
+  background: var(--bg-sunk);
+  color: var(--accent);
+}
+
+.readout {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.of {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.track {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+/* Nutrition is violet; the water row overrides to blue below. */
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--slow) var(--ease-out);
+}
+
+.fillDone {
+  background: var(--success);
+}
+
+.fillWarn {
+  background: var(--warn);
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.strong {
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.warn {
+  font-weight: 650;
+  color: var(--warn);
+}
+
+.estimate {
+  color: var(--ink-3);
+}
+
+.waterActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.1875rem;
+}
+
+.quick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-height: var(--tap);
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.quick:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.quick:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.quick:disabled {
+  opacity: 0.5;
+}
+
+/* Two columns once there is room, so the pair reads as one block. */
+@media (min-width: 40rem) {
+  .card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .half + .half {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
+
+/* Water belongs to the blue "movement and hydration" family, not to energy. */
+.fillWater {
+  background: var(--move);
+}

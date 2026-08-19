@@ -1,0 +1,97 @@
+/*
+ * The Group hero.
+ *
+ * Brand violet with a diagonal sweep behind it — the same speed-line language
+ * as the page background, brought forward and made visible. This is the one
+ * card in the Group area that carries the identity; everything below it is
+ * ordinary opaque surface so the numbers stay readable.
+ */
+.header {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
+  box-shadow: var(--glow-accent);
+}
+
+.header::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(116deg, transparent 34%, color-mix(in srgb, var(--accent) 10%, transparent) 35%, transparent 44%),
+    linear-gradient(116deg, transparent 52%, color-mix(in srgb, var(--accent-lift) 8%, transparent) 53%, transparent 64%),
+    radial-gradient(70% 80% at 100% 0%, var(--accent-soft), transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.header > * {
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 740;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.faces {
+  display: flex;
+}
+
+/* Overlapped, so three people read as a group rather than as a list. */
+.face + .face {
+  margin-left: -0.5rem;
+}
+
+.face :global(img),
+.face > span {
+  box-shadow: 0 0 0 2px var(--surface);
+  border-radius: 50%;
+}
+
+.week {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--glass-border);
+}
+
+.week dt {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week dd {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 720;
+  letter-spacing: -0.03em;
+}
+
+.meta {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* Present, quiet, and not a link — Chat has its own tab. */
+.unread {
+  font-weight: 650;
+  color: var(--energy);
+}

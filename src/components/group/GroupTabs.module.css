@@ -1,0 +1,68 @@
+/*
+ * Section tabs inside the Group shell.
+ *
+ * Five labels fit whole from 390px up. Below that they cannot — "Challenge"
+ * alone is a fifth of a 320px screen — so the strip scrolls rather than
+ * truncating anything. §3's ban on horizontal scrolling is about the main
+ * navigation, which never scrolls; this is a secondary control inside one
+ * section, and it carries the affordances that make scrolling legible: a fade
+ * at the edge, snap points, and the selected tab scrolled into view for you.
+ */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--r);
+  background: var(--bg-sunk);
+  overflow-x: auto;
+  scrollbar-width: none;
+  scroll-snap-type: x proximity;
+  /*
+   * Fades the last few pixels instead of slicing a label in half. Applied on
+   * both edges so it reads the same however far along the strip you are.
+   */
+  mask-image: linear-gradient(to right, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: grid;
+  place-items: center;
+  flex: 1 0 auto;
+  min-height: 38px;
+  padding-inline: var(--s-2);
+  border-radius: var(--r-sm);
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+  scroll-snap-align: center;
+  scroll-margin-inline: 0.75rem;
+  transition:
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.tab:hover {
+  color: var(--ink);
+}
+
+.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 64rem) {
+  .tabs {
+    max-width: 34rem;
+  }
+
+  .tab {
+    padding-inline: var(--s-3);
+    font-size: var(--t-small);
+  }
+}

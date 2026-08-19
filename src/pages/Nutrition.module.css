@@ -1,0 +1,177 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+/* --- Date strip --- */
+.dates {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.arrow {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 46px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+  transition: background-color var(--fast) var(--ease);
+}
+
+.arrow:hover:not(:disabled) {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+.arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.1875rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.date {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.0625rem;
+  padding: 0.375rem 0;
+  border-radius: var(--r-sm);
+  transition: background-color var(--fast) var(--ease);
+}
+
+.date:hover {
+  background: var(--bg-sunk);
+}
+
+.dateActive {
+  background: var(--ink);
+}
+
+.dateDay {
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.dateNum {
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dateActive .dateDay {
+  color: color-mix(in srgb, var(--bg) 65%, transparent);
+}
+
+.dateActive .dateNum {
+  color: var(--bg);
+}
+
+.dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.dotOn {
+  background: var(--accent);
+}
+
+.dateActive .dotOn {
+  background: var(--bg);
+}
+
+/* --- Meals --- */
+.meals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.link {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+/* --- History --- */
+.history {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.history > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.historyRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 0.625rem var(--s-4);
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.historyRow:hover {
+  background: var(--surface-2);
+}
+
+.historyDate {
+  font-size: var(--t-small);
+  font-weight: 650;
+}
+
+.historyStats {
+  display: flex;
+  align-items: baseline;
+  gap: 0.625rem;
+}
+
+.historyKcal {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.historyWater {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.historyEmpty {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 44rem;
+  }
+}

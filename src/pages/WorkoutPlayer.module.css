@@ -1,0 +1,518 @@
+/**
+ * Workout mode. Fixed dark in both themes: it is a different mode, not a
+ * different page, and it has to stay readable at arm's length in a bright room
+ * or a dim one.
+ */
+.screen {
+  --wp-bg: #15161a;
+  --wp-fg: #f7f6f3;
+  --wp-muted: color-mix(in srgb, var(--wp-fg) 55%, transparent);
+  --wp-line: color-mix(in srgb, var(--wp-fg) 14%, transparent);
+
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: var(--wp-bg);
+  color: var(--wp-fg);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: calc(var(--safe-b) + var(--s-4));
+}
+
+/* --- Top bar --- */
+.bar {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: calc(var(--safe-t) + var(--s-3)) var(--gutter) var(--s-3);
+}
+
+.barText {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.barTitle {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wp-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTime {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--wp-fg) 8%, transparent);
+  color: var(--wp-fg);
+  transition: background-color var(--fast) var(--ease);
+}
+
+.iconButton:hover {
+  background: color-mix(in srgb, var(--wp-fg) 16%, transparent);
+}
+
+.close {
+  position: absolute;
+  top: calc(var(--safe-t) + var(--s-3));
+  left: var(--gutter);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--wp-fg) 8%, transparent);
+  color: var(--wp-fg);
+}
+
+/* --- Progress --- */
+.progress {
+  height: 4px;
+  margin: 0 var(--gutter);
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--wp-fg) 12%, transparent);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--med) var(--ease-out);
+}
+
+.progressLabel {
+  padding: 0.4375rem var(--gutter) 0;
+  text-align: center;
+  font-size: var(--t-micro);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--wp-muted);
+}
+
+/* --- Layout --- */
+.body,
+.centred {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  width: 100%;
+  max-width: 26rem;
+  margin: 0 auto;
+  padding: var(--s-5) var(--gutter) var(--s-4);
+  text-align: center;
+}
+
+.counter {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.exerciseName {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+}
+
+.target {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.cue {
+  font-size: var(--t-small);
+  color: var(--wp-muted);
+  max-width: 26ch;
+  text-wrap: pretty;
+}
+
+/* --- Sets --- */
+.sets {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.375rem;
+}
+
+.set {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 30px;
+  padding: 0 0.625rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--wp-line);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--wp-muted);
+}
+
+.done {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.todo {
+  opacity: 0.65;
+}
+
+.setLabel {
+  white-space: nowrap;
+}
+
+/* --- Weight --- */
+.weight {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.weightStep {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--wp-line);
+  color: var(--wp-fg);
+}
+
+.weightStep:active {
+  transform: scale(0.92);
+}
+
+.weightValue {
+  min-width: 5.5rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+/* --- Actions --- */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: var(--s-2);
+}
+
+.primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4375rem;
+  width: 100%;
+  min-height: 58px;
+  padding: 0 1.25rem;
+  border-radius: var(--r-lg);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  transition:
+    transform var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+.primary:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.primary:disabled {
+  opacity: 0.5;
+}
+
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 50px;
+  padding: 0 1rem;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--wp-line);
+  color: var(--wp-fg);
+  font-size: var(--t-body);
+  font-weight: 650;
+}
+
+.secondary:active {
+  transform: scale(0.97);
+}
+
+.ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: var(--r);
+  color: var(--wp-muted);
+  font-size: var(--t-small);
+  font-weight: 650;
+}
+
+.ghost:hover {
+  color: var(--wp-fg);
+  background: color-mix(in srgb, var(--wp-fg) 8%, transparent);
+}
+
+.danger {
+  min-height: 44px;
+  padding: 0 1rem;
+  border-radius: var(--r);
+  background: var(--danger);
+  color: #fff;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.minorRow,
+.confirmRow {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.confirmRow > * {
+  flex: 1;
+}
+
+.minor {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-height: 40px;
+  padding: 0 0.75rem;
+  border-radius: var(--r);
+  color: var(--wp-muted);
+  font-size: var(--t-small);
+  font-weight: 600;
+}
+
+.minor:hover:not(:disabled) {
+  color: var(--wp-fg);
+}
+
+.minor:disabled {
+  opacity: 0.35;
+}
+
+.next {
+  margin-top: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--wp-muted);
+}
+
+.finishNow {
+  min-height: 48px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* --- Rest --- */
+.restLabel {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.restTime {
+  font-family: var(--font-display);
+  font-size: 4.5rem;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  line-height: 1;
+}
+
+.restNext {
+  font-size: var(--t-body);
+  color: var(--wp-muted);
+  text-wrap: pretty;
+}
+
+.restActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  margin-top: var(--s-4);
+}
+
+/* --- Paused --- */
+.pausedLabel {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--wp-muted);
+}
+
+.pausedTime {
+  font-family: var(--font-display);
+  font-size: 3.5rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin-bottom: var(--s-4);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: color-mix(in srgb, var(--wp-fg) 7%, transparent);
+}
+
+.confirmText {
+  font-size: var(--t-small);
+  color: var(--wp-muted);
+  text-wrap: pretty;
+}
+
+/* --- Prep --- */
+.prepDay {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.prepName {
+  font-size: 2.25rem;
+  font-weight: 700;
+  letter-spacing: -0.045em;
+  line-height: 1.05;
+}
+
+.prepPlan {
+  font-size: var(--t-small);
+  color: var(--wp-muted);
+}
+
+.prepStats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  width: 100%;
+  margin: var(--s-5) 0;
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--wp-line);
+  border-bottom: 1px solid var(--wp-line);
+}
+
+.prepStats dd {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+
+.prepLevel {
+  text-transform: capitalize;
+  font-size: 1.125rem !important;
+}
+
+.prepStats dt {
+  margin-top: 0.1875rem;
+  font-size: var(--t-micro);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--wp-muted);
+}
+
+/* --- Done / empty --- */
+.doneMark {
+  display: grid;
+  place-items: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+  animation: pop var(--slow) var(--ease-out) both;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.08);
+  }
+}
+
+.doneTitle,
+.emptyTitle {
+  font-size: 1.625rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+}
+
+.doneBody,
+.emptyBody {
+  font-size: var(--t-body);
+  color: var(--wp-muted);
+  max-width: 30ch;
+  margin-bottom: var(--s-3);
+  text-wrap: pretty;
+}
+
+@media (min-width: 64rem) {
+  .exerciseName {
+    font-size: 2.5rem;
+  }
+
+  .body,
+  .centred {
+    max-width: 30rem;
+  }
+}

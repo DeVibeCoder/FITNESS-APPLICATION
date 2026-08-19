@@ -1,0 +1,136 @@
+/* Steps are blue everywhere in this app, so the card's edge is too. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  box-shadow: var(--glow-move);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.readout {
+  min-width: 0;
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: var(--t-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.label {
+  margin-top: 0.25rem;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  font-weight: 550;
+}
+
+.pctWrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4375rem;
+  flex-shrink: 0;
+}
+
+.pct {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink-2);
+}
+
+.pctHit {
+  color: var(--success);
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+}
+
+.track {
+  height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+/* Blue is movement, everywhere in the app. */
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--move);
+  transition: width var(--slow) var(--ease-out);
+}
+
+.fillHit {
+  background: var(--success);
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.125rem;
+}
+
+.quick,
+.edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  flex: 1;
+  min-height: var(--tap);
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+}
+
+.quick:hover:not(:disabled),
+.edit:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.quick:active:not(:disabled),
+.edit:active {
+  transform: scale(0.96);
+}
+
+.quick:disabled {
+  opacity: 0.5;
+}
+
+.edit {
+  flex: 0 0 auto;
+  padding-inline: 0.875rem;
+  color: var(--ink-2);
+}

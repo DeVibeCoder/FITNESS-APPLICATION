@@ -1,0 +1,66 @@
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
+  box-shadow: var(--glow-gold);
+}
+
+.count {
+  display: flex;
+  align-items: baseline;
+  gap: 0.3125rem;
+  font-family: var(--font-display);
+  font-size: var(--t-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.of {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink-3);
+  letter-spacing: -0.01em;
+}
+
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+.tally {
+  font-size: var(--t-small);
+  font-weight: 620;
+  color: var(--ink-3);
+}
+
+.member {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--card-pad-tight);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: var(--card-border);
+  box-shadow: var(--shadow-sm);
+}
+
+.memberHead {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.latest {
+  min-width: 0;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.latest strong {
+  color: var(--ink);
+  font-weight: 660;
+}

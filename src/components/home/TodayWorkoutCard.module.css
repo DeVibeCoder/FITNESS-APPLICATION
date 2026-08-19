@@ -1,0 +1,192 @@
+/*
+ * The workout hero.
+ *
+ * Coral, because coral means "train" everywhere in this app. The visual is
+ * drawn, not photographed: a pair of wide diagonal sweeps suggesting motion,
+ * plus a corner glow. No stock gym photography — it would date instantly and
+ * would not survive a theme switch.
+ */
+.card {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
+  /* Coral edge: this is the card that means "go and train". */
+  box-shadow: var(--glow-energy);
+}
+
+/* Motion streaks: two soft diagonals, low contrast, behind everything. */
+.card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background:
+    linear-gradient(114deg, transparent 38%, color-mix(in srgb, var(--energy) 9%, transparent) 39%, transparent 47%),
+    linear-gradient(114deg, transparent 54%, color-mix(in srgb, var(--energy) 6%, transparent) 55%, transparent 66%),
+    radial-gradient(64% 74% at 100% 0%, var(--energy-soft), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.card > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* --- Nothing logged yet --------------------------------------------------- */
+
+.empty {
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.emptyIcon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r);
+  background: var(--energy);
+  color: var(--energy-ink);
+  box-shadow: var(--energy-glow);
+}
+
+.emptyText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.emptyBody {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+/* The one coral button on Home: start the thing this app is for. */
+.logButton {
+  background: var(--energy);
+  color: var(--energy-ink);
+  box-shadow: var(--energy-glow);
+}
+
+.logButton:hover:not(:disabled) {
+  background: var(--energy-strong);
+}
+
+/* --- Logged --------------------------------------------------------------- */
+
+/* Once it is logged the card stops asking and starts confirming. */
+.done {
+  border-color: color-mix(in srgb, var(--success) 30%, transparent);
+  box-shadow: var(--glow-success);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--success);
+  color: #fff;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--success) 80%, transparent);
+}
+
+.headText {
+  min-width: 0;
+}
+
+/* Which app the workout came from — present, never dominant. */
+.app {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.name {
+  margin-top: 2px;
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 740;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+}
+
+.day {
+  margin-top: 3px;
+  font-size: var(--t-small);
+  font-weight: 620;
+  color: var(--energy);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.25rem, 1fr));
+  gap: var(--s-3);
+  padding: var(--s-4) 0;
+  border-block: 1px solid var(--glass-border);
+}
+
+.stats dt {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.stats dd {
+  margin-top: 3px;
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 720;
+  letter-spacing: -0.025em;
+}
+
+.line {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.link {
+  flex: none;
+  padding: var(--s-2);
+  font-size: var(--t-small);
+  font-weight: 640;
+  color: var(--ink-2);
+  transition: color var(--fast) var(--ease);
+}
+
+.link:hover {
+  color: var(--energy);
+}

@@ -1,0 +1,97 @@
+.strip {
+  display: grid;
+  /* Two up on a phone, four across once there is room. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+
+@media (min-width: 26rem) {
+  .strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: var(--s-3);
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  transition:
+    transform var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+@media (hover: hover) {
+  .block:hover {
+    transform: translateY(-1px);
+    border-color: var(--line-strong);
+  }
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  margin-bottom: var(--s-1);
+  border-radius: var(--r-sm);
+}
+
+.label {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.value {
+  font-size: 1.125rem;
+}
+
+.word {
+  font-size: var(--t-body);
+  font-weight: 680;
+  letter-spacing: -0.01em;
+}
+
+.suffix {
+  margin-left: 0.15em;
+  font-family: var(--font);
+  font-size: 0.6em;
+  font-weight: 620;
+  color: var(--ink-2);
+}
+
+/* --- Semantic tones ------------------------------------------------------- */
+
+/* Workout is coral; calories belong to nutrition, which is violet. */
+.energy .icon {
+  background: var(--energy-soft);
+  color: var(--energy);
+}
+
+.nutrition .icon {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.move .icon {
+  background: var(--move-soft);
+  color: var(--move);
+}
+
+.done .icon {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+/* A met target is stated in green — the only place green appears on this row. */
+.done .word,
+.done .value {
+  color: var(--success);
+}

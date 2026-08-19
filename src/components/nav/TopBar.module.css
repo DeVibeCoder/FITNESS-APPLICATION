@@ -1,0 +1,234 @@
+/*
+ * The one global header.
+ *
+ * Sticky at the very top of the layer stack, so nothing — a sheet backdrop, a
+ * page's own sticky header, a floating control — can ever paint over it or
+ * push it out of place while scrolling.
+ */
+/*
+ * `header.bar`, not `.bar`.
+ *
+ * The element also carries the shared .glass class, which sets
+ * position: relative. Two single-class selectors tie on specificity and source
+ * order decided it — so the bar was quietly relative and scrolled away with
+ * the page. Adding the element name wins the tie honestly, without !important.
+ *
+ * The height lives here rather than on .inner so the bar's total box is
+ * exactly --header-h plus the safe area, which is what --header-offset
+ * promises to everything that docks beneath it.
+ */
+header.bar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+  height: calc(var(--header-h) + var(--safe-t));
+  /* The bar itself provides the frost; the border only shows underneath. */
+  border-width: 0 0 1px;
+  border-radius: 0;
+  padding-top: var(--safe-t);
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 100%;
+  padding-inline: max(var(--gutter), var(--safe-l)) max(var(--gutter), var(--safe-r));
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+.brandDesktop {
+  display: none;
+}
+
+.brandMobile {
+  display: grid;
+  place-items: center;
+  flex: none;
+}
+
+.title {
+  flex: 1;
+  font-size: var(--t-h2);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  /* A long page name truncates rather than pushing the actions off screen. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.links {
+  display: none;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: none;
+}
+
+.icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.icon:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+.iconActive {
+  color: var(--accent);
+}
+
+.avatar {
+  display: grid;
+  place-items: center;
+  margin-left: var(--s-1);
+  border-radius: var(--r-pill);
+  transition: transform var(--fast) var(--ease);
+}
+
+.avatar:active {
+  transform: scale(0.92);
+}
+
+/* --- Desktop: the bar becomes the navigation ------------------------------ */
+
+@media (min-width: 64rem) {
+  header.bar {
+    height: calc(var(--header-h-desktop) + var(--safe-t));
+  }
+
+  .inner {
+    height: 100%;
+    max-width: var(--desktop-max);
+    gap: var(--s-6);
+    padding-inline: var(--s-8);
+  }
+
+  .brandDesktop {
+    display: grid;
+    place-items: center;
+    flex: none;
+  }
+
+  .brandMobile,
+  .title {
+    display: none;
+  }
+
+  .links {
+    display: flex;
+    align-items: center;
+    gap: var(--s-1);
+    flex: 1;
+  }
+
+  .link {
+    position: relative;
+    padding: var(--s-2) var(--s-3);
+    border-radius: var(--r-sm);
+    color: var(--ink-2);
+    font-size: var(--t-body);
+    font-weight: 560;
+    transition:
+      color var(--fast) var(--ease),
+      background var(--fast) var(--ease);
+  }
+
+  .link:hover {
+    color: var(--ink);
+    background: var(--bg-sunk);
+  }
+
+  .linkActive {
+    color: var(--ink);
+    font-weight: 640;
+  }
+
+  /* A short accent rule under the active item, rather than a filled pill. */
+  .linkActive::after {
+    content: '';
+    position: absolute;
+    left: var(--s-3);
+    right: var(--s-3);
+    bottom: -2px;
+    height: 2px;
+    border-radius: var(--r-pill);
+    background: var(--accent);
+  }
+}
+
+/* The bell needs a positioning context for its count. */
+.icon {
+  position: relative;
+}
+
+/*
+ * Unread count. Capped at "9+" — a precise number past that is noise, and the
+ * badge has to stay legible at 11px.
+ */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-pill);
+  background: var(--energy);
+  color: var(--energy-ink);
+  font-size: 0.625rem;
+  font-weight: 750;
+  line-height: 1;
+  border: 2px solid var(--surface);
+}
+
+/*
+ * Create, for desktop only. On a phone the raised + in the bottom bar owns
+ * this action; up here there is no bottom bar, so the header has to carry it.
+ */
+.create {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .create {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s-2);
+    min-height: 38px;
+    padding: 0 var(--s-4);
+    margin-right: var(--s-2);
+    border-radius: var(--r-pill);
+    background: var(--accent);
+    color: var(--accent-ink);
+    font-size: var(--t-small);
+    font-weight: 660;
+    box-shadow: var(--accent-glow);
+    transition:
+      background var(--fast) var(--ease),
+      transform var(--fast) var(--ease);
+  }
+
+  .create:hover {
+    background: var(--accent-strong);
+  }
+
+  .create:active {
+    transform: scale(0.96);
+  }
+}

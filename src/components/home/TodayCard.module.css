@@ -1,0 +1,163 @@
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-4);
+}
+
+.ringValue {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.375rem;
+  letter-spacing: -0.03em;
+}
+
+.ringTotal {
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+.headText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.headline {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.streak {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 0.25rem;
+  margin-top: 0.375rem;
+  padding: 0.1875rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* A nudge, not a warning: the same chip in a calmer colour. */
+.streakRisk {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.riskNote {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+/* --- Metric rows --- */
+.rows {
+  border-top: 1px solid var(--line);
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, auto) 1fr;
+  align-items: baseline;
+  column-gap: var(--s-3);
+  row-gap: 0.4375rem;
+  width: 100%;
+  padding: 0.6875rem var(--s-4) 0.625rem;
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.rowNoBar {
+  padding-bottom: 0.6875rem;
+}
+
+.row:hover {
+  background: var(--surface-2);
+}
+
+.row:active {
+  background: var(--bg-sunk);
+}
+
+.rowLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.check {
+  display: grid;
+  place-items: center;
+  width: 0.8125rem;
+  height: 0.8125rem;
+  border-radius: 50%;
+  background: var(--success);
+  color: #fff;
+}
+
+.rowValue {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 0.375rem;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-align: right;
+}
+
+.rowDetail {
+  font-family: var(--font);
+  font-size: var(--t-small);
+  font-weight: 550;
+  letter-spacing: 0;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 3px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--slow) var(--ease-out);
+}
+
+.fillDone {
+  background: var(--success);
+}

@@ -1,0 +1,184 @@
+/*
+ * The one glass surface on Home. It earns it: everything else on the screen is
+ * a detail of the number stated here, and the brand wash behind it is what
+ * makes the top of the app feel like a product rather than a report.
+ */
+.hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
+  /*
+   * Green, not brand violet: this card is about moving the right way, and
+   * green means exactly that everywhere else in the app. One of the six
+   * surfaces allowed a highlight — a hero, and the hero of its own screen.
+   */
+  box-shadow: var(--glow-success);
+}
+
+/* A soft brand light in the top-left corner, under the content. */
+.hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(72% 58% at 4% 0%, var(--success-soft), transparent 72%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/*
+ * .glass already gives children `position: relative`, which would paint them
+ * *below* a later ::after in the same stacking context. The explicit z-index
+ * puts the content back above the wash.
+ */
+.hero > * {
+  position: relative;
+  z-index: 1;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+/* The goal badge: brand-tinted, so identity and focus read as one thing. */
+.badge {
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.readout {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+}
+
+.now {
+  display: flex;
+  align-items: baseline;
+  gap: 0.2em;
+}
+
+.value {
+  font-size: var(--t-hero);
+}
+
+.pct {
+  display: flex;
+  align-items: baseline;
+  gap: 0.1em;
+  padding-bottom: 0.35rem;
+}
+
+.pctValue {
+  font-size: var(--t-display);
+  color: var(--success);
+}
+
+.pctSign {
+  font-family: var(--font-display);
+  font-size: var(--t-h2);
+  font-weight: 700;
+  color: var(--success);
+}
+
+.pctLabel {
+  margin-left: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  font-weight: 550;
+}
+
+/* --- The track ------------------------------------------------------------ */
+
+.track {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.rail {
+  position: relative;
+  height: 10px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  border: 1px solid var(--glass-border);
+}
+
+.fill {
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: var(--progress-gradient);
+  /* Progress moves rather than snaps when the number changes. */
+  transition: width var(--slow) var(--ease-out);
+}
+
+.marker {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  margin-left: -9px;
+  transform: translateY(-50%);
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 3px solid var(--success);
+  box-shadow: var(--success-glow);
+  transition: left var(--slow) var(--ease-out);
+}
+
+.ends {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.end {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.endRight {
+  align-items: flex-end;
+}
+
+.endLabel {
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.endValue {
+  font-size: var(--t-small);
+  font-weight: 680;
+  color: var(--ink-2);
+}
+
+.noTarget,
+.remaining {
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.remaining {
+  font-weight: 550;
+}

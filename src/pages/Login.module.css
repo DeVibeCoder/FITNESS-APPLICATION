@@ -1,0 +1,179 @@
+/*
+ * An athletic backdrop drawn entirely in CSS — no photography.
+ *
+ * Two brand washes plus a pair of wide, low-contrast diagonal sweeps that read
+ * as motion streaks. Gradients cost nothing to ship, survive a theme switch,
+ * and never date the way a gym stock photo does.
+ */
+.page {
+  position: relative;
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: calc(var(--safe-t) + var(--s-8)) var(--gutter) calc(var(--safe-b) + var(--s-8));
+  overflow: hidden;
+}
+
+.page::before {
+  content: '';
+  position: absolute;
+  inset: -10%;
+  background:
+    linear-gradient(102deg, transparent 30%, color-mix(in srgb, var(--accent) 12%, transparent) 31%, transparent 40%),
+    linear-gradient(102deg, transparent 47%, color-mix(in srgb, var(--accent-lift) 9%, transparent) 48%, transparent 55%),
+    linear-gradient(102deg, transparent 66%, color-mix(in srgb, var(--move) 8%, transparent) 67%, transparent 73%);
+  pointer-events: none;
+}
+
+/*
+ * A single wide arc behind the card, suggesting a track curving away. Sized in
+ * viewport units so it stays proportionate from 320px to a desktop.
+ */
+.page::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -55vmin;
+  width: 130vmin;
+  height: 130vmin;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  /*
+   * Glow only, no stroke. A hairline ring read as a stray line where it
+   * crossed the sign-in card rather than as the horizon it was meant to be.
+   */
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--accent) 10%, transparent), transparent 76%);
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.title {
+  font-size: var(--t-display);
+  letter-spacing: -0.035em;
+  margin-top: var(--s-4);
+}
+
+.subtitle {
+  color: var(--ink-2);
+  font-size: var(--t-h3);
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--r-xl);
+}
+
+/* The reveal button sits inside the field's control, not beside it. */
+.passwordField {
+  position: relative;
+}
+
+.reveal {
+  position: absolute;
+  right: var(--s-2);
+  /* Clears the field's own label row. */
+  top: calc(var(--s-6) + 3px);
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-sm);
+  color: var(--ink-3);
+  transition: color var(--fast) var(--ease);
+}
+
+.reveal:hover {
+  color: var(--ink);
+}
+
+/*
+ * Always present so the button does not jump when a message appears; empty it
+ * simply collapses to nothing visible.
+ */
+.error {
+  min-height: 1.25rem;
+  margin-top: calc(var(--s-2) * -1);
+  color: var(--danger);
+  font-size: var(--t-small);
+  font-weight: 550;
+}
+
+.error:empty {
+  display: none;
+}
+
+.link {
+  align-self: center;
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  font-weight: 550;
+  padding: var(--s-2);
+  border-radius: var(--r-sm);
+  transition: color var(--fast) var(--ease);
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.demo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  background: var(--accent-soft);
+  color: var(--ink-2);
+  font-size: var(--t-small);
+  line-height: 1.55;
+}
+
+.demo strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.demoNote {
+  color: var(--ink-3);
+}
+
+.newHere,
+.footnote {
+  text-align: center;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.newHere {
+  color: var(--ink-2);
+}
+
+.inlineLink {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.footnote {
+  margin-top: var(--s-2);
+}

@@ -1,0 +1,194 @@
+.card {
+  overflow: hidden;
+}
+
+.thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform var(--slow) var(--ease-out);
+}
+
+.thumb:hover .image {
+  transform: scale(1.03);
+}
+
+.placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-inverse);
+}
+
+.play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 4px 14px -4px rgba(0, 0, 0, 0.5);
+  transition: transform var(--fast) var(--ease);
+}
+
+.thumb:active .play {
+  transform: translate(-50%, -50%) scale(0.92);
+}
+
+.featured .play {
+  width: 4rem;
+  height: 4rem;
+  background: var(--accent);
+  box-shadow: var(--accent-glow), 0 6px 20px -6px rgba(0, 0, 0, 0.6);
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #000;
+}
+
+.frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3125rem;
+  padding: 0.75rem var(--s-4) 0.875rem;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.featured .title {
+  font-size: 1.25rem;
+}
+
+.quote {
+  font-size: var(--t-small);
+  font-style: italic;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.375rem;
+}
+
+.watch {
+  flex: 1;
+  min-height: 40px;
+  border-radius: var(--r);
+  background: var(--ink);
+  color: var(--bg);
+  font-size: var(--t-small);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  transition: opacity var(--fast) var(--ease);
+}
+
+.watch:hover {
+  opacity: 0.88;
+}
+
+.edit {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+}
+
+.edit:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+/* --- Cinematic featured treatment ---------------------------------------- */
+
+.featured .thumb {
+  aspect-ratio: 4 / 3;
+}
+
+@media (min-width: 30rem) {
+  .featured .thumb {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+/*
+ * A scrim heavy enough at the base to hold white text at any thumbnail, fading
+ * to nothing by the middle so the still is still the subject.
+ */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(6, 6, 12, 0.92) 0%,
+    rgba(6, 6, 12, 0.55) 34%,
+    rgba(6, 6, 12, 0.05) 62%
+  );
+  pointer-events: none;
+}
+
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: var(--s-4) var(--s-5) var(--s-5);
+  text-align: left;
+  pointer-events: none;
+}
+
+.overlayTitle {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 730;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  /* Fixed light, not a token: this text always sits on the dark scrim. */
+  color: #ffffff;
+}
+
+.overlayQuote {
+  font-size: var(--t-small);
+  font-style: italic;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.82);
+}

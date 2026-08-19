@@ -1,0 +1,29 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 730;
+  letter-spacing: -0.03em;
+}
+
+.sub {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 40rem;
+  }
+}

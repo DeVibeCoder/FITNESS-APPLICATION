@@ -1,0 +1,64 @@
+.track {
+  position: relative;
+  width: 100%;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.sm {
+  height: 5px;
+}
+
+.md {
+  height: 8px;
+}
+
+.fill {
+  height: 100%;
+  border-radius: inherit;
+  /* Growing a bar is one of the few animations worth having. */
+  transition: width var(--slow) var(--ease-out);
+}
+
+/* The brand gradient for overall progress — flat colour for everything else. */
+.accent {
+  background: var(--brand-gradient);
+}
+/* Steps and movement. */
+.move {
+  background: var(--move);
+}
+/* Workouts and energy in or out. */
+.energy {
+  background: var(--energy);
+}
+.success {
+  background: var(--success);
+}
+.warn {
+  background: var(--warn);
+}
+.neutral {
+  background: var(--ink-3);
+}
+
+.ring {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.ringFill {
+  transition: stroke-dashoffset var(--slow) var(--ease-out);
+}
+
+.ringLabel {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  line-height: 1.1;
+}

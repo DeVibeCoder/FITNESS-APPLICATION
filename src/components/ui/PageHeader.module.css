@@ -1,0 +1,68 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: var(--s-1) 0 var(--s-5);
+}
+
+/*
+ * On a phone the top bar already shows the page name, so repeating it here
+ * would print the same word twice. Hidden rather than removed: on desktop the
+ * bar shows navigation links instead, and the page needs its own heading back.
+ *
+ * display:none keeps it out of the accessibility tree too, so exactly one <h1>
+ * is ever announced.
+ */
+.title {
+  display: none;
+}
+
+@media (min-width: 64rem) {
+  .title {
+    display: block;
+  }
+
+  .header {
+    padding-top: var(--s-2);
+  }
+}
+
+.back {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  margin-left: -0.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  color: var(--ink-2);
+  transition: background-color var(--fast) var(--ease);
+}
+
+.back:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+.text {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .title {
+    font-size: var(--t-h1);
+    letter-spacing: -0.03em;
+    font-weight: 700;
+  }
+}
+
+.subtitle {
+  margin-top: 0.125rem;
+  font-size: var(--t-small);
+  color: var(--ink-2);
+}
+
+.action {
+  flex-shrink: 0;
+}

@@ -1,0 +1,124 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.intro {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-3);
+}
+
+.introText {
+  min-width: 0;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 740;
+  letter-spacing: -0.035em;
+}
+
+.sub {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.link {
+  flex: none;
+  padding-top: 0.25rem;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.changes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.changes dt {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.changes dd {
+  margin-top: 0.125rem;
+  font-family: var(--font-display);
+  font-size: 1.1875rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--success);
+}
+
+.up {
+  color: var(--ink);
+}
+
+.flat {
+  color: var(--ink-3);
+}
+
+/* --- BMI --- */
+.note {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+/* --- Week --- */
+/* --- Measurements --- */
+/* --- Leaders --- */
+.inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  align-items: flex-start;
+}
+
+.inputList {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+  width: 100%;
+}
+
+.inputList dt {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.inputList dd {
+  margin-top: 0.125rem;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+@media (min-width: 64rem) {
+  .page {
+    max-width: 44rem;
+  }
+}

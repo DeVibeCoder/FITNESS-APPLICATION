@@ -1,0 +1,28 @@
+.chart {
+  width: 100%;
+  overflow: hidden;
+}
+
+.line {
+  stroke-dasharray: 1200;
+  stroke-dashoffset: 0;
+  animation: draw 900ms var(--ease-out) both;
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1200;
+  }
+}
+
+.axis,
+.goalLabel {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  fill: var(--ink-3);
+}
+
+.goalLabel {
+  fill: var(--success);
+}

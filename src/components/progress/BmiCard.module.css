@@ -1,0 +1,146 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+}
+
+.value {
+  font-family: var(--font-display);
+  font-size: var(--t-display);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.label {
+  margin-top: 0.25rem;
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.preview {
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.range {
+  text-align: right;
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.35;
+}
+
+.scale {
+  position: relative;
+  padding-top: 0.625rem;
+}
+
+.bands {
+  display: flex;
+  gap: 2px;
+  height: 22px;
+}
+
+.band {
+  display: grid;
+  place-items: center;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--bg-sunk);
+  overflow: hidden;
+}
+
+.band:first-child {
+  border-radius: var(--r-pill) 0 0 var(--r-pill);
+}
+
+.band:last-child {
+  border-radius: 0 var(--r-pill) var(--r-pill) 0;
+}
+
+.underweight {
+  background: color-mix(in srgb, var(--warn) 18%, var(--bg-sunk));
+}
+
+.healthy {
+  background: color-mix(in srgb, var(--success) 24%, var(--bg-sunk));
+  color: var(--success);
+}
+
+.overweight {
+  background: color-mix(in srgb, var(--warn) 30%, var(--bg-sunk));
+  color: var(--warn);
+}
+
+.obese {
+  background: color-mix(in srgb, var(--danger) 24%, var(--bg-sunk));
+  color: var(--danger);
+}
+
+.marker {
+  position: absolute;
+  top: 0;
+  width: 3px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  border: 1px solid var(--surface);
+  transform: translateX(-50%);
+  transition: left var(--slow) var(--ease-out);
+}
+
+.explain {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+.toggle {
+  align-self: flex-start;
+  min-height: 36px;
+  padding: 0 0.625rem;
+  margin-left: -0.625rem;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.toggle:hover {
+  background: var(--bg-sunk);
+  color: var(--accent);
+}
+
+.calculator {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.inputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+}
+
+.calcNote {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
+}

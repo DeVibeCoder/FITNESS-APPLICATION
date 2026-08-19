@@ -1,0 +1,40 @@
+.card {
+  padding: var(--s-4);
+}
+
+.empty {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  padding: 0.6875rem var(--s-4);
+  font-size: var(--t-body);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.item + .item {
+  border-top: 1px solid var(--line);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 0.5rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.good {
+  background: var(--success);
+}

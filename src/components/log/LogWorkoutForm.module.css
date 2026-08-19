@@ -1,0 +1,93 @@
+.apps {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.legend {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: var(--s-2);
+}
+
+.appRow {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.app {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r);
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 580;
+  line-height: 1.2;
+  transition:
+    border-color var(--fast) var(--ease),
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.app:active {
+  transform: scale(0.97);
+}
+
+.appOn {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+/* Two short numeric fields share a row; they never need the full width. */
+.pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-3);
+}
+
+/* --- Screenshot ----------------------------------------------------------- */
+
+.attach {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.preview {
+  position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+}
+
+.preview img {
+  width: 100%;
+  max-height: 14rem;
+  object-fit: contain;
+}
+
+.removeShot {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-pill);
+  background: var(--scrim);
+  color: #fff;
+  backdrop-filter: blur(6px);
+}
+
+.attachNote {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.45;
+}

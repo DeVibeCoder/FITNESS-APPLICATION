@@ -1,0 +1,162 @@
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 32px;
+  padding: 0 0.5rem;
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.add:hover {
+  background: var(--bg-sunk);
+  color: var(--accent);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 0.625rem var(--s-4);
+  font-size: var(--t-body);
+}
+
+.label {
+  flex: 1;
+  font-weight: 600;
+}
+
+.values {
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.from {
+  color: var(--ink-3);
+  font-weight: 550;
+}
+
+.arrow {
+  color: var(--ink-3);
+}
+
+.change {
+  min-width: 3rem;
+  text-align: right;
+  font-size: var(--t-small);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--success);
+}
+
+.up {
+  color: var(--ink-2);
+}
+
+.flat {
+  color: var(--ink-3);
+}
+
+.note {
+  padding: 0.75rem var(--s-4);
+  border-top: 1px solid var(--line);
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: var(--s-3);
+}
+
+.chip {
+  min-height: 32px;
+  padding: 0 0.625rem;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.chipActive {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+
+.chartNote {
+  margin-top: 0.25rem;
+  font-size: var(--t-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.history {
+  display: flex;
+  flex-direction: column;
+}
+
+.history > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.historyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.625rem var(--s-4);
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.historyRow:hover {
+  background: var(--surface-2);
+}
+
+.historyDate {
+  flex-shrink: 0;
+  min-width: 3.5rem;
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.historyValues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.pill {
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--r-sm);
+  background: var(--bg-sunk);
+  font-size: var(--t-micro);
+  font-weight: 650;
+  color: var(--ink-2);
+}

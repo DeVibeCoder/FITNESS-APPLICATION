@@ -1,0 +1,43 @@
+.portion {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 0.625rem;
+}
+
+.macros {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.hint {
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--r);
+  background: var(--warn-soft);
+  font-size: var(--t-small);
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: var(--s-4);
+  border-radius: var(--r-lg);
+  background: var(--danger-soft);
+}
+
+.confirmText {
+  font-size: var(--t-small);
+  color: var(--ink);
+}
+
+.confirmRow {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.confirmRow > * {
+  flex: 1;
+}

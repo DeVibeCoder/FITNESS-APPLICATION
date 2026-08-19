@@ -1,0 +1,251 @@
+.card {
+  overflow: hidden;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  padding: 0.8125rem var(--s-4);
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+}
+
+.head:hover {
+  background: var(--surface-2);
+}
+
+.headText {
+  flex: 1;
+  min-width: 0;
+}
+
+.when {
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.name {
+  margin-top: 0.0625rem;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.3125rem;
+}
+
+.tags:empty {
+  display: none;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--r-pill);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.hard {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.just_right {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.easy {
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.abandoned {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+
+.headStats {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.time {
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.kcal {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: transform var(--med) var(--ease);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.note {
+  padding: 0 var(--s-4) 0.75rem;
+  font-size: var(--t-small);
+  font-style: italic;
+  color: var(--ink-2);
+}
+
+.detail {
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.loading {
+  padding: 0.875rem var(--s-4);
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.exercises {
+  display: flex;
+  flex-direction: column;
+}
+
+.exercise {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem var(--s-4);
+  font-size: var(--t-small);
+}
+
+.exercise + .exercise {
+  border-top: 1px solid var(--line);
+}
+
+.exerciseMark {
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1.5px solid var(--line-strong);
+  color: transparent;
+}
+
+.done .exerciseMark {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.skipped .exerciseMark {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.exerciseName {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.skipped .exerciseName {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--line-strong);
+}
+
+.exerciseSpec {
+  flex-shrink: 0;
+  font-weight: 650;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.skipped .exerciseSpec {
+  color: var(--warn);
+  font-size: var(--t-micro);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.unrecorded .exerciseSpec {
+  color: var(--ink-3);
+}
+
+/*
+ * Which app the workout came from. Neutral rather than coloured — it is
+ * context, not a status, and the difficulty tag beside it owns the colour.
+ */
+.app {
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.editRow {
+  display: flex;
+  padding: 0 var(--s-4) var(--s-3);
+}
+
+.edit {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 570;
+  color: var(--ink-2);
+  transition: color var(--fast) var(--ease);
+}
+
+.edit:hover {
+  color: var(--accent);
+}
+
+/* The optional details toggle, for sessions that actually have a breakdown. */
+.detailRow {
+  display: flex;
+  padding: 0 var(--s-4) var(--s-3);
+}
+
+.detailToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 34px;
+  padding: 0 var(--s-2);
+  margin-left: calc(var(--s-2) * -1);
+  border-radius: var(--r-sm);
+  font-size: var(--t-small);
+  font-weight: 570;
+  color: var(--ink-2);
+  transition: color var(--fast) var(--ease);
+}
+
+.detailToggle:hover {
+  color: var(--accent);
+}

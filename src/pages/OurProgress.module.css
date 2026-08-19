@@ -1,0 +1,104 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.heading {
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 730;
+  letter-spacing: -0.03em;
+}
+
+.range {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.columns {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.main,
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.members {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.link {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.link:hover {
+  color: var(--accent);
+}
+
+.reviewLink {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 0.875rem var(--s-4);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink-3);
+  transition:
+    border-color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.reviewLink:hover {
+  border-color: var(--line-strong);
+}
+
+.reviewLink:active {
+  transform: scale(0.99);
+}
+
+.reviewText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.reviewTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.reviewHint {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+@media (min-width: 64rem) {
+  .columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(19rem, 1fr);
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
