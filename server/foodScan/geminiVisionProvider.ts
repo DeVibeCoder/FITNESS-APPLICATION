@@ -115,9 +115,15 @@ export class GeminiFoodVisionProvider implements FoodVisionProvider {
   private readonly model: string
   private readonly timeoutMs: number
 
+  /*
+   * The model is passed in rather than read from process.env here. Cloudflare
+   * Workers have no `process` global, and a provider that reaches for one
+   * cannot run there — `resolveProviders` already holds the environment and is
+   * the right place to make that decision.
+   */
   constructor(
     apiKey: string,
-    model = process.env.GEMINI_MODEL ?? 'gemini-3.6-flash',
+    model = 'gemini-3.6-flash',
     timeoutMs = 30_000,
   ) {
     this.apiKey = apiKey

@@ -44,7 +44,18 @@ export interface Providers {
  * someone a sample meal while they believe it came from their photo is the
  * exact defect this endpoint exists to remove.
  */
-export function resolveProviders(env: Record<string, string | undefined> = process.env): Providers {
+export type ScanEnv = Record<string, string | undefined>
+
+/*
+ * `globalThis.process?.env` rather than `process.env`. Node and the Vite dev
+ * server have it; Cloudflare Workers do not, and referencing it bare there is
+ * a ReferenceError at module load — before any request arrives, so the failure
+ * would look like a broken deployment rather than a missing binding.
+ */
+const hostEnv = (): ScanEnv =>
+  (globalThis as { process?: { env?: ScanEnv } }).process?.env ?? {}
+
+export function resolveProviders(env: ScanEnv = hostEnv()): Providers {
   const geminiKey = env.GEMINI_API_KEY?.trim()
   const fdcKey = env.FDC_API_KEY?.trim()
   const nutrition = fdcKey ? new FoodDataCentralNutritionProvider(fdcKey) : null
@@ -59,7 +70,8 @@ export function resolveProviders(env: Record<string, string | undefined> = proce
       'Food analysis is not configured on this server.',
     )
   }
-  return { vision: new GeminiFoodVisionProvider(geminiKey), nutrition, source: 'live' }
+  const model = env.GEMINI_MODEL?.trim() || undefined
+  return { vision: new GeminiFoodVisionProvider(geminiKey, model), nutrition, source: 'live' }
 }
 
 function decodeImage(body: ScanRequestBody): { base64: string; mimeType: string } {
@@ -220,11 +232,17 @@ const STATUS: Record<string, number> = {
 export async function handleFoodScanRequest(
   body: unknown,
   signal?: AbortSignal,
+  /*
+   * Supplied by the host. Node and Vite leave it undefined and fall through to
+   * process.env; Cloudflare Pages passes the Function's bindings, which is the
+   * only way a Worker ever sees a secret.
+   */
+  env?: ScanEnv,
 ): Promise<{ status: number; body: unknown }> {
   const started = Date.now()
   let providerName = 'unknown'
   try {
-    const providers = resolveProviders()
+    const providers = resolveProviders(env)
     providerName = providers.vision.name
     let retries = 0
     const result = await runFoodScan(body as ScanRequestBody, providers, signal, (info) => {

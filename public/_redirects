@@ -1,0 +1,11 @@
+# Client-side routing.
+#
+# Every path the router owns must be served index.html so a deep link or a
+# refresh on /group/awards loads the app instead of 404ing. The 200 is what
+# makes it a rewrite rather than a redirect, so the URL the user typed is the
+# URL the router sees.
+#
+# /api/* is deliberately NOT covered: Pages Functions answer those, and a
+# catch-all here would hand the browser an HTML page where it expects JSON —
+# the scanner would fail with a parse error instead of a readable message.
+/*    /index.html   200

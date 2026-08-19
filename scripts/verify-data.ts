@@ -167,8 +167,19 @@ async function main() {
     "today's completed sessions match what is stored for today",
     day.completedSessions.length === (await workoutService.sessionsForDay('u_ahmed', today)).length,
   )
-  ok("today is a training day", day.scheduled !== null && !day.scheduled.isRestDay, day.scheduled?.planDay.name)
-  check('exercises scheduled', day.scheduled?.exercises.length, 8)
+  /*
+   * The snapshot must resolve *a* scheduled day, not necessarily a training
+   * one — the plan has rest days, and which kind today is depends on the
+   * calendar. Asserting "today is a training day" made the suite red two days
+   * a week for no reason. What actually matters is that the day resolves and
+   * that a training day carries its exercises.
+   */
+  ok('today resolves to a scheduled day', day.scheduled !== null, day.scheduled?.planDay.name)
+  if (day.scheduled?.isRestDay) {
+    check('a rest day schedules no exercises', day.scheduled.exercises.length, 0)
+  } else {
+    check('a training day schedules its exercises', day.scheduled?.exercises.length, 8)
+  }
   check('check-in not done yet', day.checkIn, undefined)
 
   console.log('\n— The others —\n')
@@ -326,8 +337,29 @@ async function main() {
   const existingActive = await workoutService.activeSession(ahmed.id)
   if (existingActive) await workoutService.abandon(existingActive.id)
 
-  const scheduledDay = await workoutService.scheduledFor(ahmed.id, today)
-  ok('today has a runnable session', Boolean(scheduledDay) && !scheduledDay!.isRestDay)
+  /*
+   * Find a training day rather than assuming today is one.
+   *
+   * This block used to run against `today`, so the whole suite failed whenever
+   * the calendar happened to land on one of the plan's rest days — a gate that
+   * is red two days a week for reasons unrelated to the code is not a gate.
+   * Scanning a week forward keeps the assertion real (a plan with no training
+   * day in seven is genuinely broken) and makes it independent of the date.
+   */
+  let scheduledDay = null
+  let offset = 0
+  for (; offset < 7; offset += 1) {
+    const day = await workoutService.scheduledFor(ahmed.id, addDays(today, offset))
+    if (day && !day.isRestDay && day.exercises.length > 0) {
+      scheduledDay = day
+      break
+    }
+  }
+  ok(
+    'the plan schedules a runnable session within the week',
+    scheduledDay !== null,
+    offset === 0 ? 'today' : `in ${offset} day(s)`,
+  )
   const plan = scheduledDay!
   const startArgs = {
     userId: ahmed.id,
