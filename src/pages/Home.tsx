@@ -7,8 +7,6 @@ import { Button } from '@/components/ui/Button'
 import { StoriesRail } from '@/components/social/StoriesRail'
 import { PostCard } from '@/components/social/PostCard'
 import { GroupList } from '@/components/group/GroupList'
-import { ChallengeCard } from '@/components/group/ChallengeCard'
-import { HomeMotivation } from '@/components/motivation/HomeMotivation'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { postService, progressService } from '@/services'
@@ -91,9 +89,14 @@ export function Home() {
         </div>
 
         {/*
-          Desktop only, and beside the feed rather than after it. Contextual
-          summaries — not a second copy of the primary navigation, which lives
-          in the top bar on this breakpoint.
+          Desktop only, and beside the feed rather than after it.
+
+          One section, and it is live group data — who is in the group and how
+          they are tracking. The challenge card and the motivation card that
+          used to sit under it are gone: the challenge is already the Group
+          tab's own section, and a rotating quote is decoration, not
+          information. A sidebar filled to avoid looking empty makes Home busy
+          without making it useful.
         */}
         <aside className={styles.rail}>
           <Section
@@ -105,28 +108,6 @@ export function Home() {
             }
           >
             {group ? <GroupList members={group} currentUserId={user.id} /> : null}
-          </Section>
-
-          <Section
-            title="This week's challenge"
-            action={
-              <Link to="/group/challenge" className={styles.sectionLink}>
-                Details
-              </Link>
-            }
-          >
-            <ChallengeCard />
-          </Section>
-
-          <Section
-            title="This week's motivation"
-            action={
-              <Link to="/motivation" className={styles.sectionLink}>
-                More
-              </Link>
-            }
-          >
-            <HomeMotivation userId={user.id} />
           </Section>
         </aside>
       </div>

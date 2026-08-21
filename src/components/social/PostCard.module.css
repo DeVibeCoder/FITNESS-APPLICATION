@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: var(--s-4) var(--s-4) 0.625rem;
+  padding: 0.75rem var(--s-4) 0.5rem;
 }
 
 .avatar {
@@ -74,8 +74,8 @@
 .body {
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
-  padding: 0.875rem var(--s-4) 0;
+  gap: var(--s-2);
+  padding: 0.625rem var(--s-4) 0;
 }
 
 .body:empty {
@@ -93,20 +93,28 @@
   box-shadow: none;
 }
 
+/*
+ * One compact row.
+ *
+ * It was ~70px: 44px controls inside 24px of vertical padding, with a rule
+ * above. Now the controls keep a 36px height and the padding is halved, which
+ * takes roughly 30px off every post in the feed. The rule is gone too — the
+ * row sits close enough under the caption to read as part of the card without
+ * needing a line to say so.
+ */
 .footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
-  margin-top: 0.875rem;
-  padding: 0.625rem var(--s-4) 0.875rem;
-  border-top: 1px solid var(--line);
+  margin-top: 0.25rem;
+  padding: 0 var(--s-4) 0.375rem;
 }
 
 .counts {
   display: inline-flex;
   align-items: center;
-  gap: var(--s-5);
+  gap: var(--s-4);
 }
 
 /*
@@ -118,7 +126,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  min-height: 44px;
+  /* 36px: still comfortably tappable, 8px shorter than before. */
+  min-height: 36px;
   font-size: var(--t-small);
   font-weight: 650;
   color: var(--ink-3);
@@ -135,7 +144,7 @@
 
 /* The thread, inset under the footer it belongs to. */
 .comments {
-  padding: 0 var(--s-4) var(--s-4);
+  padding: 0 var(--s-4) 0.875rem;
 }
 
 /* A post somebody actually reacted to gets a filled heart. */

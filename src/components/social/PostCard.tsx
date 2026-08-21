@@ -5,6 +5,7 @@ import { Heart, MessageCircle } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
+import { CommentPreview } from './CommentPreview'
 import { PostComments } from './PostComments'
 import type { FeedPost } from '@/services/postService'
 import { postService } from '@/services'
@@ -144,11 +145,18 @@ export function PostCard({ post }: { post: FeedPost }) {
         ) : null}
       </footer>
 
+      {/*
+        Collapsed, the feed shows the last couple of comments as a
+        conversation; expanded, the full thread with a reply box. The preview
+        renders nothing when there are none, so a quiet post costs no height.
+      */}
       {showComments ? (
         <div className={styles.comments}>
           <PostComments postId={post.id} />
         </div>
-      ) : null}
+      ) : (
+        <CommentPreview postId={post.id} onOpen={() => setShowComments(true)} />
+      )}
 
     </article>
   )

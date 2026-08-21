@@ -254,7 +254,13 @@
   --gutter: 1.125rem;
   --content-max: 30rem;
   --desktop-max: 78rem;
-  --nav-h: 3.875rem;
+  /*
+   * 54px. The bar was 62 and read as a slab; with the raised Create button
+   * gone there is nothing in it that needs the extra height. Every tab is
+   * still a full-width column of this height, so the tap targets grew
+   * horizontally as the bar got shorter.
+   */
+  --nav-h: 3.375rem;
   /*
    * One mobile header height, and one desktop one. Every sticky offset in the
    * app is expressed against these rather than repeating a magic 3.25rem.

@@ -73,9 +73,16 @@
     font-size: 2rem;
   }
 
+  /*
+   * The feed leads, and it is capped at a reading width rather than stretched
+   * to fill the page. With only one section left in the rail, giving the feed
+   * the extra room is better than widening posts nobody wants wider — a
+   * 40rem-wide caption is not more readable, it is just harder to scan.
+   */
   .columns {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(20rem, 1fr);
+    grid-template-columns: minmax(0, 34rem) minmax(17rem, 21rem);
+    justify-content: center;
     gap: var(--s-8);
     align-items: start;
   }

@@ -807,6 +807,10 @@ function buildSocial(sessions: WorkoutSession[]): {
       visibility: 'group',
       mediaIds: [],
       sharedType: 'steps',
+      // The post is dated yesterday, so it has to reference yesterday's step
+      // entry. Without the id the card had nothing to resolve and rendered
+      // "That step count is no longer available" in the middle of the feed.
+      sharedDataId: 'st_u_nadia_-1',
       reactionCount: 3,
       commentCount: 0,
     },
