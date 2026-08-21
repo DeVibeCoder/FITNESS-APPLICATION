@@ -52,7 +52,7 @@ export function mentionedIn(text: string, members: { id: ID; handle: string; nam
 export interface ChatMessageView extends ChatMessage {
   reactions: ChatReaction[]
   /** Enough of the original to render the quoted preview on a reply. */
-  replyTo?: { id: ID; userId: ID; text: string; sharedType?: SharedType }
+  replyTo?: { id: ID; userId: ID; text: string; sharedType?: SharedType; deletedAt?: string }
 }
 
 
@@ -109,6 +109,7 @@ export const chatService = {
               userId: parent.userId,
               text: parent.text,
               sharedType: parent.sharedType,
+              deletedAt: parent.deletedAt,
             }
           : undefined,
       }
@@ -138,7 +139,9 @@ export const chatService = {
       db.messages.orderBy('createdAt').toArray(),
       this.lastReadAt(userId),
     ])
-    const latest = all.at(-1)
+    // A deleted message is still the newest row, but it is not something the
+    // preview card can quote — so the card falls back to the last one that is.
+    const latest = [...all].reverse().find((m) => !m.deletedAt)
     const unread = all.filter(
       (message) => message.userId !== userId && (!lastReadAt || message.createdAt > lastReadAt),
     ).length
@@ -246,15 +249,29 @@ export const chatService = {
     return targets
   },
 
-  /** Only the author can remove a message, and only their own. */
+  /**
+   * Only the author can remove a message, and only their own.
+   *
+   * A soft delete: the row stays so the conversation keeps its shape, but the
+   * text and any share reference are cleared, because "deleted" has to mean
+   * the content is gone rather than merely hidden. Reactions go with it — you
+   * cannot react to something that is not there.
+   *
+   * Replies keep pointing at it. Their quoted preview reads "Message deleted",
+   * which is more honest than a reply that suddenly answers nothing.
+   */
   async remove(messageId: ID): Promise<void> {
     const message = await db.messages.get(messageId)
     assertOwnerOf(message)
-    await db.messages.delete(messageId)
+    if (!message || message.deletedAt) return
+
+    await db.messages.update(messageId, {
+      text: '',
+      sharedType: undefined,
+      sharedDataId: undefined,
+      deletedAt: now(),
+    })
     await db.chatReactions.where('messageId').equals(messageId).delete()
-    // A reply whose parent is gone keeps its text but loses the quote, rather
-    // than disappearing along with it.
-    await db.messages.where('replyToId').equals(messageId).modify({ replyToId: undefined })
   },
 
   /**
@@ -263,6 +280,10 @@ export const chatService = {
    */
   async toggleReaction(messageId: ID, userId: ID, emoji: string): Promise<void> {
     assertOwner(userId)
+    // Nothing to react to. The UI hides the control, but the rule belongs here
+    // too — a server would enforce it and the UI is not the only caller.
+    const message = await db.messages.get(messageId)
+    if (!message || message.deletedAt) return
     const existing = await db.chatReactions
       .where('[messageId+userId]')
       .equals([messageId, userId])

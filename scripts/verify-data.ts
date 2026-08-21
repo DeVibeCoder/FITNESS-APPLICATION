@@ -109,7 +109,21 @@ async function chatIsTextOnly(): Promise<boolean> {
 /** True when this is the newest message in the room. */
 async function isNewestMessage(id: string): Promise<boolean> {
   const all = await db.messages.orderBy('createdAt').toArray()
-  return all.at(-1)?.id === id
+  // The newest message the preview can actually quote. A deleted row is still
+  // the newest row, but it has no content to show, so `summary` skips it.
+  return [...all].reverse().find((m) => !m.deletedAt)?.id === id
+}
+
+/** Runs an attempt as Nadia and expects the ownership guard to stop it. */
+async function expectOwnershipRefusal(label: string, attempt: () => Promise<unknown>) {
+  await authService.signIn('nadia', DEMO_PASSWORD)
+  let refused = false
+  try {
+    await attempt()
+  } catch (error) {
+    refused = error instanceof Error && error.name === 'OwnershipError'
+  }
+  ok(label, refused)
 }
 
 async function main() {
@@ -2125,11 +2139,13 @@ async function main() {
 
   await authService.signIn('ahmed', DEMO_PASSWORD)
   await chatService.remove(sent!.id)
-  check('you can delete your own', await db.messages.get(sent!.id), undefined)
+  const removed = await db.messages.get(sent!.id)
+  ok('you can delete your own', Boolean(removed?.deletedAt))
+  check('and its text goes with it', removed!.text, '')
   const orphan = await db.messages.get(reply!.id)
   ok('a reply survives its parent being deleted', Boolean(orphan))
-  check('and simply loses the quote', orphan!.replyToId, undefined)
-  await db.messages.delete(reply!.id)
+  check('and keeps pointing at it, now a tombstone', orphan!.replyToId, sent!.id)
+  await db.messages.bulkDelete([sent!.id, reply!.id])
 
   console.log('\n— Sharing progress into the chat —\n')
   const sharedWorkout = await chatService.shareWorkout('u_ahmed')
@@ -2661,6 +2677,64 @@ async function main() {
   // Chat and Group are separate now: unread belongs to Chat, and the only
   // notification chat may raise is a mention.
   // ---------------------------------------------------------------------------
+  console.log('\n— Deleting a message leaves a tombstone —\n')
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const doomed = (await chatService.send({ userId: 'u_ahmed', text: 'This will go' }))!
+  const tombReply = (await chatService.send({
+    userId: 'u_ahmed',
+    text: 'Answering it',
+    replyToId: doomed.id,
+  }))!
+  await chatService.toggleReaction(doomed.id, 'u_ahmed', '\u{1F525}')
+  const roomSize = await db.messages.count()
+
+  await chatService.remove(doomed.id)
+  const tomb = (await db.messages.get(doomed.id))!
+  ok('the row survives', Boolean(tomb))
+  check('the conversation does not shrink', await db.messages.count(), roomSize)
+  ok('it is marked deleted', Boolean(tomb.deletedAt))
+  check('the text is gone, not merely hidden', tomb.text, '')
+  check('the timestamp is untouched, so nothing reorders', tomb.createdAt, doomed.createdAt)
+  check('its reactions are gone',
+    await db.chatReactions.where('messageId').equals(doomed.id).count(), 0)
+
+  await chatService.toggleReaction(doomed.id, 'u_ahmed', '\u{1F44F}')
+  check('and it cannot be reacted to again',
+    await db.chatReactions.where('messageId').equals(doomed.id).count(), 0)
+
+  const view = await chatService.list()
+  const shownTomb = view.find((m) => m.id === doomed.id)!
+  ok('it still appears in the thread, in place', Boolean(shownTomb))
+  ok('carrying the deleted flag the bubble reads', Boolean(shownTomb.deletedAt))
+
+  const shownReply = view.find((m) => m.id === tombReply.id)!
+  check('the reply still points at it', shownReply.replyToId, doomed.id)
+  ok('and its quote knows the original is gone', Boolean(shownReply.replyTo?.deletedAt))
+
+  console.log('\n— A deleted share stops showing its card —\n')
+  const shared = (await chatService.shareWeighIn('u_ahmed'))!
+  ok('the share carries a record reference', Boolean(shared.sharedType && shared.sharedDataId))
+  await chatService.remove(shared.id)
+  const goneShare = (await db.messages.get(shared.id))!
+  check('deleting clears the shared type', goneShare.sharedType, undefined)
+  check('and the record reference with it', goneShare.sharedDataId, undefined)
+
+  await expectOwnershipRefusal("Nadia cannot delete Ahmed's message", () =>
+    chatService.remove(tombReply.id))
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const beforeSummary = await chatService.summary('u_nadia')
+  await chatService.remove(tombReply.id)
+  ok('a deleted message is never quoted as the latest',
+    beforeSummary.latest?.id !== undefined)
+  const afterSummary = await chatService.summary('u_nadia')
+  ok('the preview falls back to a message that still exists',
+    !afterSummary.latest || !afterSummary.latest.deletedAt)
+
+  // Leave the seeded room as it was found.
+  await db.messages.bulkDelete([doomed.id, tombReply.id, shared.id])
+
   console.log('\n— Post reactions and comments —\n')
 
   await authService.signIn('ahmed', DEMO_PASSWORD)

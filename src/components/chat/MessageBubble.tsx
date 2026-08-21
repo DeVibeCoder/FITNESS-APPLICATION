@@ -36,6 +36,7 @@ export function MessageBubble({
   const { guard } = useToast()
   const [picking, setPicking] = useState(false)
   const mine = user?.id === message.userId
+  const deleted = Boolean(message.deletedAt)
 
   const counts = new Map<string, number>()
   for (const reaction of message.reactions) {
@@ -62,31 +63,80 @@ export function MessageBubble({
       <div className={styles.stack}>
         {!mine && !grouped ? <p className={styles.author}>{firstName(author.name)}</p> : null}
 
-        <div className={styles.bubble}>
-          {message.replyTo ? (
-            <div className={styles.quote}>
-              <span className={styles.quoteName}>
-                {firstName(users.get(message.replyTo.userId)?.name ?? 'Someone')}
-              </span>
-              <span className={styles.quoteText}>
-                {message.replyTo.text || sharedSummary(message.replyTo.sharedType)}
-              </span>
-            </div>
-          ) : null}
+        <div className={[styles.bubble, deleted ? styles.deleted : ''].filter(Boolean).join(' ')}>
+          {/*
+            A deleted message keeps its place and its timestamp so the thread
+            does not jump, and shows nothing else — no quote, no share card, no
+            text. The row survives; the content does not.
+          */}
+          {deleted ? (
+            <p className={styles.tombstone}>Message deleted</p>
+          ) : (
+            <>
+              {message.replyTo ? (
+                <div className={styles.quote}>
+                  <span className={styles.quoteName}>
+                    {firstName(users.get(message.replyTo.userId)?.name ?? 'Someone')}
+                  </span>
+                  <span
+                    className={[
+                      styles.quoteText,
+                      message.replyTo.deletedAt ? styles.quoteGone : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    {message.replyTo.deletedAt
+                      ? 'Message deleted'
+                      : message.replyTo.text || sharedSummary(message.replyTo.sharedType)}
+                  </span>
+                </div>
+              ) : null}
 
-          {message.sharedType ? <SharedCard message={message} author={author} /> : null}
-          {message.text ? (
-            <p className={styles.text}>{withMentions(message.text, users, mine)}</p>
-          ) : null}
+              {message.sharedType ? <SharedCard message={message} author={author} /> : null}
+              {message.text ? (
+                <p className={styles.text}>{withMentions(message.text, users, mine)}</p>
+              ) : null}
+            </>
+          )}
 
           <p className={styles.time}>{formatClock(message.createdAt)}</p>
+
+          {/*
+            Reactions belong to the bubble, not to a row beneath it.
+            Rendered inside so they can sit on its lower edge and inherit its
+            alignment — a floating row underneath read as an unrelated control
+            and lost track of which message it answered.
+          */}
+          {counts.size > 0 ? (
+            <div className={styles.reactions}>
+              {[...counts.entries()].map(([emoji, count]) => (
+                <button
+                  key={emoji}
+                  className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => react(emoji)}
+                  aria-label={`${count} reacted with ${emoji}`}
+                  aria-pressed={myReaction?.emoji === emoji}
+                >
+                  <span aria-hidden="true">{emoji}</span>
+                  <span className="tnum">{count}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         {/*
           Under the bubble rather than beside it. Sitting alongside, these three
           buttons took ~90px out of an already narrow column and forced every
           message to wrap two words early.
+
+          A deleted message has none of them: there is nothing to react to,
+          nothing to quote, and nothing left to delete.
         */}
+        {deleted ? null : (
         <div className={styles.tools}>
           <button
             className={styles.tool}
@@ -113,6 +163,7 @@ export function MessageBubble({
             </button>
           ) : null}
         </div>
+        )}
 
         {picking ? (
           <div className={`glass ${styles.picker}`} role="group" aria-label="Pick a reaction">
@@ -130,24 +181,6 @@ export function MessageBubble({
           </div>
         ) : null}
 
-        {counts.size > 0 ? (
-          <div className={styles.reactions}>
-            {[...counts.entries()].map(([emoji, count]) => (
-              <button
-                key={emoji}
-                className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => react(emoji)}
-                aria-label={`${count} reacted with ${emoji}`}
-                aria-pressed={myReaction?.emoji === emoji}
-              >
-                <span aria-hidden="true">{emoji}</span>
-                <span className="tnum">{count}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
       </div>
     </li>
   )

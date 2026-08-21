@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight, MessageCircle } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
@@ -58,10 +58,9 @@ export function ChatHome() {
         to="/chat/thread"
         className={`glass ${styles.room} ${unread > 0 ? styles.roomUnread : ''}`}
       >
+        <p className="eyebrow">Group chat</p>
+
         <div className={styles.top}>
-          <span className={styles.mark} aria-hidden="true">
-            <MessageCircle size={20} strokeWidth={2.2} />
-          </span>
           <div className={styles.identity}>
             <span className={styles.name}>Fitness group</span>
             <span className={styles.people}>
@@ -76,32 +75,43 @@ export function ChatHome() {
           ) : null}
         </div>
 
+        <span className={styles.faces}>
+          {users.slice(0, 4).map((member) => (
+            <span key={member.id} className={styles.face}>
+              <Avatar user={member} size="sm" />
+            </span>
+          ))}
+        </span>
+
+        {/*
+          The last thing said, attributed and timed. Quoted rather than
+          paraphrased — the point of a preview is deciding whether to open it.
+        */}
         <div className={styles.message}>
           {summary.latest && author ? (
             <>
-              <p className={styles.line}>
-                <span className={styles.author}>{firstName(author.name)}:</span>{' '}
-                <span className={styles.text}>{preview}</span>
-              </p>
+              <p className={styles.author}>{firstName(author.name)}</p>
+              <p className={styles.line}>{preview}</p>
               <p className={styles.when}>{timeAgo(summary.latest.createdAt)}</p>
             </>
           ) : (
             <>
-              <p className={styles.line}>
-                <span className={styles.text}>No messages yet.</span>
-              </p>
-              <p className={styles.when}>Be the first to check in.</p>
+              <p className={styles.author}>No messages yet</p>
+              <p className={styles.line}>Be the first to check in.</p>
             </>
           )}
         </div>
 
         <div className={styles.footer}>
-          <span className={styles.faces}>
-            {users.slice(0, 4).map((member) => (
-              <span key={member.id} className={styles.face}>
-                <Avatar user={member} size="sm" />
-              </span>
-            ))}
+          <span className={styles.status}>
+            {unread > 0 ? (
+              <>
+                <span className={styles.dot} aria-hidden="true" />
+                {unread} new
+              </>
+            ) : (
+              'Up to date'
+            )}
           </span>
           <span className={styles.open}>
             {unread > 0 ? 'Read messages' : 'Open chat'}

@@ -218,19 +218,21 @@ header.bar {
  * exactly why it earns the colour and the glow.
  */
 .create {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3125rem;
+  display: grid;
+  place-items: center;
+  /*
+   * The same box as the bell and the theme toggle — 38px, same radius family,
+   * same baseline. It was a 36px-tall pill with a label, which made it read as
+   * a floating action button that had drifted into the header rather than one
+   * of its controls. The orange keeps it identifiable without the extra size.
+   */
+  width: var(--icon-btn);
+  height: var(--icon-btn);
   flex: none;
-  min-height: 36px;
-  padding: 0 0.875rem;
+  /* Same radius as the bell and the toggle, so the row reads as one set. */
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--accent-ink);
-  font-size: var(--t-small);
-  font-weight: 700;
-  white-space: nowrap;
   box-shadow: var(--accent-glow);
   transition:
     background var(--fast) var(--ease),
@@ -242,37 +244,26 @@ header.bar {
 }
 
 .create:active {
-  transform: scale(0.96);
+  transform: scale(0.94);
 }
 
 /*
- * Below 360px the label is dropped and the button becomes a round +. It keeps
- * its accessible name through the button's own text content, which stays in
- * the tree — clipped, not removed.
+ * The label is for screen readers only at every width now. "Log" next to a +
+ * inside a 38px square is not legible, and the icon plus the accessible name
+ * carries the meaning.
  */
-@media (max-width: 22.5rem) {
-  .createLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-  }
-
-  .create {
-    gap: 0;
-    width: 36px;
-    padding: 0;
-  }
+.createLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 @media (min-width: 64rem) {
   .create {
-    min-height: 38px;
-    padding: 0 var(--s-4);
-    margin-right: var(--s-2);
-    font-size: var(--t-body);
+    margin-right: var(--s-1);
   }
 }

@@ -16,6 +16,7 @@ import {
 import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MessageBubble } from '@/components/chat/MessageBubble'
+import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { challengeService, chatService , userService } from '@/services'
@@ -62,7 +63,18 @@ export function ChatThread() {
    * published as an attribute on <body> rather than lifted into context
    * because it is presentation, and the nav only needs to react to it in CSS.
    */
-  const [composing, setComposing] = useState(false)
+  /*
+   * How much the keyboard is actually covering, measured rather than assumed.
+   * The dock lifts by exactly this, so no device-specific offset is baked in
+   * and browsers that reflow the layout viewport themselves simply report 0.
+   *
+   * The layout follows this and *not* the composer's focus. Driving it from
+   * focus meant any blur — tapping Send, tapping a delete icon — moved the
+   * page between mousedown and mouseup, so the press landed on nothing. A
+   * keyboard that is genuinely open is the only thing that should reflow the
+   * screen, and on a desktop nothing reflows at all.
+   */
+  const { inset: keyboard, open: keyboardOpen } = useKeyboardInset()
   const input = useRef<HTMLTextAreaElement>(null)
   const positioned = useRef(false)
   const seenCount = useRef(0)
@@ -157,13 +169,13 @@ export function ChatThread() {
   }, [messages, atBottom, markCaughtUp])
 
   useEffect(() => {
-    if (composing) document.body.dataset.composing = 'true'
+    if (keyboardOpen) document.body.dataset.composing = 'true'
     else delete document.body.dataset.composing
     // Leaving mid-typing must not strand the rest of the app without a nav.
     return () => {
       delete document.body.dataset.composing
     }
-  }, [composing])
+  }, [keyboardOpen])
 
   // Reaching the bottom is what marks the conversation read — not the route
   // loading. Opening and leaving without scrolling keeps the unread count.
@@ -299,7 +311,10 @@ export function ChatThread() {
         )}
       </div>
 
-      <div className={[styles.dock, composing ? styles.docked : ""].filter(Boolean).join(" ")}>
+      <div
+        className={[styles.dock, keyboardOpen ? styles.docked : ''].filter(Boolean).join(' ')}
+        style={keyboard ? ({ '--keyboard': `${keyboard}px` } as React.CSSProperties) : undefined}
+      >
         {arrived > 0 ? (
           <button className={styles.newMessage} onClick={jumpToNewest}>
             <ArrowDown size={14} strokeWidth={2.4} />
@@ -332,6 +347,7 @@ export function ChatThread() {
                   key={action.kind}
                   role="menuitem"
                   className={styles.shareItem}
+                  onMouseDown={(event) => event.preventDefault()}
                   onClick={() => share(action.kind)}
                 >
                   <span className={styles.shareIcon}>{action.icon}</span>
@@ -358,6 +374,7 @@ export function ChatThread() {
               </div>
               <button
                 className={styles.cancelReply}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => setReplyTo(null)}
                 aria-label="Cancel reply"
               >
@@ -367,8 +384,19 @@ export function ChatThread() {
           ) : null}
 
           <div className={styles.inputRow}>
+            {/*
+              onMouseDown preventDefault, on every control inside the dock.
+
+              Without it, pressing one blurs the textarea first: `composing`
+              flips false, the bottom bar slides back in, and the dock drops by
+              the bar's height *between mousedown and mouseup* — so the press
+              lands on empty page and Send silently does nothing. Keeping focus
+              in the textarea also keeps the keyboard up after sending, which
+              is what a chat should do anyway.
+            */}
             <button
               className={[styles.attach, shareMenu ? styles.attachOpen : ''].filter(Boolean).join(' ')}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={() => setShareMenu((open) => !open)}
               aria-label="Share progress"
               aria-expanded={shareMenu}
@@ -390,7 +418,6 @@ export function ChatThread() {
                 event.target.style.height = `${event.target.scrollHeight}px`
               }}
               onFocus={() => {
-                setComposing(true)
                 /*
                  * The keyboard takes roughly half the screen, so whatever was
                  * at the bottom is now behind it. Re-anchoring after the
@@ -400,7 +427,6 @@ export function ChatThread() {
                  */
                 if (atBottom()) window.setTimeout(jumpToNewest, 320)
               }}
-              onBlur={() => setComposing(false)}
               onKeyDown={(event) => {
                 // Enter sends on a desktop keyboard; Shift+Enter makes a new
                 // line. On a phone the return key inserts a newline, which is
@@ -413,6 +439,7 @@ export function ChatThread() {
             />
             <button
               className={styles.send}
+              onMouseDown={(event) => event.preventDefault()}
               onClick={send}
               disabled={!draft.trim() || sending}
               aria-label="Send message"

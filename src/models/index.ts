@@ -411,6 +411,19 @@ export interface ChatMessage {
    * achievement key or a challenge. Never a copy of its contents.
    */
   sharedDataId?: ID
+  /**
+   * Set when the author deletes the message.
+   *
+   * Soft, so the conversation keeps its shape: the bubble stays where it was,
+   * timestamps do not shift, and a reply that quoted it still has something to
+   * point at. The content itself is cleared at the same time — a deleted
+   * message must not survive in the database where some later view could
+   * render it.
+   *
+   * Not indexed: nothing queries by it, and adding an index would force a
+   * schema version for a field Dexie already stores happily.
+   */
+  deletedAt?: Timestamp
 }
 
 export interface ChatReaction {

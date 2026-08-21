@@ -115,8 +115,8 @@ export function TopBar() {
             screen size — which is why it is the one filled, coloured control
             in the bar.
           */}
-          <button className={styles.create} onClick={() => open()}>
-            <Plus size={17} strokeWidth={3} />
+          <button className={styles.create} onClick={() => open()} aria-label="Log activity">
+            <Plus size={19} strokeWidth={2.8} />
             <span className={styles.createLabel}>Log</span>
           </button>
 

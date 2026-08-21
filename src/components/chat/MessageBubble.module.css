@@ -44,6 +44,7 @@
 /* --- Bubble --------------------------------------------------------------- */
 
 .bubble {
+  position: relative;
   min-width: 0;
   padding: var(--s-3) var(--s-4);
   border-radius: var(--card-radius);
@@ -52,6 +53,37 @@
   box-shadow: var(--shadow-sm);
   /* A tail on the corner nearest its owner. */
   border-bottom-left-radius: var(--r-sm);
+}
+
+/* Room for the pill that hangs off the lower edge. */
+.bubble:has(.reactions) {
+  margin-bottom: 14px;
+}
+
+/*
+ * Deleted. Muted, italic, and deliberately plain — it is a marker that
+ * something was here, not a message.
+ */
+.deleted {
+  background: transparent;
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.mine .deleted {
+  background: transparent;
+}
+
+.tombstone {
+  font-size: var(--t-body);
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+/* A quote whose original is gone says so, in the same voice. */
+.quoteGone {
+  font-style: italic;
+  color: var(--ink-3);
 }
 
 .mine .bubble {
@@ -221,24 +253,47 @@
   transform: scale(1.12);
 }
 
+/*
+ * Attached to the bubble's lower edge, overlapping it slightly, on the side
+ * the message belongs to. It used to be a full-width row underneath, which
+ * floated free of the message it answered.
+ *
+ * `max-width: 100%` with wrapping is what stops a long message pushing the
+ * pills past the bubble's edge.
+ */
 .reactions {
+  position: absolute;
+  bottom: -13px;
+  left: var(--s-3);
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-1);
-  padding-inline: var(--s-1);
+  gap: 3px;
+  max-width: calc(100% - var(--s-4));
+  z-index: 1;
 }
 
+/* Yours sit on the right, matching the bubble's alignment. */
+.mine .reactions {
+  left: auto;
+  right: var(--s-3);
+}
+
+/*
+ * Compact, and ringed in the page colour so it reads as sitting on top of the
+ * bubble rather than punched out of it.
+ */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  min-height: 32px;
-  padding: 0 0.625rem;
+  min-height: 26px;
+  padding: 0 0.5rem;
   border-radius: var(--r-pill);
   border: 1px solid var(--line);
   background: var(--surface);
+  box-shadow: 0 0 0 2px var(--bg);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 650;
   color: var(--ink-2);
   transition:
     border-color var(--fast) var(--ease),

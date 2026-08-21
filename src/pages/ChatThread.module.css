@@ -259,7 +259,14 @@
  * float 62px above it with a strip of page showing through the gap.
  */
 .docked {
-  bottom: var(--safe-b);
+  /*
+   * `--keyboard` is what visualViewport measured. It is 0 on a browser that
+   * reflows the layout viewport for us (Chrome with interactive-widget), and
+   * the keyboard's real height on one that does not — Safari, older WebViews.
+   * Either way the composer ends up directly above the keyboard, with no
+   * device-specific number anywhere in the stylesheet.
+   */
+  bottom: calc(var(--safe-b) + var(--keyboard, 0px));
 }
 
 @media (min-width: 64rem) {
