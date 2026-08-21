@@ -116,7 +116,7 @@ export function TopBar() {
             in the bar.
           */}
           <button className={styles.create} onClick={() => open()} aria-label="Log activity">
-            <Plus size={19} strokeWidth={2.8} />
+            <Plus size={16} strokeWidth={2.6} />
             <span className={styles.createLabel}>Log</span>
           </button>
 

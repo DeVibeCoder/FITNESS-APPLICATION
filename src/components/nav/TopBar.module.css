@@ -221,19 +221,21 @@ header.bar {
   display: grid;
   place-items: center;
   /*
-   * The same box as the bell and the theme toggle — 38px, same radius family,
-   * same baseline. It was a 36px-tall pill with a label, which made it read as
-   * a floating action button that had drifted into the header rather than one
-   * of its controls. The orange keeps it identifiable without the extra size.
+   * Smaller than the icon buttons beside it, not merely equal to them.
+   *
+   * Matching their 38px box still read as the largest thing in the bar: the
+   * others are a bare glyph on nothing, while this is a solid disc, and a
+   * filled shape carries far more weight than an outline of the same size.
+   * 32px with a lighter glyph and an ordinary shadow — rather than the brand
+   * glow — is what actually makes it sit level with them.
    */
-  width: var(--icon-btn);
-  height: var(--icon-btn);
+  width: 32px;
+  height: 32px;
   flex: none;
-  /* Same radius as the bell and the toggle, so the row reads as one set. */
   border-radius: var(--r-pill);
   background: var(--accent);
   color: var(--accent-ink);
-  box-shadow: var(--accent-glow);
+  box-shadow: var(--shadow-sm);
   transition:
     background var(--fast) var(--ease),
     transform var(--fast) var(--ease);
