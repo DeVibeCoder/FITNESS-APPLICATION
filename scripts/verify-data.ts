@@ -2661,6 +2661,73 @@ async function main() {
   // Chat and Group are separate now: unread belongs to Chat, and the only
   // notification chat may raise is a mention.
   // ---------------------------------------------------------------------------
+  console.log('\n— Post reactions and comments —\n')
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const reactedPost = (await db.posts.orderBy('createdAt').toArray()).at(-1)!
+  const startReactions = reactedPost.reactionCount
+  const startComments = reactedPost.commentCount
+
+  /** Runs an attempt as Nadia and expects the ownership guard to stop it. */
+  const refusedAs = async (label: string, attempt: () => Promise<unknown>) => {
+    await authService.signIn('nadia', DEMO_PASSWORD)
+    let refused = false
+    try {
+      await attempt()
+    } catch (error) {
+      refused = error instanceof Error && error.name === 'OwnershipError'
+    }
+    ok(label, refused)
+    await authService.signIn('ahmed', DEMO_PASSWORD)
+  }
+
+  await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F525}')
+  check('reacting raises the count', (await db.posts.get(reactedPost.id))!.reactionCount, startReactions + 1)
+  ok('and the row exists',
+    (await postService.reactionsFor(reactedPost.id)).some((r) => r.userId === 'u_ahmed'))
+
+  await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F525}')
+  check('the same emoji again takes it back',
+    (await db.posts.get(reactedPost.id))!.reactionCount, startReactions)
+
+  await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F4AA}')
+  await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F44F}')
+  check('one reaction per person, replaced rather than added',
+    (await postService.reactionsFor(reactedPost.id)).filter((r) => r.userId === 'u_ahmed').length, 1)
+  check('and the count reflects that',
+    (await db.posts.get(reactedPost.id))!.reactionCount, startReactions + 1)
+
+  const comment = await postService.comment(reactedPost.id, 'u_ahmed', '  Nice work  ')
+  check('a comment is trimmed', comment?.text, 'Nice work')
+  check('and counted', (await db.posts.get(reactedPost.id))!.commentCount, startComments + 1)
+  check('a blank comment is refused', await postService.comment(reactedPost.id, 'u_ahmed', '   '), null)
+  ok('comments read oldest first',
+    (await postService.commentsFor(reactedPost.id)).every(
+      (c, i, all) => i === 0 || all[i - 1].createdAt <= c.createdAt))
+
+  await refusedAs('Nadia cannot react as Ahmed', () =>
+    postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F525}'))
+  await refusedAs('Nadia cannot comment as Ahmed', () =>
+    postService.comment(reactedPost.id, 'u_ahmed', 'not mine'))
+  await refusedAs("Nadia cannot delete Ahmed's comment", () =>
+    postService.removeComment(comment!.id))
+
+  await postService.removeComment(comment!.id)
+  check('deleting your own comment restores the count',
+    (await db.posts.get(reactedPost.id))!.commentCount, startComments)
+
+  await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F44F}')
+  check('the demo is left as the seed had it',
+    (await db.posts.get(reactedPost.id))!.reactionCount, startReactions)
+
+  console.log('\n— The share menu offers only what exists —\n')
+  const offered = await chatService.shareable('u_ahmed', today)
+  ok('Ahmed can share a workout', offered.has('workout'))
+  ok('and a weigh-in', offered.has('weigh_in'))
+  ok('no challenge is offered when none is passed', !offered.has('challenge'))
+  ok('and one is when it is',
+    (await chatService.shareable('u_ahmed', today, 'ch_1')).has('challenge'))
+
   console.log('\n— Chat unread state —\n')
 
   await authService.signIn('ahmed', DEMO_PASSWORD)

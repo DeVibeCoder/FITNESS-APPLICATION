@@ -1,10 +1,15 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useLiveQuery } from 'dexie-react-hooks'
 import { Heart, MessageCircle } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
+import { PostComments } from './PostComments'
 import type { FeedPost } from '@/services/postService'
+import { postService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import { timeAgo } from '@/utils/date'
 import { firstName } from '@/utils/format'
 import styles from './PostCard.module.css'
@@ -21,10 +26,9 @@ const KIND_LABEL: Partial<Record<FeedPost['type'], string>> = {
 /**
  * How the group tends to answer each kind of post.
  *
- * Shown as a quiet summary on the right of the footer, not as a button — the
- * reference puts a reaction there and it is the warmest thing on the card, but
- * reacting is Phase 2 and a control that looks live and does nothing is worse
- * than none. It only appears once somebody has actually reacted.
+ * A quiet summary on the right of the footer, shown once somebody has actually
+ * reacted. It reports rather than invites — the heart on the left is the
+ * control.
  */
 const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
   workout: 'Respect',
@@ -42,16 +46,31 @@ const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
  * feed rather than as a list of notes. Text-only posts keep their padding and
  * lead with the words.
  *
- * Read-only in Phase 1. Reaction and comment counts are shown because they are
- * real seeded numbers, but they are not buttons yet. Records are rendered by
- * the same `SharedCard` the chat uses, so a shared workout looks identical
- * wherever it appears and stays current.
+ * Reacting and commenting are live. The heart toggles your own reaction — one
+ * per person, tap again to take it back — and the comment count opens a small
+ * thread underneath. Both go through postService, which re-derives the counts
+ * from the rows so the number on the card cannot drift from what is behind it.
+ *
+ * Records are rendered by the same `SharedCard` the chat uses, so a shared
+ * workout looks identical wherever it appears and stays current.
  */
 export function PostCard({ post }: { post: FeedPost }) {
   const { user } = useAuth()
+  const { guard } = useToast()
+  const [showComments, setShowComments] = useState(false)
   const kind = KIND_LABEL[post.type]
   const isMine = user?.id === post.userId
   const reaction = post.reactionCount > 0 ? REACTION_WORD[post.type] : undefined
+
+  const reactions = useLiveQuery(() => postService.reactionsFor(post.id), [post.id])
+  const mineReacted = Boolean(reactions?.some((r) => r.userId === user?.id))
+
+  // One emoji on the feed. The chat has a picker because a conversation earns
+  // nuance; a post only needs "I saw this and I am glad".
+  const toggle = () => {
+    if (!user) return
+    void guard(() => postService.toggleReaction(post.id, user.id, '🔥'))
+  }
 
   return (
     <article className={styles.card}>
@@ -93,18 +112,28 @@ export function PostCard({ post }: { post: FeedPost }) {
 
       <footer className={styles.footer}>
         <span className={styles.counts}>
-          <span className={styles.count}>
+          <button
+            className={[styles.count, mineReacted ? styles.countOn : ''].filter(Boolean).join(' ')}
+            onClick={toggle}
+            aria-pressed={mineReacted}
+            aria-label={mineReacted ? 'Remove your reaction' : 'React to this post'}
+          >
             <Heart
               size={16}
               strokeWidth={2.2}
-              className={post.reactionCount > 0 ? styles.hearted : undefined}
+              className={mineReacted ? styles.hearted : undefined}
             />
             <span className="tnum">{post.reactionCount}</span>
-          </span>
-          <span className={styles.count}>
+          </button>
+          <button
+            className={[styles.count, showComments ? styles.countOn : ''].filter(Boolean).join(' ')}
+            onClick={() => setShowComments((open) => !open)}
+            aria-expanded={showComments}
+            aria-label={showComments ? 'Hide comments' : 'View comments'}
+          >
             <MessageCircle size={16} strokeWidth={2.2} />
             <span className="tnum">{post.commentCount}</span>
-          </span>
+          </button>
         </span>
 
         {reaction ? (
@@ -114,6 +143,13 @@ export function PostCard({ post }: { post: FeedPost }) {
           </span>
         ) : null}
       </footer>
+
+      {showComments ? (
+        <div className={styles.comments}>
+          <PostComments postId={post.id} />
+        </div>
+      ) : null}
+
     </article>
   )
 }

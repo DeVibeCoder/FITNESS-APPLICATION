@@ -6,8 +6,8 @@ import {
   ArrowLeft,
   Award,
   Dumbbell,
-  Ellipsis,
   Footprints,
+  Plus,
   Scale,
   SendHorizontal,
   Target,
@@ -43,7 +43,7 @@ export function ChatThread() {
   const [draft, setDraft] = useState('')
   const [replyTo, setReplyTo] = useState<ChatMessageView | null>(null)
   const [sending, setSending] = useState(false)
-  const [moreShares, setMoreShares] = useState(false)
+  const [shareMenu, setShareMenu] = useState(false)
   /**
    * Two different states, deliberately not one.
    *
@@ -62,6 +62,14 @@ export function ChatThread() {
   const messages = useLiveQuery(() => chatService.list(), [])
   const users = useLiveQuery(() => userService.listMembers(), [])
   const challenge = useLiveQuery(() => challengeService.forWeek(today), [today])
+  /*
+   * What this person actually has to share. The menu lists only these, so it
+   * can never offer an action whose only possible outcome is an error toast.
+   */
+  const shareable = useLiveQuery(
+    () => (user ? chatService.shareable(user.id, today, challenge?.id) : undefined),
+    [user?.id, today, challenge?.id],
+  )
   /**
    * Captured once. The divider must not jump as messages are marked read while
    * the reader is still looking at them.
@@ -186,7 +194,8 @@ export function ChatThread() {
   }
 
   const share = async (kind: 'workout' | 'weigh_in' | 'steps' | 'achievement' | 'challenge') => {
-    setMoreShares(false)
+    // Back to a clean conversation the moment something is chosen.
+    setShareMenu(false)
     const result = await guard(async () => {
       switch (kind) {
         case 'workout':
@@ -228,9 +237,11 @@ export function ChatThread() {
       <div className={styles.thread}>
         {messages.length === 0 ? (
           <div className={styles.empty}>
-            <p className="eyebrow">Your group chat</p>
             <p className={styles.emptyTitle}>Your group is quiet.</p>
-            <p className={styles.emptyBody}>Be the first to check in.</p>
+            <p className={styles.emptyBody}>Share what you're working on today.</p>
+            <button className={styles.emptyAction} onClick={() => input.current?.focus()}>
+              Write a message
+            </button>
           </div>
         ) : (
           <ul className={styles.list}>
@@ -284,27 +295,39 @@ export function ChatThread() {
           </button>
         ) : null}
 
-        <div className={styles.shareRow} role="group" aria-label="Share your progress">
-          <ShareButton label="Workout" icon={<Dumbbell size={14} strokeWidth={2.1} />} onClick={() => share('workout')} />
-          <ShareButton label="Weigh-in" icon={<Scale size={14} strokeWidth={2.1} />} onClick={() => share('weigh_in')} />
-          <ShareButton label="Steps" icon={<Footprints size={14} strokeWidth={2.1} />} onClick={() => share('steps')} />
-          {/*
-            Four chips fit a 320px screen; five did not, and a row that has to
-            be swiped hides whatever is off the end. The rest live behind More.
-          */}
-          <ShareButton
-            label="More"
-            icon={<Ellipsis size={14} strokeWidth={2.1} />}
-            onClick={() => setMoreShares((open) => !open)}
-            pressed={moreShares}
-          />
-        </div>
-
-        {moreShares ? (
-          <div className={styles.shareRow} role="group" aria-label="More to share">
-            <ShareButton label="Achievement" icon={<Award size={14} strokeWidth={2.1} />} onClick={() => share('achievement')} />
-            <ShareButton label="Challenge" icon={<Target size={14} strokeWidth={2.1} />} onClick={() => share('challenge')} />
-          </div>
+        {/*
+          The share menu, opened by the + beside the input.
+          It replaced a permanent row of four chips above the composer. That
+          row made every screenful of conversation look like a logging form,
+          and three quarters of it was usually irrelevant — so it is a menu
+          now, and it lists only what this person actually has to share.
+        */}
+        {shareMenu ? (
+          <>
+            <button
+              className={styles.scrim}
+              onClick={() => setShareMenu(false)}
+              aria-label="Close share menu"
+            />
+            <div className={styles.shareMenu} role="menu" aria-label="Share your progress">
+              {SHARE_ACTIONS.filter((action) => shareable?.has(action.kind)).map((action) => (
+                <button
+                  key={action.kind}
+                  role="menuitem"
+                  className={styles.shareItem}
+                  onClick={() => share(action.kind)}
+                >
+                  <span className={styles.shareIcon}>{action.icon}</span>
+                  {action.label}
+                </button>
+              ))}
+              {shareable && shareable.size === 0 ? (
+                <p className={styles.shareEmpty}>
+                  Nothing to share yet — log a workout, steps or a weigh-in first.
+                </p>
+              ) : null}
+            </div>
+          </>
         ) : null}
 
         <div className={`glass ${styles.composer}`}>
@@ -327,6 +350,16 @@ export function ChatThread() {
           ) : null}
 
           <div className={styles.inputRow}>
+            <button
+              className={[styles.attach, shareMenu ? styles.attachOpen : ''].filter(Boolean).join(' ')}
+              onClick={() => setShareMenu((open) => !open)}
+              aria-label="Share progress"
+              aria-expanded={shareMenu}
+              aria-haspopup="menu"
+            >
+              <Plus size={18} strokeWidth={2.6} />
+            </button>
+
             <textarea
               ref={input}
               className={styles.input}
@@ -383,25 +416,17 @@ const NOTHING_TO_SHARE: Record<string, string> = {
   challenge: 'No challenge running this week.',
 }
 
-function ShareButton({
-  label,
-  icon,
-  onClick,
-  pressed,
-}: {
-  label: string
-  icon: React.ReactNode
-  onClick: () => void
-  pressed?: boolean
-}) {
-  return (
-    <button
-      className={[styles.share, pressed ? styles.sharePressed : ''].filter(Boolean).join(' ')}
-      onClick={onClick}
-      aria-expanded={pressed === undefined ? undefined : pressed}
-    >
-      {icon}
-      <span className={styles.shareLabel}>{label}</span>
-    </button>
-  )
-}
+/**
+ * What the + offers, in the order it offers it.
+ *
+ * Declared once rather than written out five times in the menu: the list is
+ * filtered against what is actually available, so the markup only has to know
+ * how to render an item, not which items exist.
+ */
+const SHARE_ACTIONS = [
+  { kind: 'workout', label: 'Share workout', icon: <Dumbbell size={16} strokeWidth={2.1} /> },
+  { kind: 'weigh_in', label: 'Share weigh-in', icon: <Scale size={16} strokeWidth={2.1} /> },
+  { kind: 'steps', label: 'Share steps', icon: <Footprints size={16} strokeWidth={2.1} /> },
+  { kind: 'achievement', label: 'Share achievement', icon: <Award size={16} strokeWidth={2.1} /> },
+  { kind: 'challenge', label: 'Share challenge', icon: <Target size={16} strokeWidth={2.1} /> },
+] as const

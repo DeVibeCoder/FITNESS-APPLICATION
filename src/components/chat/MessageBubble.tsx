@@ -94,14 +94,14 @@ export function MessageBubble({
             aria-label={`React to ${firstName(author.name)}'s message`}
             aria-expanded={picking}
           >
-            <SmilePlus size={14} strokeWidth={2.1} />
+            <SmilePlus size={13} strokeWidth={2} />
           </button>
           <button
             className={styles.tool}
             onClick={() => onReply(message)}
             aria-label={`Reply to ${firstName(author.name)}`}
           >
-            <CornerUpLeft size={14} strokeWidth={2.1} />
+            <CornerUpLeft size={13} strokeWidth={2} />
           </button>
           {isOwner(message.userId) ? (
             <button
@@ -109,7 +109,7 @@ export function MessageBubble({
               onClick={() => guard(() => chatService.remove(message.id))}
               aria-label="Delete your message"
             >
-              <Trash2 size={14} strokeWidth={2.1} />
+              <Trash2 size={13} strokeWidth={2} />
             </button>
           ) : null}
         </div>

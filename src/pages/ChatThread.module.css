@@ -5,14 +5,39 @@
 .page {
   display: flex;
   flex-direction: column;
-  min-height: calc(100dvh - var(--header-offset) - var(--s-4) - var(--scroll-pad));
   /*
-   * The shell pads every page clear of the bottom bar, but the dock already
-   * carries that clearance itself. Without cancelling it the document ended
-   * with ~160px of dead space that you had to scroll through to reach the
-   * composer.
+   * Tall enough that the composer sits at the foot of the screen even with two
+   * messages in the room, and padded at the bottom by exactly what the docked
+   * composer occupies plus the bottom bar beneath it. That padding is what
+   * guarantees the last message is never hidden behind either.
+   */
+  min-height: calc(100dvh - var(--header-offset) - var(--s-4) - var(--dock-clear));
+  padding-bottom: var(--dock-clear);
+  /*
+   * The shell already pads every page clear of the bottom bar; the clearance
+   * above supersedes it. Without cancelling it the document ended with ~160px
+   * of dead space you had to scroll through to reach the composer.
    */
   margin-bottom: calc(var(--scroll-pad) * -1);
+}
+
+/*
+ * How much room the docked composer and the bar below it take.
+ *
+ * One value, used by the page's bottom padding and by the dock's own offset,
+ * so the two can never disagree — which is the bug this replaced: the composer
+ * was sticky inside the scroller and the fixed bottom bar painted over it.
+ */
+.page {
+  --dock-height: 4.75rem;
+  --dock-clear: calc(var(--dock-height) + var(--nav-h) + var(--safe-b) + var(--s-4));
+}
+
+@media (min-width: 64rem) {
+  .page {
+    /* No bottom bar on desktop, so the composer sits on the safe area. */
+    --dock-clear: calc(var(--dock-height) + var(--safe-b) + var(--s-4));
+  }
 }
 
 /*
@@ -143,115 +168,181 @@
   color: var(--ink-2);
 }
 
+/*
+ * A way in, rather than an instruction to find one. Focusing the composer is
+ * the whole job — no message is invented, and nothing is posted on the user's
+ * behalf.
+ */
+.emptyAction {
+  margin-top: var(--s-2);
+  min-height: 40px;
+  padding: 0 var(--s-5);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--t-small);
+  font-weight: 700;
+  box-shadow: var(--accent-glow);
+  transition: background var(--fast) var(--ease);
+}
+
+.emptyAction:hover {
+  background: var(--accent-strong);
+}
+
 /* --- Dock: quick shares + composer ---------------------------------------- */
 
 /*
- * Sticks above the bottom bar rather than under it. The offset is the bar's
- * height plus the safe area; on desktop the bar is gone, so it drops to a
- * plain margin.
+ * Fixed, directly above the bottom navigation.
+ *
+ * It used to be `position: sticky` inside the document scroll with the bar's
+ * height taken as padding — which meant the fixed bar (z-index 100) painted
+ * over the bottom of it, and on a phone the input sat half-covered. Fixing the
+ * dock and offsetting it by the bar's exact height gives the stack the brief
+ * asks for: messages, composer, safe area, navigation. Nothing overlaps, and
+ * there is still only one scroller — the page.
  */
 .dock {
-  position: sticky;
-  /*
-   * Pinned to the very bottom, with the bar's height taken as padding instead
-   * of an offset. Offsetting it left a live strip underneath through which
-   * messages scrolled past in full view; this way the dock's own background
-   * covers everything down to the edge, and the composer still sits clear of
-   * the bottom bar.
-   */
-  bottom: 0;
-  padding-bottom: calc(var(--nav-h) + var(--safe-b) + 1.375rem);
-  z-index: 10;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--nav-h) + var(--safe-b));
+  /* Above the page's own content, below the bar. They never intersect. */
+  z-index: var(--z-sticky-inner);
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  margin-top: var(--s-4);
-  padding-top: var(--s-8);
+  /* Capped at the viewport for the same reason the nav is — see BottomNav. */
+  max-width: 100vw;
+  padding: var(--s-3) max(var(--gutter), var(--safe-l)) var(--s-3)
+    max(var(--gutter), var(--safe-r));
   /*
-   * The thread scrolls underneath, so the dock needs its own ground — without
-   * it, messages showed through the gaps between the share chips. The gradient
-   * fades the page out above rather than cutting it off with a hard edge, and
-   * the bleed widens the cover into the page gutters so nothing peeks past the
-   * sides.
+   * Its own ground, fading the thread out above rather than cutting it off.
+   * Without this, messages scrolled through the gaps around the composer.
    */
-  background: linear-gradient(to bottom, transparent, var(--bg) 2rem);
-  margin-inline: calc(var(--gutter) * -1);
-  padding-inline: var(--gutter);
+  background: linear-gradient(to bottom, transparent, var(--bg) 1.75rem);
+  pointer-events: none;
+}
+
+/* Only the controls take taps; the fade above them does not. */
+.dock > * {
+  pointer-events: auto;
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
 }
 
 /*
- * A four-column grid rather than a scrolling row. Four chips did not fit 390px
- * side by side, and a row that has to be swiped hides whatever is off the end —
- * which is exactly what a quick action must not do. The grid fits at 320px.
+ * The two jump chips are pills, not rows. `.dock > *` stretches its children so
+ * the composer and the menu fill the column; these have to opt back out or
+ * "Newest" spans the screen and stops reading as a button.
  */
-.shareRow {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--s-2);
+.dock > .newMessage,
+.dock > .jump {
+  width: auto;
+  align-self: center;
 }
 
-.share {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  min-width: 0;
-  min-height: 36px;
-  padding: 0 var(--s-2);
-  border-radius: var(--r-pill);
-  border: 1px solid var(--line);
+@media (min-width: 64rem) {
+  .dock {
+    bottom: var(--safe-b);
+  }
+
+  .dock > * {
+    max-width: 46rem;
+  }
+}
+
+/* --- Share menu ----------------------------------------------------------
+ *
+ * Opens above the composer from the + beside the input. A menu rather than the
+ * permanent chip row it replaced: the row turned every screenful of the
+ * conversation into a logging form, and most of it was irrelevant most of the
+ * time.
+ */
+.shareMenu {
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-2);
+  border-radius: var(--r-lg);
   background: var(--surface);
-  font-size: var(--t-micro);
-  font-weight: 640;
-  color: var(--ink-2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition:
-    border-color var(--fast) var(--ease),
-    color var(--fast) var(--ease),
-    transform var(--fast) var(--ease);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  animation: rise var(--med) var(--ease-out);
 }
 
-/* The icon is the anchor; on the narrowest phones the label can go. */
-.share svg {
+.shareItem {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  transition: background var(--fast) var(--ease);
+}
+
+.shareItem:hover {
+  background: var(--bg-sunk);
+}
+
+.shareIcon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
   flex: none;
+  border-radius: var(--r-sm);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.shareEmpty {
+  padding: var(--s-3);
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  text-wrap: pretty;
 }
 
 /*
- * Below ~360px four labels cannot fit without truncating mid-word. The label
- * is hidden visually but stays in the accessibility tree — clipped, not
- * display:none — so the button keeps its name for a screen reader.
+ * A full-screen catcher so tapping anywhere else closes the menu. A button
+ * rather than a div, so it is reachable and dismissible from a keyboard too.
  */
-@media (max-width: 23rem) {
-  .shareLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-  }
-
-  .share {
-    gap: 0;
-  }
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: transparent;
+  cursor: default;
 }
 
-/* The second row holds two, so they sit under the first two columns. */
-.shareRow + .shareRow .share {
-  grid-column: span 2;
+/* The + beside the input. */
+.attach {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--med) var(--ease);
 }
 
-.share:hover {
-  border-color: var(--accent);
-  color: var(--accent-strong);
+.attach:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
 }
 
-.share:active {
-  transform: scale(0.96);
+.attachOpen {
+  background: var(--accent-soft);
+  color: var(--accent);
+  transform: rotate(45deg);
 }
 
 .composer {
@@ -373,18 +464,16 @@
 
 @media (min-width: 64rem) {
   .page {
-    min-height: calc(100dvh - 4rem - var(--s-6) - var(--s-10));
+    /*
+     * The taller desktop header, and the shell's own smaller bottom padding.
+     * --dock-clear is redefined for desktop further up, so the composer's
+     * clearance is already right; only the header offset differs here.
+     */
+    min-height: calc(100dvh - var(--header-h-desktop) - var(--safe-t) - var(--s-6) - var(--dock-clear));
     max-width: 46rem;
     margin-inline: auto;
-    /* Desktop drops the bottom bar, so the shell's padding is smaller. */
     margin-bottom: calc(var(--s-10) * -1);
     width: 100%;
-  }
-
-  .dock {
-    padding-bottom: var(--s-4);
-    margin-inline: calc(var(--s-5) * -1);
-    padding-inline: var(--s-5);
   }
 }
 
@@ -469,8 +558,3 @@
 }
 
 /* The More chip stays lit while its extra row is open. */
-.sharePressed {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-  color: var(--accent-strong);
-}

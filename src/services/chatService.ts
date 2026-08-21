@@ -281,6 +281,36 @@ export const chatService = {
 
   // --- Sharing -------------------------------------------------------------
 
+  /**
+   * Which kinds of progress this person actually has to share right now.
+   *
+   * The share menu offers only these. Every `share*` method below already
+   * returns null when there is nothing to send, so this is not a safety check
+   * — it exists so the menu never offers an action that can only fail, which
+   * is the difference between a menu and a guessing game.
+   */
+  async shareable(userId: ID, date: DateKey, challengeId?: ID): Promise<Set<SharedType>> {
+    const [session, weights, steps, achievement] = await Promise.all([
+      db.sessions
+        .where('userId')
+        .equals(userId)
+        .filter((s) => s.status === 'completed')
+        .first(),
+      db.weights.where('userId').equals(userId).filter((w) => w.kind === 'official').first(),
+      db.steps.where('[userId+date]').equals([userId, date]).first(),
+      db.achievements.where('userId').equals(userId).first(),
+    ])
+
+    const available = new Set<SharedType>()
+    if (session) available.add('workout')
+    if (weights) available.add('weigh_in')
+    if (steps) available.add('steps')
+    if (achievement) available.add('achievement')
+    if (challengeId) available.add('challenge')
+    return available
+  },
+
+
   /** Share the most recent workout, if there is one to share. */
   async shareWorkout(userId: ID, sessionId?: ID): Promise<ChatMessage | null> {
     const session = sessionId

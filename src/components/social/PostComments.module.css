@@ -1,0 +1,122 @@
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-top: var(--s-3);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--line);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.name {
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.when {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+
+.text {
+  font-size: var(--t-small);
+  line-height: 1.45;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+/*
+ * Secondary like the chat's tools — quiet by opacity and glyph size, never by
+ * shrinking the target below what a thumb can land on.
+ */
+.remove {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-pill);
+  color: var(--ink-3);
+  opacity: 0.5;
+  transition:
+    opacity var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.remove:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.none {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.compose {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  min-height: 38px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  font-size: var(--t-small);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.input::placeholder {
+  color: var(--ink-3);
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  transition:
+    background var(--fast) var(--ease),
+    opacity var(--fast) var(--ease);
+}
+
+.send:disabled {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  cursor: not-allowed;
+}

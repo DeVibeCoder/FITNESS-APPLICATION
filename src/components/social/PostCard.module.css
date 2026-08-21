@@ -110,16 +110,32 @@
 }
 
 /*
- * Counts, not buttons. Reacting and commenting arrive in Phase 2; until then
- * these state what has happened without inviting a tap that goes nowhere.
+ * Buttons now, not just counts. The heart toggles your reaction and the bubble
+ * opens the thread — each keeps a 44px tap height while looking like the quiet
+ * footer text it was.
  */
 .count {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
+  min-height: 44px;
   font-size: var(--t-small);
   font-weight: 650;
   color: var(--ink-3);
+  transition: color var(--fast) var(--ease);
+}
+
+.count:hover {
+  color: var(--ink);
+}
+
+.countOn {
+  color: var(--accent);
+}
+
+/* The thread, inset under the footer it belongs to. */
+.comments {
+  padding: 0 var(--s-4) var(--s-4);
 }
 
 /* A post somebody actually reacted to gets a filled heart. */

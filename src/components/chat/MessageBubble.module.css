@@ -123,10 +123,18 @@
 
 /* --- Hover tools ---------------------------------------------------------- */
 
+/*
+ * Secondary, and firmly so.
+ *
+ * These used to be three 32px icon buttons under every bubble at 55% opacity,
+ * which on a full screen of conversation added up to more controls than
+ * messages. They are smaller and quieter now: the message is the content, and
+ * reacting or replying is something you go looking for.
+ */
 .tools {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 0;
   /* Reserved height, so revealing them on hover does not shift the thread. */
   height: 32px;
   margin-top: calc(var(--s-1) * -1);
@@ -149,10 +157,18 @@
  */
 @media (hover: none) {
   .tools {
-    opacity: 0.55;
+    opacity: 0.4;
   }
+
 }
 
+/*
+ * A 13px glyph in a 32px target.
+ *
+ * The weight comes off the icon and the opacity, not off the hit area — an
+ * earlier pass shrank the button itself to 26px, which the audit correctly
+ * flagged: a control can be visually quiet without being hard to hit.
+ */
 .tool {
   display: grid;
   place-items: center;
