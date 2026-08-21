@@ -41,6 +41,16 @@
 }
 
 /*
+ * Same again while the keyboard is up: the bottom bar has slid away, so the
+ * page must stop reserving its height or the last message floats a bar's worth
+ * of empty space above the composer. The focus handler re-anchors to the newest
+ * message just after this, which absorbs the reflow.
+ */
+:global(body[data-composing]) .page {
+  --dock-clear: calc(var(--dock-height) + var(--safe-b) + var(--s-4));
+}
+
+/*
  * Back, who is here, faces. Nothing else competes with the conversation.
  *
  * Sticky, and deliberately not in normal flow: the header used to scroll away
@@ -241,6 +251,15 @@
 .dock > .jump {
   width: auto;
   align-self: center;
+}
+
+/*
+ * While the keyboard is up the bottom bar is hidden, so the composer takes the
+ * space it vacated and sits directly on the keyboard. Without this it would
+ * float 62px above it with a strip of page showing through the gap.
+ */
+.docked {
+  bottom: var(--safe-b);
 }
 
 @media (min-width: 64rem) {

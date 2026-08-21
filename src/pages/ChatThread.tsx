@@ -55,6 +55,14 @@ export function ChatThread() {
    */
   const [arrived, setArrived] = useState(0)
   const [scrolledUp, setScrolledUp] = useState(false)
+  /**
+   * True while the composer holds focus — which on a phone means the keyboard
+   * is up. The bottom navigation hides for the duration so the composer can
+   * sit directly on the keyboard, the way every messaging app behaves. It is
+   * published as an attribute on <body> rather than lifted into context
+   * because it is presentation, and the nav only needs to react to it in CSS.
+   */
+  const [composing, setComposing] = useState(false)
   const input = useRef<HTMLTextAreaElement>(null)
   const positioned = useRef(false)
   const seenCount = useRef(0)
@@ -147,6 +155,15 @@ export function ChatThread() {
       }
     }
   }, [messages, atBottom, markCaughtUp])
+
+  useEffect(() => {
+    if (composing) document.body.dataset.composing = 'true'
+    else delete document.body.dataset.composing
+    // Leaving mid-typing must not strand the rest of the app without a nav.
+    return () => {
+      delete document.body.dataset.composing
+    }
+  }, [composing])
 
   // Reaching the bottom is what marks the conversation read — not the route
   // loading. Opening and leaving without scrolling keeps the unread count.
@@ -282,7 +299,7 @@ export function ChatThread() {
         )}
       </div>
 
-      <div className={styles.dock}>
+      <div className={[styles.dock, composing ? styles.docked : ""].filter(Boolean).join(" ")}>
         {arrived > 0 ? (
           <button className={styles.newMessage} onClick={jumpToNewest}>
             <ArrowDown size={14} strokeWidth={2.4} />
@@ -372,6 +389,18 @@ export function ChatThread() {
                 event.target.style.height = 'auto'
                 event.target.style.height = `${event.target.scrollHeight}px`
               }}
+              onFocus={() => {
+                setComposing(true)
+                /*
+                 * The keyboard takes roughly half the screen, so whatever was
+                 * at the bottom is now behind it. Re-anchoring after the
+                 * viewport has settled keeps the newest message in view — the
+                 * delay is the keyboard animation, which fires no event we can
+                 * wait on reliably across browsers.
+                 */
+                if (atBottom()) window.setTimeout(jumpToNewest, 320)
+              }}
+              onBlur={() => setComposing(false)}
               onKeyDown={(event) => {
                 // Enter sends on a desktop keyboard; Shift+Enter makes a new
                 // line. On a phone the return key inserts a newline, which is

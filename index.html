@@ -2,9 +2,18 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      interactive-widget=resizes-content is the important part.
+
+      Android Chrome's default is resizes-visual: the software keyboard shrinks
+      the *visual* viewport but leaves the layout viewport at full height, so
+      100dvh stays wrong and position:fixed bottom elements end up floating over
+      the keyboard instead of above it. resizes-content shrinks the layout
+      viewport too, which is what every messaging app relies on.
+    -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5.0, interactive-widget=resizes-content"
     />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />

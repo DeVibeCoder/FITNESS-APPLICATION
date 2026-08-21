@@ -100,6 +100,26 @@
   white-space: nowrap;
 }
 
+/*
+ * Out of the way while somebody is typing.
+ *
+ * On a phone the keyboard leaves roughly half the screen, and six destinations
+ * are not what you need any of that for — you need the message you are writing
+ * and the ones you are answering. Chat sets data-composing on <body> while its
+ * composer holds focus; this is the only rule that reads it.
+ *
+ * Translated rather than display:none so it slides instead of vanishing, and so
+ * the page's layout does not reflow underneath the keyboard.
+ */
+:global(body[data-composing]) .nav {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.nav {
+  transition: transform var(--med) var(--ease);
+}
+
 @media (min-width: 64rem) {
   .nav {
     display: none;
