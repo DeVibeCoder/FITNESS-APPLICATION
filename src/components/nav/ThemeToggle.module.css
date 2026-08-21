@@ -1,8 +1,9 @@
+/* Matches the header's other icon buttons — see TopBar.module.css .icon. */
 .trigger {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--r-pill);
   color: var(--ink-2);
   border: 1px solid transparent;

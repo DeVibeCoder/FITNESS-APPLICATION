@@ -76,18 +76,23 @@ header.bar {
   display: none;
 }
 
+/*
+ * Tight. These four are one set of controls, so they are spaced as a set —
+ * the buttons already carry ~10px of their own padding around a small glyph,
+ * which reads as a gap long before any margin is added between them.
+ */
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--s-1);
+  gap: 1px;
   flex: none;
 }
 
 .icon {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   border-radius: var(--r-pill);
   color: var(--ink-2);
   transition:
@@ -107,7 +112,7 @@ header.bar {
 .avatar {
   display: grid;
   place-items: center;
-  margin-left: var(--s-1);
+  margin-left: 3px;
   border-radius: var(--r-pill);
   transition: transform var(--fast) var(--ease);
 }
@@ -264,8 +269,4 @@ header.bar {
   white-space: nowrap;
 }
 
-@media (min-width: 64rem) {
-  .create {
-    margin-right: var(--s-1);
-  }
-}
+

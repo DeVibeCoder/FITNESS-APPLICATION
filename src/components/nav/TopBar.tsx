@@ -29,7 +29,6 @@ const DESKTOP_LINKS = [
 const TITLES: [RegExp, string][] = [
   [/^\/$/, 'Circuit'],
   [/^\/activity/, 'Activity'],
-  [/^\/chat\/thread/, 'Fitness group'],
   [/^\/chat/, 'Chat'],
   [/^\/me\/activity/, 'My activity'],
   [/^\/me\/admin/, 'Admin'],
