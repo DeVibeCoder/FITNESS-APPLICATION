@@ -80,7 +80,7 @@
   overflow: hidden;
 }
 
-/* Nutrition is violet; the water row overrides to blue below. */
+/* Calories carry the brand; the water row overrides to blue below. */
 .fill {
   height: 100%;
   border-radius: inherit;

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import type { ReactNode } from 'react'
 import { Flame } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import type { UserSnapshot } from '@/services/progressService'
@@ -7,21 +7,27 @@ import styles from './GroupList.module.css'
 interface GroupListProps {
   members: UserSnapshot[]
   currentUserId: string
+  /**
+   * Opens that person's details where the list is, rather than navigating.
+   *
+   * Every caller passes this. It is a prop rather than a hard-wired sheet
+   * because the list appears in two places — Group and the desktop rail on
+   * Home — and each owns its own overlay; what they must not do is send the
+   * reader to a different section of the app to read one number.
+   */
+  onSelect: (userId: string) => void
 }
 
 /**
  * Everyone's progress, side by side. Ordered by consistency rather than weight —
  * the group has different goals and the scale is not a leaderboard.
  */
-export function GroupList({ members, currentUserId }: GroupListProps) {
+export function GroupList({ members, currentUserId, onSelect }: GroupListProps) {
   return (
     <ul className={styles.list}>
       {members.map((member) => (
         <li key={member.user.id}>
-          <Link
-            to={member.user.id === currentUserId ? '/profile' : `/u/${member.user.id}`}
-            className={styles.row}
-          >
+          <Row onClick={() => onSelect(member.user.id)}>
             <Avatar user={member.user} size="md" ring={member.streak >= 7} />
             <div className={styles.text}>
               <span className={styles.name}>
@@ -53,9 +59,17 @@ export function GroupList({ members, currentUserId }: GroupListProps) {
                 <span className="tnum">{member.consistency.score}%</span> consistent
               </span>
             </div>
-          </Link>
+          </Row>
         </li>
       ))}
     </ul>
+  )
+}
+
+function Row({ onClick, children }: { onClick: () => void; children: ReactNode }) {
+  return (
+    <button type="button" className={styles.row} onClick={onClick}>
+      {children}
+    </button>
   )
 }

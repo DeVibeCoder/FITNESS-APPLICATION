@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/lib/db'
@@ -6,9 +7,9 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/Progress'
 import { GroupList } from '@/components/group/GroupList'
-import { UpdateFeed } from '@/components/group/UpdateFeed'
+import { MemberSheet } from '@/components/group/MemberSheet'
 import { useAuth } from '@/context/AuthContext'
-import { achievementService, challengeService, progressService, updateService, userService } from '@/services'
+import { achievementService, challengeService, progressService, userService } from '@/services'
 import { todayKey, timeAgo } from '@/utils/date'
 import { goalLabel } from '@/utils/calories'
 import { num } from '@/utils/format'
@@ -17,22 +18,27 @@ import styles from './GroupOverview.module.css'
 /**
  * The community dashboard.
  *
- * Who is here, how everyone is tracking, what has happened, where the shared
- * target stands, and what has been earned — the state of the group on one
- * screen. The header and tabs above belong to the Group shell, so this file
- * only ever renders what sits underneath them.
+ * Who is here, how everyone is tracking, where the shared target stands, and
+ * what has been earned. The header and tabs above belong to the Group shell,
+ * so this file only ever renders what sits underneath them.
  *
- * There is no chat here. Not a card, not a preview, not a tab: the conversation
- * is its own destination in the bottom bar.
+ * Two things are deliberately absent. There is no chat — the conversation is
+ * its own destination in the bottom bar. And there is no activity feed: the
+ * Updates tab is the activity feed, and a second copy of its first four rows
+ * here meant the same events were reported twice, three taps apart, with no
+ * way to tell which one was authoritative.
+ *
+ * Tapping a person opens their progress over this screen rather than
+ * navigating to it. You stay in Group.
  */
 export function GroupOverview() {
   const { user } = useAuth()
   const today = todayKey()
+  const [selected, setSelected] = useState<string | null>(null)
 
   const members = useLiveQuery(() => progressService.groupSnapshot(today), [today])
   const users = useLiveQuery(() => userService.listMembers(), [])
   const challenge = useLiveQuery(() => challengeService.progress(today), [today])
-  const updates = useLiveQuery(() => updateService.recent(4), [])
   // The three most recent unlocks across the whole group, so Awards has
   // something to say here without repeating the entire grid.
   const awards = useLiveQuery(async () => {
@@ -55,8 +61,6 @@ export function GroupOverview() {
 
   if (!user || !members || !users) return <LoadingScreen />
 
-  const userMap = new Map(users.map((u) => [u.id, u]))
-
   return (
     <>
       {/* --- Group progress ---------------------------------------------- */}
@@ -68,19 +72,7 @@ export function GroupOverview() {
           </Link>
         }
       >
-        <GroupList members={members} currentUserId={user.id} />
-      </Section>
-
-      {/* --- Latest activity ---------------------------------------------- */}
-      <Section
-        title="Latest activity"
-        action={
-          <Link to="/group/updates" className={styles.sectionLink}>
-            See all
-          </Link>
-        }
-      >
-        <UpdateFeed updates={updates ?? []} users={userMap} />
+        <GroupList members={members} currentUserId={user.id} onSelect={setSelected} />
       </Section>
 
       {/* --- Challenge ----------------------------------------------------- */}
@@ -147,9 +139,11 @@ export function GroupOverview() {
         <ul className={styles.members}>
           {users.map((member) => (
             <li key={member.id}>
-              <Link
-                to={member.id === user.id ? '/profile' : `/u/${member.id}`}
+              <button
+                type="button"
                 className={styles.member}
+                onClick={() => setSelected(member.id)}
+                aria-haspopup="dialog"
               >
                 <Avatar user={member} size="md" />
                 <span className={styles.memberText}>
@@ -161,11 +155,13 @@ export function GroupOverview() {
                     @{member.handle} · {goalLabel(member.goal)}
                   </span>
                 </span>
-              </Link>
+              </button>
             </li>
           ))}
         </ul>
       </Section>
+
+      <MemberSheet userId={selected} onClose={() => setSelected(null)} />
     </>
   )
 }

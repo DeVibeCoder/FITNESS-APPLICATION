@@ -5,8 +5,7 @@ import { Heart, MessageCircle } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
-import { CommentPreview } from './CommentPreview'
-import { PostComments } from './PostComments'
+import { CommentsSheet } from './CommentsSheet'
 import type { FeedPost } from '@/services/postService'
 import { postService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
@@ -48,9 +47,12 @@ const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
  * lead with the words.
  *
  * Reacting and commenting are live. The heart toggles your own reaction — one
- * per person, tap again to take it back — and the comment count opens a small
- * thread underneath. Both go through postService, which re-derives the counts
- * from the rows so the number on the card cannot drift from what is behind it.
+ * per person, tap again to take it back — and the comment count opens the
+ * comments overlay. Nothing about a thread is rendered in the feed itself: a
+ * post with forty comments and a post with none are exactly the same height,
+ * which is what keeps scrolling predictable. Both go through postService,
+ * which re-derives the counts from the rows so the number on the card cannot
+ * drift from what is behind it.
  *
  * Records are rendered by the same `SharedCard` the chat uses, so a shared
  * workout looks identical wherever it appears and stays current.
@@ -58,7 +60,7 @@ const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
 export function PostCard({ post }: { post: FeedPost }) {
   const { user } = useAuth()
   const { guard } = useToast()
-  const [showComments, setShowComments] = useState(false)
+  const [commentsOpen, setCommentsOpen] = useState(false)
   const kind = KIND_LABEL[post.type]
   const isMine = user?.id === post.userId
   const reaction = post.reactionCount > 0 ? REACTION_WORD[post.type] : undefined
@@ -127,10 +129,12 @@ export function PostCard({ post }: { post: FeedPost }) {
             <span className="tnum">{post.reactionCount}</span>
           </button>
           <button
-            className={[styles.count, showComments ? styles.countOn : ''].filter(Boolean).join(' ')}
-            onClick={() => setShowComments((open) => !open)}
-            aria-expanded={showComments}
-            aria-label={showComments ? 'Hide comments' : 'View comments'}
+            className={[styles.count, commentsOpen ? styles.countOn : ''].filter(Boolean).join(' ')}
+            onClick={() => setCommentsOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={
+              post.commentCount === 1 ? 'View 1 comment' : `View ${post.commentCount} comments`
+            }
           >
             <MessageCircle size={16} strokeWidth={2.2} />
             <span className="tnum">{post.commentCount}</span>
@@ -146,18 +150,12 @@ export function PostCard({ post }: { post: FeedPost }) {
       </footer>
 
       {/*
-        Collapsed, the feed shows the last couple of comments as a
-        conversation; expanded, the full thread with a reply box. The preview
-        renders nothing when there are none, so a quiet post costs no height.
+        The thread opens over the feed, not inside the card. Mounted only while
+        it is open so a screen of posts is not a screen of hidden dialogs.
       */}
-      {showComments ? (
-        <div className={styles.comments}>
-          <PostComments postId={post.id} />
-        </div>
-      ) : (
-        <CommentPreview postId={post.id} onOpen={() => setShowComments(true)} />
-      )}
-
+      {commentsOpen ? (
+        <CommentsSheet post={post} open onClose={() => setCommentsOpen(false)} />
+      ) : null}
     </article>
   )
 }

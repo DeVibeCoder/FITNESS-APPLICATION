@@ -227,7 +227,7 @@ export function ProfileView({ snapshot, headerAction, variant = 'self' }: Profil
         title="Achievements"
         action={
           isSelf ? (
-            <Link to="/achievements" className={styles.sectionLink}>
+            <Link to="/group/awards" className={styles.sectionLink}>
               See all
             </Link>
           ) : undefined

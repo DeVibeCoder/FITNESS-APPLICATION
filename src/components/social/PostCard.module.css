@@ -49,14 +49,15 @@
 }
 
 /*
- * What kind of post it is. Violet rather than the ember accent: this is a
- * label, not an action, and the two must not be confused at a glance.
+ * What kind of post it is. Neutral rather than the ember accent: this is a
+ * label, not an action, and with one brand colour the only way to keep the
+ * two apart is to leave the colour to the action.
  */
 .kind {
   padding: 0.125rem 0.4375rem;
   border-radius: 6px;
-  background: var(--violet-soft);
-  color: var(--violet);
+  background: var(--bg-sunk);
+  color: var(--ink-2);
   font-size: var(--t-micro);
   font-weight: 800;
   letter-spacing: 0.06em;
@@ -140,11 +141,6 @@
 
 .countOn {
   color: var(--accent);
-}
-
-/* The thread, inset under the footer it belongs to. */
-.comments {
-  padding: 0 var(--s-4) 0.875rem;
 }
 
 /* A post somebody actually reacted to gets a filled heart. */

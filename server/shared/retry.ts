@@ -1,5 +1,3 @@
-import { ScanFailure } from './types.ts'
-
 /**
  * Retry with exponential backoff and jitter.
  *
@@ -13,6 +11,11 @@ import { ScanFailure } from './types.ts'
  * connection rather than a busy service. Timeouts are therefore firmly in the
  * transient set, and the first attempt gets a shorter deadline so a stall is
  * cut loose quickly instead of making the user wait it out.
+ *
+ * Shared by the food and workout scanners. It knows nothing about either:
+ * transience is read off a `transient` flag the failure classes both carry,
+ * and the error thrown on cancellation is supplied by the caller so each
+ * endpoint keeps its own error type all the way out.
  */
 
 export interface RetryOutcome<T> {
@@ -31,6 +34,8 @@ export interface RetryOptions {
   /** Per-attempt deadline; index 0 is the first attempt. */
   timeoutFor?: (attempt: number) => number
   onRetry?: (info: { attempt: number; delayMs: number; reason: string }) => void
+  /** What to throw when the caller aborts. Keeps error types per-endpoint. */
+  cancelled?: () => Error
 }
 
 /** ±20% so simultaneous clients do not retry in lockstep. */
@@ -43,20 +48,33 @@ export function delayFor(attempt: number, baseDelayMs = 1000): number {
   return jitter(baseDelayMs * 2 ** (attempt - 1))
 }
 
+/**
+ * Duck-typed rather than `instanceof`, so one retry loop can serve failure
+ * classes from different modules. An unrecognised throw is most often a socket
+ * or DNS blip, so the default is "worth another go".
+ */
 export function isTransient(error: unknown): boolean {
-  if (error instanceof ScanFailure) return error.transient
-  // An unrecognised throw is most often a socket or DNS blip.
+  if (typeof error === 'object' && error !== null && 'transient' in error) {
+    return (error as { transient: unknown }).transient !== false
+  }
   return true
 }
 
-function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+function codeOf(error: unknown): string {
+  if (typeof error === 'object' && error !== null && 'code' in error) {
+    return String((error as { code: unknown }).code)
+  }
+  return 'unknown'
+}
+
+function sleep(ms: number, signal: AbortSignal | undefined, cancelled: () => Error): Promise<void> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(resolve, ms)
     signal?.addEventListener(
       'abort',
       () => {
         clearTimeout(timer)
-        reject(new ScanFailure('timeout', 'Cancelled.', false))
+        reject(cancelled())
       },
       { once: true },
     )
@@ -69,13 +87,13 @@ export async function withRetry<T>(
 ): Promise<RetryOutcome<T>> {
   const maxAttempts = Math.max(1, options.attempts ?? 3)
   const budgetMs = options.budgetMs ?? 90_000
+  const cancelled = options.cancelled ?? (() => new Error('cancelled'))
   const startedAt = Date.now()
   let lastError: unknown
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    if (options.signal?.aborted) {
-      throw new ScanFailure('timeout', 'Cancelled.', false)
-    }
+    if (options.signal?.aborted) throw cancelled()
+
     try {
       const value = await task({
         attempt,
@@ -95,12 +113,8 @@ export async function withRetry<T>(
       // Do not start a wait that would overrun the budget anyway.
       if (elapsed + delayMs >= budgetMs) break
 
-      options.onRetry?.({
-        attempt,
-        delayMs,
-        reason: error instanceof ScanFailure ? error.code : 'unknown',
-      })
-      await sleep(delayMs, options.signal)
+      options.onRetry?.({ attempt, delayMs, reason: codeOf(error) })
+      await sleep(delayMs, options.signal, cancelled)
     }
   }
 

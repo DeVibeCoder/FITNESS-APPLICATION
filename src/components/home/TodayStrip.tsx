@@ -4,12 +4,17 @@ import { litres, num } from '@/utils/format'
 import styles from './TodayStrip.module.css'
 
 /**
- * Four small blocks: did I train, have I moved, have I eaten, have I drunk.
+ * Four numbers: did I train, have I moved, have I eaten, have I drunk.
  *
- * Deliberately compact. These are a glance, not the point of the screen — the
- * goal hero above and the workout card below carry the weight. Each one takes
- * its colour from what it means: coral for training, blue for movement, coral
- * for energy in, blue for water, green once a target is met.
+ * A grid of small cells rather than four cards. This is the glance at the top
+ * of Activity, and it used to take a third of the first screen for four values
+ * that fit in two lines each — the icon sat in its own 26px block above a
+ * label above a figure. The icon is inline with the label now and the cells
+ * are half the height, which is the difference between a summary and a
+ * section.
+ *
+ * Colour follows meaning, and there are only three: the brand for effort and
+ * energy, blue for movement and water, green once a target is met.
  */
 export function TodayStrip({ snapshot }: { snapshot: DailySnapshot }) {
   const workoutDone = snapshot.completedSessions.length > 0
@@ -20,28 +25,28 @@ export function TodayStrip({ snapshot }: { snapshot: DailySnapshot }) {
 
   return (
     <ul className={styles.strip}>
-      <Block
+      <Cell
         tone={workoutDone ? 'done' : 'energy'}
-        icon={workoutDone ? <Check size={14} strokeWidth={3} /> : <Dumbbell size={14} strokeWidth={2.3} />}
+        icon={workoutDone ? <Check size={12} strokeWidth={3} /> : <Dumbbell size={12} strokeWidth={2.4} />}
         label="Workout"
-        value={workoutDone ? 'Done' : 'To do'}
+        value={workoutDone ? 'Completed' : 'To do'}
         plain
       />
-      <Block
+      <Cell
         tone={stepsDone ? 'done' : 'move'}
-        icon={<Footprints size={14} strokeWidth={2.3} />}
+        icon={<Footprints size={12} strokeWidth={2.4} />}
         label="Steps"
         value={num(snapshot.steps)}
       />
-      <Block
-        tone="nutrition"
-        icon={<Flame size={14} strokeWidth={2.3} />}
+      <Cell
+        tone="energy"
+        icon={<Flame size={12} strokeWidth={2.4} />}
         label="Calories"
         value={num(snapshot.nutrition.kcal)}
       />
-      <Block
+      <Cell
         tone={waterDone ? 'done' : 'move'}
-        icon={<Droplets size={14} strokeWidth={2.3} />}
+        icon={<Droplets size={12} strokeWidth={2.4} />}
         label="Water"
         value={litres(waterMl)}
         suffix="L"
@@ -50,7 +55,7 @@ export function TodayStrip({ snapshot }: { snapshot: DailySnapshot }) {
   )
 }
 
-function Block({
+function Cell({
   tone,
   icon,
   label,
@@ -58,7 +63,7 @@ function Block({
   suffix,
   plain,
 }: {
-  tone: 'energy' | 'move' | 'done' | 'nutrition'
+  tone: 'energy' | 'move' | 'done'
   icon: React.ReactNode
   label: string
   value: string
@@ -67,11 +72,13 @@ function Block({
   plain?: boolean
 }) {
   return (
-    <li className={`${styles.block} ${styles[tone]}`}>
-      <span className={styles.icon} aria-hidden="true">
-        {icon}
+    <li className={`${styles.cell} ${styles[tone]}`}>
+      <span className={styles.label}>
+        <span className={styles.icon} aria-hidden="true">
+          {icon}
+        </span>
+        {label}
       </span>
-      <span className={styles.label}>{label}</span>
       <span className={plain ? styles.word : `stat ${styles.value}`}>
         {value}
         {suffix ? <span className={styles.suffix}>{suffix}</span> : null}

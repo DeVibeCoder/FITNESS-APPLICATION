@@ -3,88 +3,89 @@ import { Pencil, Plus } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
-import { EmptyState } from '@/components/ui/EmptyState'
 import { WeightEntryForm } from './WeightEntryForm'
-import type { WeightEntry } from '@/models'
-import { withDeltas } from '@/utils/progress'
+import type { Weekday, WeightEntry } from '@/models'
+import { weighInSchedule } from '@/utils/weighIn'
 import { formatDay } from '@/utils/date'
 import { num, signed } from '@/utils/format'
-import { EMPTY } from '@/data/messages'
 import styles from './WeightHistory.module.css'
 
-type Filter = 'all' | 'official' | 'daily'
-
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'official', label: 'Official' },
-  { value: 'daily', label: 'Daily' },
-]
-
 /**
- * Every weigh-in, newest first. Changes are compared like with like — an
- * official entry against the previous official one — so a daily reading never
- * makes a weekly result look different than it was.
+ * The weekly weigh-ins, newest first.
+ *
+ * Not a list of rows any more — a schedule. Every seven days from the user's
+ * chosen weigh-in day is a slot, and each slot either has a reading or does
+ * not, so a missed week reads as a missed week rather than as an absence
+ * nobody notices. The dates are derived from the profile, so changing the
+ * weigh-in day moves the whole column.
+ *
+ * There used to be All / Official / Daily filters here. Weighing is weekly;
+ * daily readings exist so people can watch the noise if they want to, but
+ * presenting them as the history made a salty Tuesday look like progress lost.
  */
-export function WeightHistory({ entries }: { entries: WeightEntry[] }) {
-  const [filter, setFilter] = useState<Filter>('all')
+export function WeightHistory({
+  entries,
+  weighInDay,
+}: {
+  entries: WeightEntry[]
+  weighInDay: Weekday
+}) {
   const [editing, setEditing] = useState<WeightEntry | null>(null)
   const [adding, setAdding] = useState(false)
 
-  const rows = withDeltas(entries).filter(
-    ({ entry }) => filter === 'all' || entry.kind === filter,
-  )
+  const slots = weighInSchedule(entries, weighInDay, { includeNext: true })
+  const recorded = slots.filter((slot) => slot.entry).length
 
   return (
     <>
-      <div className={styles.filters} role="tablist" aria-label="Filter weigh-ins">
-        {FILTERS.map((option) => (
-          <button
-            key={option.value}
-            role="tab"
-            aria-selected={filter === option.value}
-            className={[styles.filter, filter === option.value ? styles.filterActive : '']
-              .filter(Boolean)
-              .join(' ')}
-            onClick={() => setFilter(option.value)}
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <Card flush>
+        <ul className={styles.list}>
+          {slots.map((slot) => {
+            const { entry, changeKg } = slot
 
-      {rows.length === 0 ? (
-        <EmptyState
-          compact
-          title={entries.length === 0 ? EMPTY.noWeights.title : 'Nothing of that type yet'}
-          body={
-            entries.length === 0
-              ? EMPTY.noWeights.body
-              : 'Try another filter, or log one of these.'
-          }
-          action={
-            <Button icon={<Plus size={16} strokeWidth={2.4} />} onClick={() => setAdding(true)}>
-              Log weigh-in
-            </Button>
-          }
-        />
-      ) : (
-        <Card flush>
-          <ul className={styles.list}>
-            {rows.map(({ entry, changeKg }) => (
-              <li key={entry.id}>
-                <button className={styles.row} onClick={() => setEditing(entry)}>
-                  <span className={styles.date}>{formatDay(entry.date)}</span>
+            // Nothing to edit and nothing to show: an empty slot is a prompt.
+            if (!entry) {
+              return (
+                <li key={slot.date}>
+                  <div
+                    className={[
+                      styles.row,
+                      styles.rowEmpty,
+                      slot.current ? styles.rowCurrent : '',
+                      slot.upcoming ? styles.rowUpcoming : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                  >
+                    <span className={styles.date}>{formatDay(slot.date)}</span>
+                    <span className={styles.pending}>
+                      {slot.upcoming ? 'Next weigh-in' : slot.current ? 'Due this week' : 'Not logged'}
+                    </span>
+                    {slot.current ? (
+                      <button className={styles.log} onClick={() => setAdding(true)}>
+                        <Plus size={13} strokeWidth={2.6} />
+                        Log weigh-in
+                      </button>
+                    ) : (
+                      <span className={styles.change} />
+                    )}
+                  </div>
+                </li>
+              )
+            }
+
+            return (
+              <li key={slot.date}>
+                <button
+                  className={[styles.row, slot.current ? styles.rowCurrent : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  onClick={() => setEditing(entry)}
+                >
+                  <span className={styles.date}>{formatDay(slot.date)}</span>
                   <span className={styles.main}>
                     <span className={styles.weight}>
                       <span className="tnum">{num(entry.weightKg, 1)}</span> kg
-                    </span>
-                    <span
-                      className={[
-                        styles.kind,
-                        entry.kind === 'official' ? styles.official : styles.daily,
-                      ].join(' ')}
-                    >
-                      {entry.kind === 'official' ? 'Official' : 'Daily'}
                     </span>
                     {entry.note ? <span className={styles.note}>{entry.note}</span> : null}
                   </span>
@@ -107,10 +108,22 @@ export function WeightHistory({ entries }: { entries: WeightEntry[] }) {
                   </span>
                 </button>
               </li>
-            ))}
-          </ul>
-        </Card>
-      )}
+            )
+          })}
+        </ul>
+      </Card>
+
+      <p className={styles.footnote}>
+        {recorded === 0
+          ? 'Your weigh-in day comes round every seven days. Log the first one and this fills in.'
+          : 'One weigh-in a week, on your chosen day. Change the day in your profile and these dates follow it.'}
+      </p>
+
+      {recorded === 0 ? (
+        <Button icon={<Plus size={16} strokeWidth={2.4} />} onClick={() => setAdding(true)}>
+          Log weigh-in
+        </Button>
+      ) : null}
 
       <Sheet
         open={editing !== null}
@@ -118,9 +131,7 @@ export function WeightHistory({ entries }: { entries: WeightEntry[] }) {
         title="Edit weigh-in"
         subtitle="Correct or remove this record."
       >
-        {editing ? (
-          <WeightEntryForm entry={editing} onDone={() => setEditing(null)} />
-        ) : null}
+        {editing ? <WeightEntryForm entry={editing} onDone={() => setEditing(null)} /> : null}
       </Sheet>
 
       <Sheet open={adding} onClose={() => setAdding(false)} title="Log weigh-in">

@@ -65,7 +65,7 @@ import { runFoodScan, resolveProviders } from '../server/foodScan/handler'
 import { parseVisionJson, validateVisionResult } from '../server/foodScan/validate'
 import { ScanFailure, confidenceLevel } from '../server/foodScan/types'
 import type { ScanErrorCode } from '../server/foodScan/types'
-import { withRetry, delayFor } from '../server/foodScan/retry'
+import { withRetry, delayFor } from '../server/shared/retry'
 import { normalizeFoodName } from '../server/foodScan/fdcNutritionProvider'
 import { pickBest, scoreMatch, isPlausible } from '../server/foodScan/match'
 import {
@@ -77,6 +77,11 @@ import {
   scanCacheSize,
 } from '../src/lib/scanCache'
 import type { FoodVisionProvider, NutritionProvider } from '../server/foodScan/types'
+import { currentWeighInDate, nextWeighInDate, weighInSchedule } from '../src/utils/weighIn'
+import { runWorkoutScan, resolveWorkoutProviders } from '../server/workoutScan/handler'
+import { parseClock, validateWorkoutResult } from '../server/workoutScan/validate'
+import { WorkoutScanFailure } from '../server/workoutScan/types'
+import type { WorkoutVisionProvider, WorkoutVisionResult } from '../server/workoutScan/types'
 import { addDays, endOfWeek, formatRange, lastNDays, startOfWeek, todayKey, weekDays } from '../src/utils/date'
 import { duration, num } from '../src/utils/format'
 
@@ -1490,6 +1495,198 @@ async function main() {
 
 
   // ---------------------------------------------------------------------
+  // The weekly weigh-in schedule. Every date is derived from the user's own
+  // weigh-in day; nothing is hard-coded, and the spacing is always seven days.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Weigh-in dates continue every seven days —\n')
+
+  const SUNDAY = 0 as const
+  const WEDNESDAY = 3 as const
+
+  check('a Sunday schedule read on a Wednesday anchors to the Sunday before',
+    currentWeighInDate(SUNDAY, '2026-08-26'), '2026-08-23')
+  check('and on the day itself, to that day',
+    currentWeighInDate(SUNDAY, '2026-08-23'), '2026-08-23')
+  check('the next one is exactly seven days on',
+    nextWeighInDate(SUNDAY, '2026-08-26'), '2026-08-30')
+  check('a different weigh-in day gives a different anchor',
+    currentWeighInDate(WEDNESDAY, '2026-08-26'), '2026-08-26')
+
+  const scheduleWeights = [
+    { id: 'w1', userId: 'u_x', date: '2026-08-09', weightKg: 82, kind: 'official' as const, createdAt: '' },
+    // Logged a day late. It still belongs to the 16th's week.
+    { id: 'w2', userId: 'u_x', date: '2026-08-17', weightKg: 81.2, kind: 'official' as const, createdAt: '' },
+    // A daily reading, which must not appear in the weekly schedule at all.
+    { id: 'w3', userId: 'u_x', date: '2026-08-20', weightKg: 84.4, kind: 'daily' as const, createdAt: '' },
+  ]
+  const schedule = weighInSchedule(scheduleWeights, SUNDAY, { on: '2026-08-26', includeNext: true })
+
+  check('the schedule is newest first, starting with the next date',
+    schedule.map((slot) => slot.date).join(' '),
+    '2026-08-30 2026-08-23 2026-08-16 2026-08-09')
+  ok('every gap between slots is exactly seven days',
+    schedule.slice(1).every((slot, index) =>
+      Math.round(
+        (new Date(schedule[index].date).getTime() - new Date(slot.date).getTime()) / 86_400_000,
+      ) === 7))
+  check('exactly one slot is the current one', schedule.filter((s) => s.current).length, 1)
+  check('and it is the week today falls in',
+    schedule.find((s) => s.current)!.date, '2026-08-23')
+  check('the future date is marked upcoming', schedule[0].upcoming, true)
+  check('a late entry counts for its own week',
+    schedule.find((s) => s.date === '2026-08-16')?.entry?.id, 'w2')
+  check('the daily reading is nowhere in the schedule',
+    schedule.some((s) => s.entry?.kind === 'daily'), false)
+  check('this week has no reading yet', schedule.find((s) => s.current)?.entry, undefined)
+  check('the change is measured against the previous reading',
+    schedule.find((s) => s.date === '2026-08-16')?.changeKg, -0.8)
+  check('the first reading has nothing to compare to',
+    schedule.find((s) => s.date === '2026-08-09')?.changeKg, undefined)
+
+  const emptySchedule = weighInSchedule([], SUNDAY, { on: '2026-08-26', includeNext: true })
+  check('with no readings at all, only this week and the next are offered',
+    emptySchedule.map((slot) => slot.date).join(' '), '2026-08-30 2026-08-23')
+
+  const realWeights = await weightService.listForUser('u_ahmed')
+  const realSchedule = weighInSchedule(realWeights, SUNDAY, { on: today })
+  ok('the seeded data produces a schedule with no gaps in the dates',
+    realSchedule.slice(1).every((slot, index) =>
+      Math.round(
+        (new Date(realSchedule[index].date).getTime() - new Date(slot.date).getTime()) / 86_400_000,
+      ) === 7),
+    `${realSchedule.length} weekly slots`)
+
+
+  // ---------------------------------------------------------------------
+  // Workout screenshots. The rule under test throughout: a value that was not
+  // legible must come back missing, never guessed — and the image must never
+  // become a record.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A screenshot is transcribed, never invented —\n')
+
+  const readable = {
+    app: 'home_workout', planName: 'Full Body Beginner', dayNumber: 15,
+    durationSec: '23:14', caloriesKcal: 186, exerciseCount: 8,
+    confidence: 0.92, notAWorkout: false,
+  }
+  const read = validateWorkoutResult(readable)
+  check('the app is recognised', read.app, 'home_workout')
+  check('the plan comes through', read.planName, 'Full Body Beginner')
+  check('mm:ss becomes seconds', read.durationSec, 23 * 60 + 14)
+  check('calories come through', read.caloriesKcal, 186)
+  check('nothing is reported missing', read.missing.length, 1)
+  check('and the one gap is the field that was absent', read.missing[0], 'workoutName')
+
+  check('hh:mm:ss is understood', parseClock('1:05:30'), 3930)
+  check('so is "23 min"', parseClock('23 min'), 1380)
+  check('so is "1h 05m"', parseClock('1h 05m'), 3900)
+  check('a bare number of seconds is taken as given', parseClock(1380), 1380)
+  check('nonsense is dropped, not defaulted', parseClock('sometime'), undefined)
+  check('so is a negative duration', parseClock(-5), undefined)
+
+  const partialRead = validateWorkoutResult({
+    planName: 'Abs Beginner', confidence: 0.5, notAWorkout: false,
+    caloriesKcal: 'not a number', durationSec: 'n/a', exerciseCount: 999,
+  })
+  check('an unreadable duration is left blank', partialRead.durationSec, undefined)
+  check('an unreadable calorie count is left blank', partialRead.caloriesKcal, undefined)
+  check('an out-of-range exercise count is refused', partialRead.exerciseCount, undefined)
+  ok('and every gap is reported so the form can ask',
+    ['dayNumber', 'workoutName', 'durationSec', 'caloriesKcal', 'exerciseCount']
+      .every((field) => partialRead.missing.includes(field)),
+    partialRead.missing.join(', '))
+
+  let notWorkout = ''
+  try {
+    validateWorkoutResult({ confidence: 0.9, notAWorkout: true })
+  } catch (error) {
+    notWorkout = error instanceof WorkoutScanFailure ? error.code : 'other'
+  }
+  check('a photo that is not a workout summary is refused', notWorkout, 'no_workout_found')
+
+  let nothingLegible = ''
+  try {
+    validateWorkoutResult({ confidence: 0.3, notAWorkout: false })
+  } catch (error) {
+    nothingLegible = error instanceof WorkoutScanFailure ? error.code : 'other'
+  }
+  check('and so is a reading with no fields at all', nothingLegible, 'no_workout_found')
+
+  console.log('\n— The workout endpoint refuses bad input —\n')
+
+  const screenshotVision: WorkoutVisionProvider = {
+    name: 'stub',
+    async read(): Promise<WorkoutVisionResult> {
+      return validateWorkoutResult(readable)
+    },
+  }
+  const screenshot = { imageBase64: Buffer.alloc(2048).toString('base64'), mimeType: 'image/png' }
+
+  for (const [label, body, code] of [
+    ['no body', {}, 'invalid_image'],
+    ['wrong mime type', { imageBase64: 'AAAA', mimeType: 'application/pdf' }, 'invalid_image'],
+    ['empty image', { imageBase64: '', mimeType: 'image/png' }, 'invalid_image'],
+    ['oversized image', { imageBase64: 'A'.repeat(9 * 1024 * 1024), mimeType: 'image/png' }, 'too_large'],
+  ] as [string, Record<string, string>, string][]) {
+    let got = ''
+    try {
+      await runWorkoutScan(body as never, { vision: screenshotVision, source: 'live' })
+    } catch (error) {
+      got = error instanceof WorkoutScanFailure ? error.code : 'other'
+    }
+    check(`${label} → ${code}`, got, code)
+  }
+
+  const workoutScan = await runWorkoutScan(screenshot, { vision: screenshotVision, source: 'live' })
+  check('a good screenshot comes back legible', workoutScan.confidenceLevel, 'high')
+  check('and always asks for review', workoutScan.needsReview, true)
+
+  let workoutNotConfigured = ''
+  try {
+    resolveWorkoutProviders({ NODE_ENV: 'production' })
+  } catch (error) {
+    workoutNotConfigured = error instanceof WorkoutScanFailure ? error.code : 'other'
+  }
+  check('a missing key fails loudly rather than mocking', workoutNotConfigured, 'not_configured')
+
+  let workoutMockInProd = ''
+  try {
+    resolveWorkoutProviders({ NODE_ENV: 'production', WORKOUT_SCAN_MOCK: '1' })
+  } catch (error) {
+    workoutMockInProd = error instanceof WorkoutScanFailure ? error.code : 'other'
+  }
+  check('the mock flag is ignored in production', workoutMockInProd, 'not_configured')
+  check('and honoured only in development',
+    resolveWorkoutProviders({ WORKOUT_SCAN_MOCK: '1', NODE_ENV: 'development' }).source, 'mock')
+
+  console.log('\n— A scanned workout stores no image —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const fromScreenshot = await workoutService.logExternal({
+    userId: 'u_ahmed', date: today, source: workoutScan.app ?? 'other',
+    planName: workoutScan.planName, dayNumber: workoutScan.dayNumber,
+    name: workoutScan.workoutName ?? workoutScan.planName ?? 'Workout',
+    exerciseCount: workoutScan.exerciseCount ?? 0,
+    durationSec: workoutScan.durationSec ?? 0,
+    caloriesKcal: workoutScan.caloriesKcal ?? 0,
+  })
+  check('the reading saved as a session', fromScreenshot.planName, 'Full Body Beginner')
+  check('with the duration it read', fromScreenshot.durationSec, 1394)
+  const savedSession = (await db.sessions.get(fromScreenshot.id))!
+  ok('and the record holds no image field of any kind',
+    !Object.entries(savedSession).some(([, value]) =>
+      value instanceof Blob ||
+      value instanceof ArrayBuffer ||
+      ArrayBuffer.isView(value) ||
+      (typeof value === 'string' && /^(data:image|blob:)/i.test(value))),
+    Object.keys(savedSession).join(', '))
+  check('the photos table is still empty', await db.photos.count(), 0)
+  authService.signOut()
+  await resetDatabase()
+
+
+  // ---------------------------------------------------------------------
   // Scanner reliability: retries, caching and pipeline separation.
   // ---------------------------------------------------------------------
 
@@ -1704,7 +1901,7 @@ async function main() {
     'src/components/nutrition/FoodScanner.tsx',
     'src/lib/scanCache.ts',
     'server/foodScan/handler.ts',
-    'server/foodScan/retry.ts',
+    'server/shared/retry.ts',
     'server/foodScan/geminiVisionProvider.ts',
     'server/foodScan/fdcNutritionProvider.ts',
   ]

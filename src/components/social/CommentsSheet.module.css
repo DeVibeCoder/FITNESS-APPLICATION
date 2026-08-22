@@ -1,0 +1,313 @@
+/*
+ * One overlay, two shapes.
+ *
+ * Phone: a sheet that rises from the bottom and stops short of the top, so the
+ * feed stays visible behind it and the post you came from is still there when
+ * it closes.
+ *
+ * Desktop (≥48rem): a centred dialog. The mobile sheet is not forced onto a
+ * wide screen — a full-width panel glued to the bottom of a 1440px window is
+ * the shape nobody asked for, and every established social app uses a dialog
+ * here for the same reason.
+ */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+  animation: fade var(--med) var(--ease) both;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /*
+   * Tall enough for a real conversation, short enough that a strip of the feed
+   * stays visible above it — that strip is what tells you the sheet is over
+   * Home rather than a page you navigated to.
+   */
+  height: min(76dvh, 40rem);
+  background: var(--bg);
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+  box-shadow: var(--shadow-lg);
+  animation: rise var(--slow) var(--ease-out) both;
+  padding-bottom: var(--safe-b);
+}
+
+.grabber {
+  width: 2.25rem;
+  height: 4px;
+  flex: none;
+  margin: 0.5rem auto 0;
+  border-radius: var(--r-pill);
+  background: var(--line-strong);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex: none;
+  padding: var(--s-3) var(--gutter) var(--s-2);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  font-size: var(--t-h2);
+  letter-spacing: -0.02em;
+}
+
+.count {
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-3);
+}
+
+.close {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.close:hover {
+  color: var(--ink);
+}
+
+/* --- The post this belongs to -------------------------------------------- */
+
+.context {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-2) var(--gutter) var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+
+.contextText {
+  min-width: 0;
+  font-size: var(--t-small);
+  line-height: 1.4;
+  color: var(--ink-2);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.contextName {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.contextBody {
+  color: var(--ink-2);
+}
+
+/* --- The thread ----------------------------------------------------------- */
+
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--s-3) var(--gutter);
+}
+
+.items {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.body {
+  flex: 1;
+  min-width: 0;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.name {
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.when {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+
+.text {
+  margin-top: 1px;
+  font-size: var(--t-body);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.remove {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 50%;
+  color: var(--ink-3);
+}
+
+.remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  height: 100%;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-family: var(--font-display);
+  font-size: var(--t-h3);
+  font-weight: 700;
+}
+
+.emptyBody {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+/* --- Composer ------------------------------------------------------------- */
+
+/*
+ * Always the last thing on screen, above the keyboard. It is a flex sibling of
+ * the scrolling list rather than something sticky inside it, so no amount of
+ * thread can push it out of reach.
+ */
+.compose {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex: none;
+  padding: var(--s-3) var(--gutter);
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-h);
+  padding: 0 var(--s-4);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--bg-sunk);
+  font-size: var(--t-body);
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: var(--control-h);
+  height: var(--control-h);
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+  transition: opacity var(--fast) var(--ease);
+}
+
+.send:disabled {
+  opacity: 0.4;
+  box-shadow: none;
+  cursor: default;
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(8%);
+    opacity: 0;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* --- Desktop: a centred dialog ------------------------------------------- */
+
+@media (min-width: 48rem) {
+  .root {
+    align-items: center;
+    padding: var(--s-6);
+  }
+
+  .panel {
+    max-width: 34rem;
+    height: min(78vh, 44rem);
+    border-radius: var(--r-xl);
+    padding-bottom: 0;
+    overflow: hidden;
+    animation: appear var(--med) var(--ease-out) both;
+  }
+
+  .grabber {
+    display: none;
+  }
+
+  .head {
+    padding-top: var(--s-5);
+  }
+
+  @keyframes appear {
+    from {
+      transform: scale(0.97);
+      opacity: 0;
+    }
+  }
+}

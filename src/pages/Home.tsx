@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { PenLine } from 'lucide-react'
@@ -7,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { StoriesRail } from '@/components/social/StoriesRail'
 import { PostCard } from '@/components/social/PostCard'
 import { GroupList } from '@/components/group/GroupList'
+import { MemberSheet } from '@/components/group/MemberSheet'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { postService, progressService } from '@/services'
@@ -34,6 +36,9 @@ export function Home() {
   const { user } = useAuth()
   const { open } = useLogSheet()
   const today = todayKey()
+  // The rail's rows open a panel over Home rather than sending someone to a
+  // member page — the same rule Group follows, for the same list.
+  const [selected, setSelected] = useState<string | null>(null)
 
   const posts = useLiveQuery(() => (user ? postService.feed(user.id) : undefined), [user?.id])
   // Desktop rail only; the mobile layout never renders it.
@@ -107,10 +112,14 @@ export function Home() {
               </Link>
             }
           >
-            {group ? <GroupList members={group} currentUserId={user.id} /> : null}
+            {group ? (
+              <GroupList members={group} currentUserId={user.id} onSelect={setSelected} />
+            ) : null}
           </Section>
         </aside>
       </div>
+
+      <MemberSheet userId={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }

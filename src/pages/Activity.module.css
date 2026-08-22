@@ -15,6 +15,33 @@
   color: var(--accent);
 }
 
+/*
+ * The one way into Nutrition, attached to the card whose numbers it explains.
+ * Full width and under the card rather than a small link in the section
+ * header: this is a destination, and it is the only one on the screen.
+ */
+.detailLink {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: var(--control-h);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--accent);
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+}
+
+.detailLink:hover {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 /* --- Week summary --------------------------------------------------------- */
 
 .week {
@@ -65,37 +92,6 @@
   .page {
     max-width: 44rem;
   }
-}
-
-/* Nutrition, stated rather than linked to. */
-.nutrition {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--stack-gap);
-  padding: var(--card-pad);
-  border-radius: var(--card-radius);
-  background: var(--surface);
-  border: var(--card-border);
-  box-shadow: var(--shadow-sm);
-}
-
-.nutrition dt {
-  font-size: var(--t-micro);
-  font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-3);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.nutrition dd {
-  margin-top: 3px;
-  font-family: var(--font-display);
-  font-size: var(--t-h3);
-  font-weight: 720;
-  letter-spacing: -0.025em;
 }
 
 .footnote {

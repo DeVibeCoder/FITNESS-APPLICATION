@@ -1,0 +1,125 @@
+/**
+ * Workout screenshot contracts.
+ *
+ * The premise is different from food scanning and the contracts follow from
+ * it. A food photo is *interpreted*: portion sizes are estimated, a nutrition
+ * database fills in what the photograph cannot say. A workout screenshot is
+ * *read*: the other app has already done the counting and printed the answer,
+ * so every field here is either visible on screen or absent.
+ *
+ * Nothing in this module estimates. A missing duration comes back missing.
+ */
+
+export type WorkoutAppId = 'home_workout' | 'lose_weight_men' | 'other'
+
+/**
+ * What was legible in the screenshot.
+ *
+ * Every field is optional except the confidence, because every field can
+ * genuinely be missing from a summary screen — and a blank the user fills in
+ * is worth far more than a number we invented for them.
+ */
+export interface ReadWorkout {
+  /** Which app the screenshot came from, if the chrome identifies it. */
+  app?: WorkoutAppId
+  /** The app's name as printed, when it is not one we know. */
+  appName?: string
+  /** The plan or programme, e.g. "Full Body Beginner". */
+  planName?: string
+  /** Day number within the plan, when the screen shows one. */
+  dayNumber?: number
+  /** The workout's own name, when it differs from the plan. */
+  workoutName?: string
+  /** Seconds. Parsed from mm:ss or hh:mm:ss on screen. */
+  durationSec?: number
+  /** Kilocalories, as the app reported them. */
+  caloriesKcal?: number
+  /** Number of exercises, only when the screen states or lists them. */
+  exerciseCount?: number
+  /** A date printed on the screen, ISO yyyy-mm-dd, when there is one. */
+  date?: string
+}
+
+export interface WorkoutVisionResult extends ReadWorkout {
+  /** 0–1, how legible the screenshot was overall. */
+  confidence: number
+  /** True when nothing usable was found — a photo of a cat, or a menu. */
+  notAWorkout: boolean
+  /** Field names the model could not read. Surfaced, never filled in. */
+  missing: string[]
+}
+
+export interface WorkoutVisionProvider {
+  readonly name: string
+  /** `timeoutMs` lets the retry layer give later attempts a longer deadline. */
+  read(
+    image: { base64: string; mimeType: string },
+    signal?: AbortSignal,
+    timeoutMs?: number,
+  ): Promise<WorkoutVisionResult>
+}
+
+/** What the browser receives. Deliberately small — no provider internals. */
+export interface WorkoutScanResponse extends ReadWorkout {
+  confidence: number
+  /** Bands the confidence server-side so the UI cannot drift from the rules. */
+  confidenceLevel: 'high' | 'medium' | 'low'
+  /** Which of the fields above came back empty. */
+  missing: string[]
+  /**
+   * Always true. The review form is not a formality — no screenshot reading is
+   * saved without a person looking at it first.
+   */
+  needsReview: true
+  /** 'mock' only ever appears from an explicitly enabled dev server. */
+  source: 'live' | 'mock'
+  /** Vision requests actually made. 1 means it worked first time. */
+  attempts: number
+}
+
+/** Error categories the frontend maps to human copy. */
+export type WorkoutScanErrorCode =
+  | 'not_configured'
+  | 'invalid_image'
+  | 'too_large'
+  | 'unauthorized'
+  | 'rate_limited'
+  | 'timeout'
+  | 'provider_failed'
+  | 'unreadable_response'
+  | 'no_workout_found'
+
+/**
+ * Which failures are worth trying again.
+ *
+ * Transient: the same request could plausibly succeed in a moment.
+ * Permanent: repeating it produces the same answer and spends quota to do so.
+ */
+const TRANSIENT_CODES: WorkoutScanErrorCode[] = [
+  'timeout',
+  'rate_limited',
+  'provider_failed',
+  'unreadable_response',
+]
+
+export class WorkoutScanFailure extends Error {
+  readonly code: WorkoutScanErrorCode
+  readonly transient: boolean
+
+  constructor(code: WorkoutScanErrorCode, message: string, transient?: boolean) {
+    super(message)
+    this.name = 'WorkoutScanFailure'
+    this.code = code
+    this.transient = transient ?? TRANSIENT_CODES.includes(code)
+  }
+}
+
+/**
+ * Legibility bands. Thresholds live here so the server decides once and the UI
+ * renders the label — the two can never drift apart.
+ */
+export function legibility(value: number): 'high' | 'medium' | 'low' {
+  if (value >= 0.8) return 'high'
+  if (value >= 0.55) return 'medium'
+  return 'low'
+}

@@ -40,7 +40,7 @@ export function Motivation() {
   return (
     <div className={styles.page}>
       <PageHeader
-        backTo="/me"
+        parent={{ label: 'Me', to: '/me' }}
         title="Motivation"
         subtitle="A few things worth watching again"
         action={

@@ -84,37 +84,52 @@
   text-wrap: pretty;
 }
 
-/* --- Week --- */
-/* --- Measurements --- */
-/* --- Leaders --- */
-.inputs {
+/* --- Your starting point -------------------------------------------------- */
+
+/*
+ * Two columns of label-and-figure on a phone, three once there is width. Every
+ * body number the app knows about, in one place, at a size that can be read
+ * without leaning in — and stated nowhere else on the screen.
+ */
+.facts {
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
   align-items: flex-start;
 }
 
-.inputList {
+.factList {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--s-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-4) var(--s-3);
   width: 100%;
 }
 
-.inputList dt {
+@media (min-width: 26rem) {
+  .factList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.factList dt {
   font-size: var(--t-micro);
-  font-weight: 700;
+  font-weight: 750;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
 
-.inputList dd {
+.factList dd {
   margin-top: 0.125rem;
   font-family: var(--font-display);
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: 1.1875rem;
+  font-weight: 720;
   letter-spacing: -0.03em;
+}
+
+/* Today's number is the one being asked about, so it carries the brand. */
+.now {
+  color: var(--accent);
 }
 
 @media (min-width: 64rem) {

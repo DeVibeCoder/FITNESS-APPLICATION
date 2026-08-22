@@ -25,6 +25,13 @@ const FIELDS: { key: MeasurementField; label: string; unit: string }[] = [
 /**
  * Start → current → change for whichever fields the user actually records, and
  * a chart only where there are enough points to draw an honest one.
+ *
+ * NOT CURRENTLY MOUNTED. Measurements were taken out of Progress in the
+ * phase-8 pass: nobody in the group was recording them, so four sections — a
+ * table, a chart, a chart selector and a history — were sitting on the screen
+ * with nothing in them. This component, `MeasurementForm`, the service, the
+ * model and `measurementChange` are all intact and unchanged, so putting them
+ * back is a matter of rendering this again from `Progress.tsx`.
  */
 export function MeasurementSection({ entries }: { entries: BodyMeasurement[] }) {
   const [adding, setAdding] = useState(false)

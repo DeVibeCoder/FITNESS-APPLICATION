@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom'
 import { ChevronRight, Flame } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
@@ -15,6 +14,12 @@ interface MemberCardProps {
   isYou: boolean
   weeklyChangeKg?: number
   recentAchievement?: AchievementView
+  /**
+   * Opens this person's full progress over Group rather than navigating to a
+   * page outside it. Group Progress is about the other people in the group;
+   * reading one of them should not cost you the comparison you were making.
+   */
+  onOpen: () => void
 }
 
 /**
@@ -37,12 +42,18 @@ function weekTone(changeKg: number | undefined, goal: FitnessGoal): string {
  * goal, weight, progress, training, steps, consistency, streak. Body metrics,
  * targets and anything from the food diary stay out.
  */
-export function MemberCard({ member, isYou, weeklyChangeKg, recentAchievement }: MemberCardProps) {
+export function MemberCard({
+  member,
+  isYou,
+  weeklyChangeKg,
+  recentAchievement,
+  onOpen,
+}: MemberCardProps) {
   const { user, progress } = member
 
   return (
     <Card flush className={styles.card}>
-      <Link to={isYou ? '/profile' : `/u/${user.id}`} className={styles.head}>
+      <button type="button" className={styles.head} onClick={onOpen}>
         <Avatar user={user} size="lg" ring={member.streak >= 7} />
         <div className={styles.headText}>
           <p className={styles.name}>
@@ -58,7 +69,7 @@ export function MemberCard({ member, isYou, weeklyChangeKg, recentAchievement }:
           ) : null}
         </div>
         <ChevronRight size={17} strokeWidth={2} className={styles.chevron} />
-      </Link>
+      </button>
 
       <div className={styles.journey}>
         <div className={styles.journeyRow}>

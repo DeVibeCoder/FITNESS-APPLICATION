@@ -1,8 +1,20 @@
+/*
+ * One card divided into cells rather than four floating cards.
+ *
+ * The hairline grid is drawn by the container's background showing through 1px
+ * gaps, which is what lets four cells share a single border and a single
+ * shadow — four separate bordered boxes at this size read as clutter, and the
+ * gaps between them were most of the height this section used to spend.
+ */
 .strip {
   display: grid;
-  /* Two up on a phone, four across once there is room. */
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--s-2);
+  gap: 1px;
+  overflow: hidden;
+  border-radius: var(--card-radius);
+  border: var(--card-border);
+  background: var(--line);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (min-width: 26rem) {
@@ -11,51 +23,42 @@
   }
 }
 
-.block {
+.cell {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
-  padding: var(--s-3);
-  border-radius: var(--r);
+  /* Tight on purpose: this is a glance, not a section. */
+  padding: 0.5rem 0.6875rem 0.625rem;
   background: var(--surface);
-  border: 1px solid var(--line);
-  box-shadow: var(--shadow-sm);
-  transition:
-    transform var(--fast) var(--ease),
-    border-color var(--fast) var(--ease);
 }
 
-@media (hover: hover) {
-  .block:hover {
-    transform: translateY(-1px);
-    border-color: var(--line-strong);
-  }
+/* The icon rides with the label instead of sitting in a block above it. */
+.label {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .icon {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  margin-bottom: var(--s-1);
-  border-radius: var(--r-sm);
-}
-
-.label {
-  font-size: var(--t-micro);
-  font-weight: 750;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--ink-3);
+  width: 16px;
+  height: 16px;
+  flex: none;
 }
 
 .value {
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
 }
 
 .word {
   font-size: var(--t-body);
-  font-weight: 680;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -69,24 +72,15 @@
 
 /* --- Semantic tones ------------------------------------------------------- */
 
-/* Workout is coral; calories belong to nutrition, which is violet. */
 .energy .icon {
-  background: var(--energy-soft);
-  color: var(--energy);
-}
-
-.nutrition .icon {
-  background: var(--accent-soft);
   color: var(--accent);
 }
 
 .move .icon {
-  background: var(--move-soft);
   color: var(--move);
 }
 
 .done .icon {
-  background: var(--success-soft);
   color: var(--success);
 }
 

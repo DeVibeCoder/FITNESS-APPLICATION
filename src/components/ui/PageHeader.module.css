@@ -1,8 +1,16 @@
+/*
+ * Deliberately shallow on a phone.
+ *
+ * The title is hidden there — the app bar already prints it — so anything more
+ * than a subtitle's worth of padding here is a decorative gap between the bar
+ * and the first real thing on the screen. It was 4px above and 20px below,
+ * which read as the page starting a long way down.
+ */
 .header {
   display: flex;
   align-items: center;
   gap: 0.625rem;
-  padding: var(--s-1) 0 var(--s-5);
+  padding: 0 0 var(--s-3);
 }
 
 /*
@@ -23,7 +31,7 @@
   }
 
   .header {
-    padding-top: var(--s-2);
+    padding: var(--s-2) 0 var(--s-5);
   }
 }
 
@@ -55,6 +63,25 @@
     letter-spacing: -0.03em;
     font-weight: 700;
   }
+}
+
+/*
+ * The breadcrumb. Small, brand-coloured and above the title, so it reads as
+ * "you are inside this" rather than as a second heading. It stays visible on
+ * a phone, where the title itself is hidden — this is the only thing on the
+ * screen that names the parent section.
+ */
+.parent {
+  display: inline-block;
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.parent:hover {
+  color: var(--accent-strong);
 }
 
 .subtitle {

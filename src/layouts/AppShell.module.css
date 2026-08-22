@@ -10,7 +10,7 @@
  * below this should touch padding-inline again.
  */
 .main {
-  padding-top: var(--s-4);
+  padding-top: var(--s-3);
   padding-bottom: var(--scroll-pad);
   padding-inline: max(var(--gutter), var(--safe-l)) max(var(--gutter), var(--safe-r));
   max-width: var(--content-max);

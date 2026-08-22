@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Field, OptionGroup } from '@/components/ui/Field'
+import { Field } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { achievementService, weightService } from '@/services'
@@ -25,7 +25,16 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
   const { show, guard } = useToast()
   const editing = Boolean(entry)
 
-  const [kind, setKind] = useState<WeightEntry['kind']>(entry?.kind ?? 'official')
+  /*
+   * New entries are always the weekly official one — weighing is weekly here,
+   * and the Official/Daily switch that used to sit at the top of this form was
+   * asking a question the product no longer poses.
+   *
+   * Editing keeps whatever the stored row says. Some existing records are
+   * daily, and silently promoting one to official would change a past week's
+   * reported number without anybody asking for it.
+   */
+  const kind: WeightEntry['kind'] = entry?.kind ?? 'official'
   const [value, setValue] = useState(entry ? entry.weightKg.toFixed(1) : '')
   const [date, setDate] = useState(entry?.date ?? todayKey())
   const [note, setNote] = useState(entry?.note ?? '')
@@ -91,15 +100,6 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
 
   return (
     <>
-      <OptionGroup
-        label="Entry type"
-        value={kind}
-        options={[
-          { value: 'official' as const, label: 'Official weekly' },
-          { value: 'daily' as const, label: 'Daily' },
-        ]}
-        onChange={setKind}
-      />
       <Field
         label="Weight"
         type="number"
@@ -111,7 +111,7 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
         hint={
           kind === 'official'
             ? 'This is the one the group compares each week.'
-            : 'Daily entries smooth the trend line. They stay out of the weekly comparison.'
+            : 'An older daily reading. It stays out of the weekly comparison.'
         }
       />
       <Field

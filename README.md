@@ -32,12 +32,22 @@ src/
   styles/       Design tokens and base styles
 ```
 
-### Food scanning is the one network dependency
+### The two scanners are the only network dependencies
 
-Everything else in this app is local. The food scanner is the exception: it
-sends a compressed copy of the photo to `/api/food-scan`, which runs on the
-server, calls a vision model to identify the food and a nutrition database to
-value it, and returns structured JSON.
+Everything else in this app is local. Both scanners are the exception: each
+sends a compressed copy of an image to an endpoint of ours, which runs on the
+server and holds the credentials.
+
+**Food** (`/api/food-scan`) *interprets* a photograph: a vision model says what
+is on the plate, a nutrition database values it, and the result comes back as
+structured JSON.
+
+**Workouts** (`/api/workout-scan`) *transcribes* a screenshot. Workouts happen
+in Home Workout, Lose Weight for Men and the rest; those apps have already
+counted the minutes and the calories and printed them on a summary screen, so
+this reads that screen rather than estimating anything. Every field it cannot
+read comes back missing, the review form asks for it, and nothing is saved
+until the user confirms.
 
 ```
 browser                      server (server/foodScan/)
@@ -51,7 +61,25 @@ review + correct
   ↓ confirm
 save nutrition to Dexie
 release the object URL
+
+
+browser                      server (server/workoutScan/)
+───────                      ────────────────────────────
+pick screenshot
+  ↓ downscale to ~1024px
+POST /api/workout-scan ────▶ GeminiWorkoutVisionProvider → what the screen says
+                             validate → drops anything doubtful, lists the gaps
+  ◀───────────────────────── structured fields + `missing`
+review + fill the blanks
+  ↓ confirm
+save the workout session to Dexie
+release the object URL
 ```
+
+Neither image is ever stored. Not in IndexedDB, not in a record, not on the
+server — it exists as an object URL while the review is on screen and is
+revoked on confirm, on cancel and on unmount. `npm run verify` sweeps every
+table for blobs, data URIs and oversized strings and fails if it finds one.
 
 Set up:
 
@@ -64,13 +92,16 @@ Set up:
    you to fill in.
 4. `npm run dev`.
 
-Both keys are read only by the Node process. Vite exposes just `VITE_`-prefixed
+The Gemini key serves both scanners. Both keys are read only by the Node
+process. Vite exposes just `VITE_`-prefixed
 variables to the browser, so neither can reach a user's device — and the build
 is checked for that in `npm run verify`.
 
-There is no fallback to sample data. If analysis fails the user is told, and
-offered manual entry. `FOOD_SCAN_MOCK=1` swaps in an obviously-labelled
-placeholder for UI work; it is ignored when `NODE_ENV=production`.
+There is no fallback to sample data in either flow. If analysis fails the user
+is told and offered manual entry. `FOOD_SCAN_MOCK=1` and `WORKOUT_SCAN_MOCK=1`
+swap in obviously-labelled placeholders for UI work; both are ignored when
+`NODE_ENV=production`, and neither is ever used as a fallback when the real
+provider fails.
 
 ### Services are the seam
 

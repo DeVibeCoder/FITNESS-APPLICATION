@@ -39,7 +39,7 @@ export function Profile() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Your profile" subtitle={`@${user.handle}`} backTo="/me" />
+      <PageHeader title="Your profile" subtitle={`@${user.handle}`} parent={{ label: 'Me', to: '/me' }} />
 
       <ProfileView
         snapshot={snapshot}

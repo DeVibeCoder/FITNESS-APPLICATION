@@ -42,7 +42,7 @@ export function Admin() {
       <PageHeader
         title="Admin"
         subtitle={pending.length ? `${pending.length} waiting` : 'Nothing waiting'}
-        backTo="/me"
+        parent={{ label: 'Me', to: '/me' }}
       />
 
       <p className={styles.warning}>

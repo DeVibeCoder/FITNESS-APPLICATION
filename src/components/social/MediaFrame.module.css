@@ -27,9 +27,14 @@
 }
 
 /*
- * Placeholder art: layered gradients suggesting landscape and light. Abstract
- * on purpose — it should read as "a picture goes here", not as a photograph
- * this app is pretending to own.
+ * Placeholder art: layered gradients suggesting a lit gym, a track and a
+ * weigh-in. Abstract on purpose — it should read as "a picture goes here",
+ * not as a photograph this app is pretending to own.
+ *
+ * Every colour below is a literal value rather than a token, and that is the
+ * point: this is imagery, and imagery has to stay the same picture when the
+ * theme flips. A card whose photograph changes colour with the light switch
+ * reads as a rendering bug, not as a design.
  */
 .art {
   position: absolute;
@@ -39,15 +44,17 @@
 /*
  * Lit from one side, like a photograph would be.
  *
- * Each variant is a different subject drawn the same way: a deep plum ground,
- * one warm key light, and geometry over the top. That is what stops three
- * gradient panels in a row reading as three copies of the same thing.
+ * Each variant is a different subject drawn the same way: a deep ground, one
+ * warm key light, and geometry over the top. That is what stops three gradient
+ * panels in a row reading as three copies of the same thing.
  */
+
+/* Strength: a rack under a hot overhead light, seen from the floor. */
 .ridge {
   background:
-    radial-gradient(72% 58% at 78% 18%, color-mix(in srgb, var(--accent) 55%, transparent), transparent 72%),
-    conic-gradient(from 200deg at 28% 110%, var(--violet), var(--accent) 46%, var(--accent-deep) 82%),
-    var(--bg-sunk);
+    radial-gradient(72% 58% at 78% 18%, rgba(249, 115, 22, 0.62), transparent 72%),
+    conic-gradient(from 200deg at 28% 110%, #2c1a10, #b8480a 46%, #4d2206 82%),
+    #1b120c;
 }
 
 /* Speed lines across a lit floor — motion, without a photograph of anyone. */
@@ -56,19 +63,56 @@
     repeating-linear-gradient(
       104deg,
       transparent 0 30px,
-      color-mix(in srgb, #fff 8%, transparent) 30px 32px
+      rgba(255, 255, 255, 0.08) 30px 32px
     ),
-    radial-gradient(60% 50% at 20% 20%, color-mix(in srgb, var(--violet) 65%, transparent), transparent 74%),
-    linear-gradient(150deg, var(--accent-deep), var(--accent) 88%),
-    var(--bg-sunk);
+    radial-gradient(60% 50% at 20% 20%, rgba(84, 106, 134, 0.62), transparent 74%),
+    linear-gradient(150deg, #4d2206, #c85309 88%),
+    #1b120c;
 }
 
+/* Early session: the sun coming up behind a hill of effort. */
 .sunrise {
   background:
-    radial-gradient(52% 40% at 50% 96%, var(--gold), transparent 68%),
-    radial-gradient(70% 54% at 82% 10%, color-mix(in srgb, var(--violet) 60%, transparent), transparent 74%),
-    linear-gradient(180deg, var(--accent-deep), var(--accent) 94%),
-    var(--bg-sunk);
+    radial-gradient(52% 40% at 50% 96%, #e8b23c, transparent 68%),
+    radial-gradient(70% 54% at 82% 10%, rgba(84, 106, 134, 0.55), transparent 74%),
+    linear-gradient(180deg, #3a1c07, #c85309 94%),
+    #1b120c;
+}
+
+/*
+ * The weigh-in: a dark floor lit from below, with the readout's glow where the
+ * numbers would be. Abstract on purpose — the same object every week, without
+ * pretending to be a photograph of one.
+ */
+.scale {
+  background:
+    radial-gradient(38% 26% at 50% 74%, #ff9d52, transparent 70%),
+    repeating-linear-gradient(
+      88deg,
+      transparent 0 44px,
+      rgba(255, 255, 255, 0.06) 44px 46px
+    ),
+    radial-gradient(70% 56% at 80% 6%, rgba(84, 106, 134, 0.5), transparent 74%),
+    linear-gradient(168deg, #17110c, #6b2c05 96%),
+    #1b120c;
+}
+
+/*
+ * Motivation: a dim room with light raking across it. The steep repeat reads
+ * as movement rather than as a pattern, which is the difference between
+ * atmosphere and wallpaper.
+ */
+.pulse {
+  background:
+    repeating-linear-gradient(
+      66deg,
+      transparent 0 30px,
+      rgba(255, 255, 255, 0.09) 30px 33px
+    ),
+    radial-gradient(50% 62% at 22% 90%, rgba(70, 92, 122, 0.85), transparent 74%),
+    radial-gradient(62% 50% at 86% 12%, rgba(249, 115, 22, 0.6), transparent 72%),
+    linear-gradient(202deg, #1d1a22, #6b2c05 98%),
+    #1b120c;
 }
 
 /* A reference that dies with the page says so rather than breaking silently. */
@@ -84,46 +128,6 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-/*
- * The weigh-in: a lit slab seen from above, with a readout glow where the
- * numbers would be. Abstract, but unmistakably the same object every week.
- */
-/*
- * The weigh-in: a dark floor lit from below, with the readout's glow where the
- * numbers would be. Abstract on purpose — the same object every week, without
- * pretending to be a photograph of one.
- */
-.scale {
-  background:
-    radial-gradient(38% 26% at 50% 74%, color-mix(in srgb, var(--accent) 85%, #fff 20%), transparent 70%),
-    repeating-linear-gradient(
-      88deg,
-      transparent 0 44px,
-      color-mix(in srgb, #fff 6%, transparent) 44px 46px
-    ),
-    radial-gradient(70% 56% at 80% 6%, color-mix(in srgb, var(--violet) 55%, transparent), transparent 74%),
-    linear-gradient(168deg, #1d0f2e, var(--accent-deep) 96%),
-    var(--bg-sunk);
-}
-
-/*
- * Motivation: a violet room with light raking across it. The steep repeat
- * reads as movement rather than as a pattern, which is the difference between
- * atmosphere and wallpaper.
- */
-.pulse {
-  background:
-    repeating-linear-gradient(
-      66deg,
-      transparent 0 30px,
-      color-mix(in srgb, #fff 9%, transparent) 30px 33px
-    ),
-    radial-gradient(50% 62% at 22% 90%, color-mix(in srgb, var(--violet) 85%, transparent), transparent 74%),
-    radial-gradient(62% 50% at 86% 12%, color-mix(in srgb, var(--accent) 60%, transparent), transparent 72%),
-    linear-gradient(202deg, #241141, var(--accent-deep) 98%),
-    var(--bg-sunk);
 }
 
 /* --- Drawn geometry over the lit grounds ---------------------------------
@@ -143,7 +147,7 @@
   aspect-ratio: 5 / 4;
   transform: translate(-50%, -50%);
   border-radius: 14%;
-  background: linear-gradient(158deg, rgba(30, 16, 46, 0.92), rgba(12, 6, 20, 0.95));
+  background: linear-gradient(158deg, rgba(34, 22, 14, 0.92), rgba(14, 9, 5, 0.95));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.16),
     0 18px 40px -18px rgba(0, 0, 0, 0.8);
@@ -158,8 +162,8 @@
   height: 5%;
   transform: translate(-50%, -50%);
   border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--accent) 92%, #fff 8%);
-  box-shadow: 0 0 26px 6px color-mix(in srgb, var(--accent) 55%, transparent);
+  background: #ff9d52;
+  box-shadow: 0 0 26px 6px rgba(255, 122, 47, 0.55);
 }
 
 /* Motivation: one rising stroke. Trend, effort, forward — in a single mark. */
@@ -173,6 +177,6 @@
   transform-origin: left center;
   transform: rotate(-27deg);
   border-radius: var(--r-pill);
-  background: linear-gradient(90deg, color-mix(in srgb, var(--violet) 70%, transparent), #fff);
-  box-shadow: 0 0 30px 4px color-mix(in srgb, var(--accent) 45%, transparent);
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.7), #fff);
+  box-shadow: 0 0 30px 4px rgba(249, 115, 22, 0.45);
 }

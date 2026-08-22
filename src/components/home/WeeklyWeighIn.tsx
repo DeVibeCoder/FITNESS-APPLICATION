@@ -7,7 +7,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { achievementService, weightService } from '@/services'
 import { weighInComparison } from '@/utils/progress'
-import { fromDateKey, todayKey } from '@/utils/date'
+import { formatDay, fromDateKey, todayKey } from '@/utils/date'
+import { nextWeighInDate } from '@/utils/weighIn'
 import { num, signed } from '@/utils/format'
 import { goalProfile } from '@/utils/goals'
 import styles from './WeeklyWeighIn.module.css'
@@ -51,6 +52,9 @@ export function WeeklyWeighIn() {
   const done = Boolean(comparison.thisWeek)
   const isWeighInDay = fromDateKey(today).getDay() === user.weighInDay
   const dayName = DAY_NAMES[user.weighInDay]
+  // The actual date, not just the weekday: the schedule runs every seven days
+  // from here, and naming the day alone leaves the reader to work out which one.
+  const nextDate = nextWeighInDate(user.weighInDay, today)
   const direction = goalProfile(user.goal).direction
 
   const save = async () => {
@@ -102,7 +106,7 @@ export function WeeklyWeighIn() {
             <span className={styles.unit}>kg</span>
           </p>
           {changeKg === undefined ? (
-            <p className={styles.sub}>Your first official weigh-in. Next week has something to compare to.</p>
+            <p className={styles.sub}>Your first weigh-in. Next week has something to compare to.</p>
           ) : (
             <p
               className={[
@@ -135,7 +139,7 @@ export function WeeklyWeighIn() {
           </div>
         ) : (
           <p className={styles.note}>
-            {shared ? 'Shared with the group.' : `Next weigh-in ${dayName}.`}
+            {shared ? 'Shared with the group.' : `Next weigh-in ${dayName} ${formatDay(nextDate)}.`}
           </p>
         )}
       </section>

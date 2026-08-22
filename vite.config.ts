@@ -14,7 +14,13 @@ export default defineConfig(({ mode }) => {
    * and none of these ever reach the browser bundle.
    */
   const env = loadEnv(mode, process.cwd(), '')
-  for (const key of ['GEMINI_API_KEY', 'GEMINI_MODEL', 'FDC_API_KEY', 'FOOD_SCAN_MOCK']) {
+  for (const key of [
+    'GEMINI_API_KEY',
+    'GEMINI_MODEL',
+    'FDC_API_KEY',
+    'FOOD_SCAN_MOCK',
+    'WORKOUT_SCAN_MOCK',
+  ]) {
     if (env[key] && !process.env[key]) process.env[key] = env[key]
   }
 
@@ -58,8 +64,8 @@ export default defineConfig(({ mode }) => {
           short_name: 'Circuit',
           description:
             'Track workouts, weight, steps and meals with your group. Show up, log it, keep the chain going.',
-          theme_color: '#15161a',
-          background_color: '#f3f2ef',
+          theme_color: '#14100d',
+          background_color: '#faf6f2',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
@@ -80,7 +86,7 @@ export default defineConfig(({ mode }) => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
           cleanupOutdatedCaches: true,
-          // The scan endpoint must always hit the network; nothing about a food
+          // The scan endpoints must always hit the network; nothing about a
           // photo or its analysis belongs in a cache.
           navigateFallbackDenylist: [/^\/api\//],
         },

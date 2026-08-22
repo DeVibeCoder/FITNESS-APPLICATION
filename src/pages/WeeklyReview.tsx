@@ -42,7 +42,7 @@ export function WeeklyReview() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Weekly review" subtitle={isThisWeek ? 'This week' : 'A previous week'} backTo="/activity" />
+      <PageHeader title="Weekly review" subtitle={isThisWeek ? 'This week' : 'A previous week'} parent={{ label: 'Activity', to: '/activity' }} />
 
       <div className={styles.weekNav}>
         <button onClick={() => setWeekOf(addDays(startOfWeek(weekOf), -1))} aria-label="Previous week">

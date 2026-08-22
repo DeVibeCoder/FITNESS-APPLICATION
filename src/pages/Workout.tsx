@@ -41,7 +41,7 @@ export function Workout() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Workout" subtitle={scheduled ? scheduled.plan.name : 'No plan selected'} backTo="/activity" />
+      <PageHeader title="Workout" subtitle={scheduled ? scheduled.plan.name : 'No plan selected'} parent={{ label: 'Activity', to: '/activity' }} />
       <WorkoutTabs />
 
       {active ? (

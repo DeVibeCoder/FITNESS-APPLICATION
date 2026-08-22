@@ -101,68 +101,71 @@ export function MessageBubble({
           )}
 
           <p className={styles.time}>{formatClock(message.createdAt)}</p>
-
-          {/*
-            Reactions belong to the bubble, not to a row beneath it.
-            Rendered inside so they can sit on its lower edge and inherit its
-            alignment — a floating row underneath read as an unrelated control
-            and lost track of which message it answered.
-          */}
-          {counts.size > 0 ? (
-            <div className={styles.reactions}>
-              {[...counts.entries()].map(([emoji, count]) => (
-                <button
-                  key={emoji}
-                  className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() => react(emoji)}
-                  aria-label={`${count} reacted with ${emoji}`}
-                  aria-pressed={myReaction?.emoji === emoji}
-                >
-                  <span aria-hidden="true">{emoji}</span>
-                  <span className="tnum">{count}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
         </div>
 
         {/*
-          Under the bubble rather than beside it. Sitting alongside, these three
-          buttons took ~90px out of an already narrow column and forced every
-          message to wrap two words early.
+          One row under the bubble holds both the reactions and the controls,
+          and it is a fixed height whether either is present.
 
-          A deleted message has none of them: there is nothing to react to,
+          That is the whole fix for the jump. The reaction pills used to hang
+          off the bubble's lower edge and the bubble grew an 18px margin to
+          make room, so reacting to a message pushed reply/delete/react down by
+          18px — often out from under the finger that was about to press one.
+          Now the pills fill space the row already reserved, the controls sit
+          at the far end of it, and adding or removing a reaction moves
+          nothing.
+
+          A deleted message gets no row at all: there is nothing to react to,
           nothing to quote, and nothing left to delete.
         */}
         {deleted ? null : (
-        <div className={styles.tools}>
-          <button
-            className={styles.tool}
-            onClick={() => setPicking((open) => !open)}
-            aria-label={`React to ${firstName(author.name)}'s message`}
-            aria-expanded={picking}
-          >
-            <SmilePlus size={13} strokeWidth={2} />
-          </button>
-          <button
-            className={styles.tool}
-            onClick={() => onReply(message)}
-            aria-label={`Reply to ${firstName(author.name)}`}
-          >
-            <CornerUpLeft size={13} strokeWidth={2} />
-          </button>
-          {isOwner(message.userId) ? (
-            <button
-              className={styles.tool}
-              onClick={() => guard(() => chatService.remove(message.id))}
-              aria-label="Delete your message"
-            >
-              <Trash2 size={13} strokeWidth={2} />
-            </button>
-          ) : null}
-        </div>
+          <div className={styles.under}>
+            {counts.size > 0 ? (
+              <div className={styles.reactions}>
+                {[...counts.entries()].map(([emoji, count]) => (
+                  <button
+                    key={emoji}
+                    className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => react(emoji)}
+                    aria-label={`${count} reacted with ${emoji}`}
+                    aria-pressed={myReaction?.emoji === emoji}
+                  >
+                    <span aria-hidden="true">{emoji}</span>
+                    <span className="tnum">{count}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className={styles.tools}>
+              <button
+                className={styles.tool}
+                onClick={() => setPicking((open) => !open)}
+                aria-label={`React to ${firstName(author.name)}'s message`}
+                aria-expanded={picking}
+              >
+                <SmilePlus size={13} strokeWidth={2} />
+              </button>
+              <button
+                className={styles.tool}
+                onClick={() => onReply(message)}
+                aria-label={`Reply to ${firstName(author.name)}`}
+              >
+                <CornerUpLeft size={13} strokeWidth={2} />
+              </button>
+              {isOwner(message.userId) ? (
+                <button
+                  className={styles.tool}
+                  onClick={() => guard(() => chatService.remove(message.id))}
+                  aria-label="Delete your message"
+                >
+                  <Trash2 size={13} strokeWidth={2} />
+                </button>
+              ) : null}
+            </div>
+          </div>
         )}
 
         {picking ? (

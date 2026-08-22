@@ -120,7 +120,7 @@ export function WorkoutHistory() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Logs" subtitle="Your workout journal" backTo="/workout" />
+      <PageHeader title="Logs" subtitle="Your workout journal" parent={{ label: 'Workout', to: '/workout' }} />
       <WorkoutTabs />
 
       {stats ? (

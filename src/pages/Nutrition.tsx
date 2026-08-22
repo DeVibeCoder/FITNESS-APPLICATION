@@ -18,9 +18,14 @@ import { num } from '@/utils/format'
 import styles from './Nutrition.module.css'
 
 /**
- * The nutrition day. The same screen serves history: pick a different date and
- * everything below re-reads for that day, rather than maintaining a separate
- * history page that would drift from this one.
+ * The nutrition day, as a page of Activity rather than a destination of its
+ * own. The Activity tab stays lit while this is open, the header says which
+ * section it belongs to, and back goes to Activity — the calories on that
+ * screen and the meals on this one are the same subject at two depths.
+ *
+ * The same screen serves history: pick a different date and everything below
+ * re-reads for that day, rather than maintaining a separate history page that
+ * would drift from this one.
  */
 export function Nutrition() {
   const { user } = useAuth()
@@ -54,7 +59,7 @@ export function Nutrition() {
   return (
     <div className={styles.page}>
       <PageHeader
-        backTo="/activity"
+        parent={{ label: 'Activity', to: '/activity' }}
         title="Nutrition"
         subtitle={isToday ? 'Today' : formatDay(date)}
         action={

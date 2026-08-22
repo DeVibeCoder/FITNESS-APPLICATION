@@ -9,9 +9,9 @@ import { fileURLToPath } from 'node:url'
 
 const OUT = resolve(dirname(fileURLToPath(import.meta.url)), '../public/icons')
 
-const INK = [0x15, 0x16, 0x1a]
-const ACCENT = [0xff, 0x4f, 0x1f]
-const PAPER = [0xf3, 0xf2, 0xef]
+const INK = [0x14, 0x10, 0x0d]
+const ACCENT = [0xf9, 0x73, 0x16]
+const PAPER = [0xfa, 0xf6, 0xf2]
 
 const crcTable = (() => {
   const t = new Uint32Array(256)

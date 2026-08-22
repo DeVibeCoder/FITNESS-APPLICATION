@@ -52,7 +52,7 @@ body::after {
   pointer-events: none;
 }
 
-/* Layer 1–3: the soft violet forms, the blue/cyan glow, the white key light. */
+/* Layer 1–5: the warm forms, the graphite corner, the white key light. */
 body::before {
   background: var(--ambient);
 }

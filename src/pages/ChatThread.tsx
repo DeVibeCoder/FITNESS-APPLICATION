@@ -16,6 +16,7 @@ import {
 import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MessageBubble } from '@/components/chat/MessageBubble'
+import { GroupMembersSheet } from '@/components/chat/GroupMembersSheet'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -45,6 +46,7 @@ export function ChatThread() {
   const [replyTo, setReplyTo] = useState<ChatMessageView | null>(null)
   const [sending, setSending] = useState(false)
   const [shareMenu, setShareMenu] = useState(false)
+  const [membersOpen, setMembersOpen] = useState(false)
   /**
    * Two different states, deliberately not one.
    *
@@ -250,18 +252,33 @@ export function ChatThread() {
         <Link to="/chat" className={styles.back} aria-label="Back to chat">
           <ArrowLeft size={18} strokeWidth={2.2} />
         </Link>
-        <div className={styles.headText}>
-          <h2 className={styles.title}>Fitness group</h2>
-          <p className={styles.sub}>{users.length} people</p>
-        </div>
-        <span className={styles.faces} aria-hidden="true">
-          {users.slice(0, 3).map((member) => (
-            <span key={member.id} className={styles.face}>
-              <Avatar user={member} size="xs" />
-            </span>
-          ))}
-        </span>
+        {/*
+          The title and the faces are one control. The row of avatars used to
+          be decoration — it said three people were here without saying which
+          three — so it now opens the member list, which is the question it
+          was already provoking.
+        */}
+        <button
+          className={styles.who}
+          onClick={() => setMembersOpen(true)}
+          aria-haspopup="dialog"
+          aria-label="See who is in this group"
+        >
+          <span className={styles.headText}>
+            <span className={styles.title}>Fitness group</span>
+            <span className={styles.sub}>{users.length} people</span>
+          </span>
+          <span className={styles.faces} aria-hidden="true">
+            {users.slice(0, 3).map((member) => (
+              <span key={member.id} className={styles.face}>
+                <Avatar user={member} size="xs" />
+              </span>
+            ))}
+          </span>
+        </button>
       </header>
+
+      <GroupMembersSheet open={membersOpen} onClose={() => setMembersOpen(false)} />
 
       <div className={styles.thread}>
         {messages.length === 0 ? (

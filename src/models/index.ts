@@ -603,7 +603,17 @@ export interface AppNotification {
 export interface AchievementDef {
   key: string
   title: string
+  /** The line said once it is earned. Flavour, not a rule. */
   description: string
+  /**
+   * Exactly what unlocks it, in the same terms the rule uses.
+   *
+   * Lives beside the definition rather than in the UI so it cannot drift from
+   * `achievementService.evaluate` without both being in view at once. The
+   * award detail shows this for anything still locked — "how to earn it" is
+   * the only useful thing to say about a mark somebody has not got.
+   */
+  criteria: string
   icon: string
   group: AchievementGroup
   /**

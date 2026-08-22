@@ -55,11 +55,6 @@
   border-bottom-left-radius: var(--r-sm);
 }
 
-/* Room for the pill that hangs off the lower edge. */
-.bubble:has(.reactions) {
-  margin-bottom: 18px;
-}
-
 /*
  * Deleted. Muted, italic, and deliberately plain — it is a marker that
  * something was here, not a message.
@@ -102,9 +97,10 @@
 }
 
 /*
- * A name someone typed on purpose. Brand violet on other people's bubbles;
- * inside your own the bubble is already violet, so it takes ink weight instead
- * of colour — accent on accent-soft is not enough separation to notice.
+ * A name someone typed on purpose. The brand orange on other people's
+ * bubbles; inside your own the bubble is already tinted with it, so it takes
+ * ink weight instead of colour — accent on accent-soft is not enough
+ * separation to notice.
  */
 .mention {
   font-weight: 700;
@@ -153,23 +149,42 @@
   overflow: hidden;
 }
 
-/* --- Hover tools ---------------------------------------------------------- */
+/* --- The row under the bubble --------------------------------------------- */
+
+/*
+ * Reactions on the message's own side, controls at the far end, and a height
+ * that does not depend on either being there.
+ *
+ * Fixing the height is the point. Whether a message has one reaction, four, or
+ * none, this row is 32px and the controls are in the same place — so tapping
+ * the emoji picker and then a reaction does not move the reply button out from
+ * under the next tap.
+ */
+.under {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  margin-top: calc(var(--s-1) * -1);
+}
+
+.mine .under {
+  flex-direction: row-reverse;
+}
 
 /*
  * Secondary, and firmly so.
  *
  * These used to be three 32px icon buttons under every bubble at 55% opacity,
  * which on a full screen of conversation added up to more controls than
- * messages. They are smaller and quieter now: the message is the content, and
- * reacting or replying is something you go looking for.
+ * messages. They are quieter now: the message is the content, and reacting or
+ * replying is something you go looking for.
  */
 .tools {
   display: flex;
   align-items: center;
   gap: 0;
-  /* Reserved height, so revealing them on hover does not shift the thread. */
-  height: 32px;
-  margin-top: calc(var(--s-1) * -1);
+  flex: none;
   opacity: 0;
   transition: opacity var(--fast) var(--ease);
 }
@@ -254,34 +269,29 @@
 }
 
 /*
- * Attached to the bubble's lower edge, overlapping it slightly, on the side
- * the message belongs to. It used to be a full-width row underneath, which
- * floated free of the message it answered.
+ * In the row's flow, on the side the message belongs to, sharing it with the
+ * controls. Not absolutely positioned any more: floating them off the bubble's
+ * edge is what forced the bubble to grow a margin, and that margin is what
+ * moved the controls.
  *
- * `max-width: 100%` with wrapping is what stops a long message pushing the
- * pills past the bubble's edge.
+ * They shrink and scroll rather than wrap, so five distinct reactions on one
+ * message cannot push the controls off the row or make it two lines tall.
  */
 .reactions {
-  position: absolute;
-  bottom: -16px;
-  left: var(--s-3);
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 3px;
-  max-width: calc(100% - var(--s-4));
-  z-index: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 
-/* Yours sit on the right, matching the bubble's alignment. */
-.mine .reactions {
-  left: auto;
-  right: var(--s-3);
+.reactions::-webkit-scrollbar {
+  display: none;
 }
+
 
 /*
- * Ringed in the page colour so it reads as sitting on top of the bubble rather
- * than punched out of it.
- *
  * 32px, not the 26px it briefly was: this is a button — tapping it toggles
  * your reaction — and the audit was right to flag a target that small. The
  * pill still reads as compact because the type and the padding are tight, not
@@ -291,12 +301,12 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  min-height: 32px;
+  flex: none;
+  height: 32px;
   padding: 0 0.5625rem;
   border-radius: var(--r-pill);
   border: 1px solid var(--line);
   background: var(--surface);
-  box-shadow: 0 0 0 2px var(--bg);
   font-size: 0.75rem;
   font-weight: 650;
   color: var(--ink-2);

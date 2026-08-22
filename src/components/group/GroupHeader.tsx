@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Avatar } from '@/components/ui/Avatar'
+import { CardArt } from '@/components/ui/CardArt'
 import { useAuth } from '@/context/AuthContext'
 import { chatService, progressService, userService } from '@/services'
 import { todayKey } from '@/utils/date'
@@ -48,6 +49,7 @@ export function GroupHeader() {
 
   return (
     <header className={`glass ${styles.header}`}>
+      <CardArt variant="run" />
       <p className="eyebrow">Our fitness group</p>
       <h1 className={styles.title}>
         {total > active ? `${active} of ${total} people` : `${active} people`}

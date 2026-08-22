@@ -1,30 +1,42 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/lib/db'
 import { Section } from '@/components/ui/Card'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MemberCard } from '@/components/group/MemberCard'
+import { MemberSheet } from '@/components/group/MemberSheet'
 import { GroupWeek } from '@/components/group/GroupWeek'
-import { UpdateFeed } from '@/components/group/UpdateFeed'
 import { useAuth } from '@/context/AuthContext'
-import { achievementService, progressService, updateService } from '@/services'
+import { achievementService, progressService } from '@/services'
 import { reviewService } from '@/services/reviewService'
 import { formatRange, startOfWeek, endOfWeek, todayKey } from '@/utils/date'
 import styles from './OurProgress.module.css'
 
 /**
- * The shared accountability screen. Public group data only — goal, progress,
- * training, steps, streak, consistency, achievements and the feed. Nothing from
- * anyone's body metrics, targets or food diary appears here.
+ * The shared accountability screen: how everyone else is doing.
+ *
+ * This is the counterpart of the Progress tab, not a second copy of it. That
+ * one is your own weight, your own goal, your own history. This one is the
+ * other people — their goal direction, where they started and are now, this
+ * week's change, workouts, steps, consistency and how far along each of them
+ * is. Public group data only: nothing from anyone's body metrics, calorie
+ * targets or food diary appears here.
+ *
+ * Tapping a member opens their progress over this screen. It used to navigate
+ * to a page outside Group, which meant comparing two people cost four
+ * navigations and lost your place both times.
+ *
+ * There is no updates feed here any more. Updates is a tab of its own, three
+ * inches to the left.
  */
 export function OurProgress() {
   const { user } = useAuth()
   const today = todayKey()
+  const [selected, setSelected] = useState<string | null>(null)
 
   const members = useLiveQuery(() => progressService.groupSnapshot(today), [today])
   const week = useLiveQuery(() => reviewService.groupWeek(today), [today])
-  const updates = useLiveQuery(() => updateService.recent(10), [])
-  const users = useLiveQuery(() => db.users.toArray(), [])
 
   const weeklyChanges = useLiveQuery(async () => {
     const rows = await db.users.toArray()
@@ -47,16 +59,14 @@ export function OurProgress() {
 
   if (!user || !members) return <LoadingScreen />
 
-  const userMap = new Map((users ?? []).map((u) => [u.id, u]))
-
   return (
     // data-wide: this tab has a two-column desktop layout, so it asks the Group
     // shell to drop its reading-width cap. See GroupLayout.module.css.
     <div className={styles.page} data-wide>
       {/*
         No page header and no back arrow: the Group shell above is still on
-        screen, and this is one of its tabs. §42 asks for a clear heading, so
-        the section says what this is and over what window.
+        screen, and this is one of its tabs. The section says what this is and
+        over what window.
       */}
       <div className={styles.intro}>
         <h2 className={styles.heading}>Group progress</h2>
@@ -74,6 +84,7 @@ export function OurProgress() {
                     isYou={member.user.id === user.id}
                     weeklyChangeKg={weeklyChanges?.[member.user.id]}
                     recentAchievement={achievements?.[member.user.id]}
+                    onOpen={() => setSelected(member.user.id)}
                   />
                 </li>
               ))}
@@ -86,17 +97,10 @@ export function OurProgress() {
         </div>
 
         <div className={styles.rail}>
-          <Section
-            title="Recent updates"
-            action={
-              <Link to="/group/updates" className={styles.link}>
-                See all
-              </Link>
-            }
-          >
-            <UpdateFeed updates={updates ?? []} users={userMap} />
-          </Section>
-
+          {/*
+            The one link off this page, and it points at the personal side of
+            the same question rather than at another copy of this one.
+          */}
           <Section title="Your week">
             <Link to="/review" className={styles.reviewLink}>
               <span className={styles.reviewText}>
@@ -108,6 +112,8 @@ export function OurProgress() {
           </Section>
         </div>
       </div>
+
+      <MemberSheet userId={selected} onClose={() => setSelected(null)} />
     </div>
   )
 }

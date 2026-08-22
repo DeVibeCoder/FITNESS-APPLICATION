@@ -5,9 +5,12 @@ import { num, signed } from '@/utils/format'
 import styles from './WeighInCard.module.css'
 
 /**
- * The official weekly weigh-in, side by side with last week's. Daily readings
- * are deliberately absent: this is the number the group compares, and it should
- * not move because of a salty dinner.
+ * This week's weigh-in, side by side with last week's.
+ *
+ * Weighing is weekly, full stop — one number per scheduled day. Older daily
+ * readings still exist as rows and are deliberately not shown anywhere: this
+ * is the number the group compares, and it should not move because of a salty
+ * dinner.
  */
 export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
   const { thisWeek, lastWeek, changeKg } = comparison
@@ -15,7 +18,7 @@ export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
   return (
     <Card className={styles.card}>
       <div className={styles.head}>
-        <span className="eyebrow">Official weigh-in</span>
+        <span className="eyebrow">Weekly weigh-in</span>
         <span className={styles.week}>Week {comparison.weekNumber}</span>
       </div>
 
@@ -74,8 +77,8 @@ export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
 
       <p className={styles.note}>
         {thisWeek
-          ? 'Daily entries are kept separate so they cannot skew the weekly result.'
-          : 'Log an official weigh-in to update your week.'}
+          ? 'One weigh-in a week, on your chosen day. Nothing else counts toward it.'
+          : "Log this week's weigh-in to update your week."}
       </p>
     </Card>
   )

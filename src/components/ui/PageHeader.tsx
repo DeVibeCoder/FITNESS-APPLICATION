@@ -8,17 +8,35 @@ interface PageHeaderProps {
   subtitle?: string
   action?: ReactNode
   backTo?: string
+  /**
+   * The section this page belongs inside, printed above the title as a
+   * breadcrumb and used as the back target.
+   *
+   * A secondary screen has to say which part of the app it is part of — a
+   * page that only offers a bare arrow leaves you guessing where the arrow
+   * goes, which is how Nutrition came to feel like a separate application
+   * rather than a page of Activity.
+   */
+  parent?: { label: string; to: string }
 }
 
-export function PageHeader({ title, subtitle, action, backTo }: PageHeaderProps) {
+export function PageHeader({ title, subtitle, action, backTo, parent }: PageHeaderProps) {
+  const back = backTo ?? parent?.to
+
   return (
     <header className={styles.header}>
-      {backTo ? (
-        <Link to={backTo} className={styles.back} aria-label="Back">
+      {back ? (
+        <Link to={back} className={styles.back} aria-label={parent ? `Back to ${parent.label}` : 'Back'}>
           <ChevronLeft size={20} strokeWidth={2.2} />
         </Link>
       ) : null}
       <div className={styles.text}>
+        {parent ? (
+          <Link to={parent.to} className={styles.parent}>
+            {parent.label}
+            <span aria-hidden="true"> ›</span>
+          </Link>
+        ) : null}
         <h1 className={styles.title}>{title}</h1>
         {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
       </div>

@@ -22,6 +22,10 @@ type Tab = 'posts' | 'fitness'
  * Split out of Me, which had grown into a directory of the whole application.
  * Me is now identity and settings; this is the record — what you posted and
  * what you logged — and it can grow without pushing the settings off screen.
+ *
+ * Called "My records" rather than "My activity": the Activity tab is now
+ * explicitly one person's day, and two screens with the same name in the same
+ * app is a navigation bug however good each one is.
  */
 export function MyActivity() {
   const { user } = useAuth()
@@ -55,9 +59,9 @@ export function MyActivity() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="My activity" subtitle="Everything you have shared and logged" backTo="/me" />
+      <PageHeader title="My records" subtitle="Everything you have shared and logged" parent={{ label: 'Me', to: '/me' }} />
 
-      <div className={styles.tabs} role="tablist" aria-label="My activity">
+      <div className={styles.tabs} role="tablist" aria-label="My records">
         {(['posts', 'fitness'] as const).map((value) => (
           <button
             key={value}
@@ -161,7 +165,7 @@ export function MyActivity() {
           <Section
             title={`Achievements (${unlocked.length})`}
             action={
-              <Link to="/achievements" className={styles.sectionLink}>
+              <Link to="/group/awards" className={styles.sectionLink}>
                 All
               </Link>
             }

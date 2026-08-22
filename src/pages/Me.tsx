@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Award, ChevronRight, Cog, Layers, LogOut, Palette, Quote, Shield, ShieldCheck } from 'lucide-react'
+import { ChevronRight, Cog, Layers, LogOut, Quote, Shield, ShieldCheck } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Section } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -97,26 +97,37 @@ export function Me() {
 
       {/*
         Me is identity and settings now. What this person posted and logged
-        lives in My activity, and the fitness screens live in Activity — the
+        lives in My records, and the fitness screens live in Activity — the
         same feature appearing in three places was the problem this fixes.
+
+        There is no Achievements row. Profile & goals already ends in the full
+        set, and Group → Awards is where they are compared — a third entry
+        pointing at the same grid made Me look longer than it is.
       */}
       <Section title="You">
         <ul className={styles.links}>
-          <Row to="/me/activity" icon={<Layers size={17} strokeWidth={2} />} label="My activity" hint="Your posts, logs, weigh-ins and awards" />
-          <Row to="/profile" icon={<Cog size={17} strokeWidth={2} />} label="Profile & goals" hint="Name, goal, targets, weigh-in day" />
-          <Row to="/achievements" icon={<Award size={17} strokeWidth={2} />} label="Achievements" hint={`${me.achievements} unlocked`} />
+          <Row to="/me/activity" icon={<Layers size={17} strokeWidth={2} />} label="My records" hint="Your posts, logs, weigh-ins and awards" />
+          <Row
+            to="/profile"
+            icon={<Cog size={17} strokeWidth={2} />}
+            label="Profile & goals"
+            hint={`Name, goal, targets, weigh-in day · ${me.achievements} achievements`}
+          />
           <Row to="/motivation" icon={<Quote size={17} strokeWidth={2} />} label="Motivation" hint="This week's video and the collection" />
         </ul>
       </Section>
 
       <Section title="Settings">
         <ul className={styles.links}>
-          <Row to="/more" icon={<Shield size={17} strokeWidth={2} />} label="Privacy & data" hint="Visibility, media and your account" />
+          {/*
+            One row, one destination. Privacy & data and Appearance were two
+            rows opening the same screen.
+          */}
           <Row
             to="/more"
-            icon={<Palette size={17} strokeWidth={2} />}
-            label="Appearance"
-            hint="Theme preference — the toggle up top switches it instantly"
+            icon={<Shield size={17} strokeWidth={2} />}
+            label="Settings"
+            hint="Privacy, appearance, media and your data"
           />
           {isAdmin ? (
             <Row

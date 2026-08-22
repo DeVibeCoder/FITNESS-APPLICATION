@@ -28,23 +28,22 @@ const DESKTOP_LINKS = [
 /** Page titles for the compact mobile header. First match wins, so order. */
 const TITLES: [RegExp, string][] = [
   [/^\/$/, 'Circuit'],
-  [/^\/activity/, 'Activity'],
+  [/^\/activity\/nutrition/, 'Nutrition'],
+  [/^\/activity/, 'My activity'],
   [/^\/chat/, 'Chat'],
-  [/^\/me\/activity/, 'My activity'],
+  [/^\/me\/activity/, 'My records'],
   [/^\/me\/admin/, 'Admin'],
   [/^\/me/, 'Me'],
   [/^\/workout\/logs/, 'Logs'],
   [/^\/workout\/plan/, 'Plan'],
   [/^\/workout/, 'Workout'],
-  [/^\/nutrition/, 'Nutrition'],
   [/^\/progress/, 'Progress'],
   [/^\/group/, 'Group'],
   [/^\/review/, 'This week'],
   [/^\/motivation/, 'Motivation'],
-  [/^\/achievements/, 'Achievements'],
   [/^\/notifications/, 'Notifications'],
   [/^\/profile/, 'Profile'],
-  [/^\/more/, 'Privacy & data'],
+  [/^\/more/, 'Settings'],
   [/^\/u\//, 'Member'],
 ]
 

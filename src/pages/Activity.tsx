@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { ArrowRight } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Section } from '@/components/ui/Card'
 import { LoadingScreen } from '@/components/ui/EmptyState'
@@ -10,21 +11,25 @@ import { FuelCard } from '@/components/home/FuelCard'
 import { CheckInPrompt } from '@/components/home/CheckInPrompt'
 import { TodayWorkoutCard } from '@/components/home/TodayWorkoutCard'
 import { WeeklyWeighIn } from '@/components/home/WeeklyWeighIn'
-import { GroupList } from '@/components/group/GroupList'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { progressService } from '@/services'
 import { todayKey, formatRange, startOfWeek, endOfWeek } from '@/utils/date'
-import { duration, litres, num, pct, signed } from '@/utils/format'
+import { duration, num, pct, signed } from '@/utils/format'
 import styles from './Activity.module.css'
 
 /**
- * Today.
+ * My activity. Today, and only mine.
  *
- * The day you are actually having: what you trained, how far you walked, what
- * you ate and drank, the habits, the check-in, this week's weigh-in and a small
- * snapshot of the week so far. Deliberately not a second Progress page — that
- * is its own tab now, and duplicating it here is what made both feel vague.
+ * What I trained, how far I walked, what I ate and drank, my habits, my
+ * check-in, my weigh-in and my week so far. The group used to have a section
+ * down at the bottom; it is gone. Everyone else's numbers belong to Group,
+ * and having them here meant Activity answered two questions badly instead of
+ * one well.
+ *
+ * Nutrition is a child of this screen rather than a sibling of it — the
+ * calories card links into /activity/nutrition, the Activity tab stays lit,
+ * and back comes here.
  */
 export function Activity() {
   const { user } = useAuth()
@@ -43,25 +48,18 @@ export function Activity() {
     () => (user ? progressService.weeklySummary(user.id, today) : undefined),
     [user?.id, today],
   )
-  const group = useLiveQuery(() => progressService.groupSnapshot(today), [today])
 
   if (!user || !snapshot || !me) return <LoadingScreen />
 
   return (
     <div className={styles.page}>
       {/*
-        Titled Activity, not Today: the title has to match the tab that got you
-        here, and on a phone this heading is hidden anyway because the app bar
-        already prints it. The subtitle is what says which day this is about.
+        Titled My activity, not Today: the title has to match the tab that got
+        you here, and on a phone this heading is hidden anyway because the app
+        bar already prints it. The subtitle says which day this is about.
       */}
-      <PageHeader title="Activity" subtitle="Today — what you have done so far" />
+      <PageHeader title="My activity" subtitle="Today — what you have done so far" />
 
-      {/*
-        The goal hero moved to Progress, which is a primary tab now. Activity is
-        today; the long arc of the journey is a different question asked on a
-        different rhythm, and showing it in both places meant neither screen had
-        an obvious job.
-      */}
       <Section title="Today">
         <TodayStrip snapshot={snapshot} />
       </Section>
@@ -74,49 +72,17 @@ export function Activity() {
         <StepsCard steps={snapshot.steps} goal={snapshot.stepGoal} />
       </Section>
 
-      <Section
-        title="Calories & water"
-        action={
-          <Link to="/nutrition" className={styles.sectionLink}>
-            Details
-          </Link>
-        }
-      >
+      {/*
+        One card for calories and water, and one way into the detail. There
+        used to be two sections here — "Calories & water" and "Nutrition" —
+        both ending in a link called Details that went to the same screen.
+      */}
+      <Section title="Calories & water">
         <FuelCard snapshot={snapshot} />
-      </Section>
-
-      {/* §23: the nutrition numbers themselves, not a link to them. */}
-      <Section
-        title="Nutrition"
-        action={
-          <Link to="/nutrition" className={styles.sectionLink}>
-            Details
-          </Link>
-        }
-      >
-        <dl className={styles.nutrition}>
-          <div>
-            <dt>Calories</dt>
-            <dd className="tnum">
-              {num(snapshot.nutrition.kcal)}
-              <span className={styles.of}>/{num(snapshot.energy.target)}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Protein</dt>
-            <dd className="tnum">
-              {num(snapshot.nutrition.proteinG)}
-              <span className={styles.of}>/{snapshot.energy.macros.proteinG} g</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Water</dt>
-            <dd className="tnum">
-              {litres(snapshot.waterMl)}
-              <span className={styles.of}>/{litres(snapshot.waterGoalMl)} L</span>
-            </dd>
-          </div>
-        </dl>
+        <Link to="/activity/nutrition" className={styles.detailLink}>
+          View nutrition
+          <ArrowRight size={15} strokeWidth={2.4} />
+        </Link>
       </Section>
 
       <Section title="Daily habits">
@@ -179,27 +145,9 @@ export function Activity() {
         </Section>
       ) : null}
 
-      <Section
-        title="Group activity"
-        action={
-          <Link to="/group" className={styles.sectionLink}>
-            See all
-          </Link>
-        }
-      >
-        {group ? <GroupList members={group} currentUserId={user.id} /> : null}
-      </Section>
-
-      {/*
-        No "go to Workout / Progress / Nutrition" list here. Everything it
-        pointed at is either summarised above with its own Details link, or
-        reachable from the section it belongs to. A page of redirects is a
-        menu, not a screen.
-      */}
       <p className={styles.footnote}>
         Calories and energy figures are estimates from your profile, not measurements.
       </p>
     </div>
   )
 }
-

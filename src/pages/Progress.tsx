@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
 import { Card, Section } from '@/components/ui/Card'
@@ -9,32 +8,37 @@ import { TrendChart } from '@/components/charts/TrendChart'
 import { GoalHero } from '@/components/home/GoalHero'
 import { WeighInCard } from '@/components/progress/WeighInCard'
 import { WeightHistory } from '@/components/progress/WeightHistory'
-import { MeasurementSection } from '@/components/progress/MeasurementSection'
 import { BmiCard } from '@/components/progress/BmiCard'
 import { EnergyCard } from '@/components/progress/EnergyCard'
 import { WeekSnapshot } from '@/components/progress/WeekSnapshot'
 import { Insights } from '@/components/progress/Insights'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
-import { measurementService, progressService, weightService } from '@/services'
+import { progressService, weightService } from '@/services'
 import { buildInsights } from '@/utils/insights'
 import { changeOver, weighInComparison } from '@/utils/progress'
 import { todayKey } from '@/utils/date'
 import { num, signed } from '@/utils/format'
+import { goalProfile } from '@/utils/goals'
 import { EMPTY } from '@/data/messages'
 import styles from './Progress.module.css'
 
 /**
- * My progress — a primary destination now, not a page inside Activity.
+ * My progress. Mine, and nobody else's.
  *
  * Activity answers "what about today". This answers "is any of it working",
- * which is a different question asked on a different rhythm, and burying it two
- * taps deep made the one number people actually care about the hardest one to
- * find. Group progress is separate again: this screen is only about you.
+ * which is a different question asked on a different rhythm. Everyone else's
+ * numbers live in Group → Progress; this screen used to carry a link across to
+ * them, which was small but was the last thread making the two pages read as
+ * two halves of one thing rather than as two answers to two questions.
  *
- * One scroll, no tabs. Journey, then the week, then the body, then the energy
- * estimates, then the records the earlier sections were derived from. Tabs made
- * three of those four invisible until you knew to go looking.
+ * One scroll, no tabs. Journey, the body facts, the week, the trend, the
+ * energy estimates, then the weekly weigh-ins the rest was derived from.
+ *
+ * Measurements are gone from this screen. They were four sections — a table, a
+ * chart, a chart selector and a history — for something nobody in the group
+ * was recording. The service and the model are untouched, so bringing them
+ * back is a matter of rendering them again.
  */
 export function Progress() {
   const { user } = useAuth()
@@ -53,10 +57,6 @@ export function Progress() {
     () => (user ? weightService.listForUser(user.id) : undefined),
     [user?.id],
   )
-  const measurements = useLiveQuery(
-    () => (user ? measurementService.listForUser(user.id) : undefined),
-    [user?.id],
-  )
 
   const series = useMemo(
     () => (weights ?? []).map((entry) => ({ date: entry.date, value: entry.weightKg })),
@@ -67,48 +67,92 @@ export function Progress() {
     if (!me) return []
     return buildInsights({
       weights: weights ?? [],
-      measurements: measurements ?? [],
+      // Measurements are no longer shown, so nothing is read for them either —
+      // an insight about a waist nobody can see on this screen would be a
+      // reference to a section that is not there.
+      measurements: [],
       progress: me.progress,
       workoutsThisWeek: me.workoutsThisWeek,
       workoutGoal: week?.workoutGoal ?? user?.workoutsPerWeekGoal ?? 5,
       streak: me.streak,
       consistencyPct: me.consistency.score,
     })
-  }, [me, weights, measurements, week, user])
+  }, [me, weights, week, user])
 
   if (!user || !me) return <LoadingScreen />
 
   const weeklyChange = weights ? changeOver(weights, 7, today) : null
   const monthlyChange = weights ? changeOver(weights, 30, today) : null
   const comparison = weighInComparison(weights ?? [], today)
+  const usesTarget = goalProfile(user.goal).usesTargetWeight
 
   return (
     <div className={styles.page}>
       {/*
         A primary tab, so no back arrow: there is nothing above this to go back
-        to. The link out points sideways, to the group's version of the same
-        idea, and is clearly labelled as somebody else's numbers.
+        to. And no sideways link either — this page is one person's.
       */}
       <header className={styles.intro}>
         <div className={styles.introText}>
           <h1 className={styles.heading}>My journey</h1>
           <p className={styles.sub}>Where you started, where you are</p>
         </div>
-        <Link to="/group/progress" className={styles.link}>
-          Group progress
-        </Link>
       </header>
 
       {/*
         The hero this screen is named after: start, now, goal and how far along
-        that is. It used to sit on Activity, where it competed with the day.
-
-        One journey card, not two. This screen briefly carried both this and
-        WeightJourney, which stated the same four numbers immediately below in a
-        different layout — the kind of duplication that makes a reader wonder
-        which one is authoritative.
+        that is, drawn as a track.
       */}
       <GoalHero user={user} progress={me.progress} />
+
+      {/*
+        The same four numbers as words rather than as a diagram, plus the two
+        the hero has no room for — height, and how the week moved.
+
+        This is deliberately the only place the figures are listed. The hero
+        above draws them; the card that used to sit at the bottom under "What
+        feeds these numbers" listed three of them again with an edit link, and
+        a reader had no way to tell which of the two was authoritative.
+      */}
+      <Section title="Your starting point">
+        <Card className={styles.facts}>
+          <dl className={styles.factList}>
+            <div>
+              <dt>Height</dt>
+              <dd className="tnum">{user.heightCm} cm</dd>
+            </div>
+            <div>
+              <dt>Starting weight</dt>
+              <dd className="tnum">{num(user.startWeightKg, 1)} kg</dd>
+            </div>
+            <div>
+              <dt>Current weight</dt>
+              <dd className={`tnum ${styles.now}`}>{num(me.currentWeightKg, 1)} kg</dd>
+            </div>
+            {usesTarget ? (
+              <div>
+                <dt>Goal</dt>
+                <dd className="tnum">{num(user.targetWeightKg, 1)} kg</dd>
+              </div>
+            ) : null}
+            <div>
+              <dt>Weekly change</dt>
+              <dd className={`tnum ${changeClass(weeklyChange)}`}>
+                {weeklyChange === null ? '—' : `${signed(weeklyChange)} kg`}
+              </dd>
+            </div>
+            <div>
+              <dt>Since you started</dt>
+              <dd className={`tnum ${changeClass(me.progress.changeKg)}`}>
+                {signed(me.progress.changeKg)} kg
+              </dd>
+            </div>
+          </dl>
+          <ButtonLink to="/profile" variant="secondary">
+            Edit profile
+          </ButtonLink>
+        </Card>
+      </Section>
 
       {/* --- The week ---------------------------------------------------- */}
       <Section
@@ -171,46 +215,17 @@ export function Progress() {
         <BmiCard user={user} currentWeightKg={me.currentWeightKg} />
       </Section>
 
-      <MeasurementSection entries={measurements ?? []} />
-
       {/* --- Energy ------------------------------------------------------- */}
       <Section title="Energy">
         <EnergyCard user={user} energy={me.energy} detailed />
       </Section>
 
-      <Section title="What feeds these numbers">
-        <Card className={styles.inputs}>
-          <dl className={styles.inputList}>
-            <div>
-              <dt>Height</dt>
-              <dd className="tnum">{user.heightCm} cm</dd>
-            </div>
-            <div>
-              <dt>Current weight</dt>
-              <dd className="tnum">{num(me.currentWeightKg, 1)} kg</dd>
-            </div>
-            <div>
-              <dt>Goal weight</dt>
-              <dd className="tnum">{num(user.targetWeightKg, 1)} kg</dd>
-            </div>
-          </dl>
-          <p className={styles.note}>
-            Change any of these — or your age, sex, goal or activity level — in your profile and
-            every estimate here recalculates straight away.
-          </p>
-          <ButtonLink to="/profile" variant="secondary">
-            Edit profile
-          </ButtonLink>
-        </Card>
-      </Section>
-
-      {/* --- The detail everything above was derived from ------------------ */}
       <Section title="What the records show">
         <Insights insights={insights} />
       </Section>
 
-      <Section title="Weight history">
-        <WeightHistory entries={weights ?? []} />
+      <Section title="Weekly weigh-ins">
+        <WeightHistory entries={weights ?? []} weighInDay={user.weighInDay} />
       </Section>
 
       <p className={styles.note}>

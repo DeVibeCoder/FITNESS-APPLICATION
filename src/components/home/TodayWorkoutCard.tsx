@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Check, Dumbbell, Plus } from 'lucide-react'
 import { Button, ButtonLink } from '@/components/ui/Button'
+import { CardArt } from '@/components/ui/CardArt'
 import { DIFFICULTY_OPTIONS } from '@/services/workoutService'
 import { workoutAppLabel } from '@/data/workoutApps'
 import type { DailySnapshot } from '@/services/progressService'
@@ -18,6 +19,9 @@ function feelingLabel(value?: string): string | null {
  * Circuit does not run the session — Home Workout and Lose Weight for Men do
  * that. So the empty state offers to record one rather than to start one, and
  * the finished state reads back exactly what the other app reported.
+ *
+ * The barbell in the corner is drawn in fixed colours and is the same picture
+ * in both themes; see `CardArt`.
  */
 export function TodayWorkoutCard({
   snapshot,
@@ -31,13 +35,15 @@ export function TodayWorkoutCard({
   if (done.length === 0) {
     return (
       <section className={`glass ${styles.card} ${styles.empty}`}>
+        <CardArt variant="strength" />
         <span className={styles.emptyIcon}>
           <Dumbbell size={19} strokeWidth={1.9} />
         </span>
         <div className={styles.emptyText}>
           <p className={styles.emptyTitle}>No workout logged yet</p>
           <p className={styles.emptyBody}>
-            Trained in another app? Write down what it said — it takes a few seconds.
+            Trained in another app? Add a screenshot of its summary and we'll fill in what we
+            can.
           </p>
         </div>
         <Button
@@ -66,6 +72,7 @@ export function TodayWorkoutCard({
 
   return (
     <section className={`glass ${styles.card} ${styles.done}`}>
+      <CardArt variant="strength" />
       <header className={styles.head}>
         <span className={styles.check}>
           <Check size={15} strokeWidth={3} />

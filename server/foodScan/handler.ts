@@ -8,7 +8,7 @@ import { confidenceLevel, ScanFailure } from './types.ts'
 import { GeminiFoodVisionProvider } from './geminiVisionProvider.ts'
 import { FoodDataCentralNutritionProvider } from './fdcNutritionProvider.ts'
 import { DevMockVisionProvider } from './mockVisionProvider.ts'
-import { withRetry } from './retry.ts'
+import { withRetry } from '../shared/retry.ts'
 
 /**
  * The food-scan endpoint, as a plain function.
@@ -121,6 +121,7 @@ export async function runFoodScan(
       // The first call of a session stalls on a cold connection, so it gets a
       // shorter leash; later attempts are given more room.
       timeoutFor: (index) => [20_000, 30_000, 40_000][index] ?? 30_000,
+      cancelled: () => new ScanFailure('timeout', 'Cancelled.', false),
       onRetry,
     },
   )

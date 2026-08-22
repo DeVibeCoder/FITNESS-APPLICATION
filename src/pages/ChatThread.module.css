@@ -105,7 +105,28 @@
   color: var(--ink);
 }
 
+/*
+ * Name, count and faces in one target. It reads as a heading and behaves as a
+ * button, which is what every messaging app does with the same row.
+ */
+.who {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: left;
+  border-radius: var(--r);
+  transition: background-color var(--fast) var(--ease);
+}
+
+.who:hover {
+  background: var(--bg-sunk);
+}
+
 .headText {
+  display: flex;
+  flex-direction: column;
   flex: 1;
   min-width: 0;
 }

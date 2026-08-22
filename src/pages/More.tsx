@@ -44,13 +44,18 @@ export function More() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Privacy & data" backTo="/me" />
+      <PageHeader title="Settings" subtitle="Privacy, appearance and your data" parent={{ label: 'Me', to: '/me' }} />
 
       {/*
-        Privacy and data only. Workouts, progress, nutrition, the weekly
-        review, achievements and motivation are not privacy settings — they
-        live in Activity, Group and Me, and listing them here again is what
-        made this page a menu instead of a settings screen.
+        One settings destination. Me used to offer "Privacy & data" and
+        "Appearance" as two rows that opened this same screen — the second one
+        scrolled you past four sections to reach the theme buttons, and neither
+        row told you the other existed.
+
+        Settings only. Workouts, progress, nutrition, the weekly review,
+        achievements and motivation are not settings — they live in Activity,
+        Group and Me, and listing them here again is what made this page a menu
+        instead of a settings screen.
       */}
       <Section title="Visibility">
         <div className={styles.settingCard}>

@@ -1,0 +1,178 @@
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: grid;
+  place-items: center;
+  padding: var(--gutter);
+}
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  animation: fade var(--med) var(--ease) both;
+}
+
+.panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  width: min(22rem, 100%);
+  padding: var(--s-8) var(--s-6) var(--s-5);
+  text-align: center;
+  border-radius: var(--card-radius-hero);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lg);
+  animation: lift var(--med) var(--ease-out) both;
+}
+
+.close {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--bg-sunk);
+  color: var(--ink-2);
+}
+
+.close:hover {
+  color: var(--ink);
+}
+
+/*
+ * The reveal.
+ *
+ * One 360° turn while the mark scales up from nothing, over 560ms — long
+ * enough to read as a deliberate flourish, short enough that a second tap does
+ * not feel like waiting. `transform` only, so it composites on its own layer
+ * and never touches layout.
+ */
+.medal {
+  display: grid;
+  place-items: center;
+  width: 7.5rem;
+  height: 7.5rem;
+  font-size: 3.5rem;
+  line-height: 1;
+  border-radius: 50%;
+  background: var(--gold-soft);
+  border: 2px solid color-mix(in srgb, var(--gold) 45%, transparent);
+  box-shadow: var(--glow-gold);
+  animation: reveal 560ms var(--ease-out) both;
+}
+
+.medalLocked {
+  background: var(--bg-sunk);
+  border-color: var(--line-strong);
+  box-shadow: none;
+  color: var(--ink-3);
+  /* A locked mark does not get the flourish; there is nothing to celebrate. */
+  animation: lift var(--med) var(--ease-out) both;
+}
+
+@keyframes reveal {
+  from {
+    transform: rotate(-360deg) scale(0.3);
+    opacity: 0;
+  }
+  to {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes lift {
+  from {
+    transform: translateY(10px) scale(0.97);
+    opacity: 0;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * Reduced motion gets the panel and no spin. The global rule in base.css
+ * already collapses durations; this removes the transform outright so nothing
+ * lands mid-rotation on a browser that snaps to the first keyframe.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .medal,
+  .medalLocked,
+  .panel {
+    animation: none;
+  }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 750;
+  letter-spacing: -0.03em;
+}
+
+.description {
+  font-size: var(--t-body);
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.reason {
+  width: 100%;
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  background: var(--bg-sunk);
+  text-align: left;
+}
+
+.reasonOn {
+  background: var(--gold-soft);
+}
+
+.reasonLabel {
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.reasonOn .reasonLabel {
+  color: var(--gold);
+}
+
+.reasonBody {
+  margin-top: 0.2rem;
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+
+.when {
+  margin-top: var(--s-2);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.done {
+  width: 100%;
+  height: var(--control-h);
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: var(--t-body);
+  font-weight: 700;
+}

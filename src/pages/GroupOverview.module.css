@@ -111,6 +111,8 @@
 
 .member {
   display: flex;
+  width: 100%;
+  text-align: left;
   align-items: center;
   gap: var(--s-3);
   min-height: 60px;

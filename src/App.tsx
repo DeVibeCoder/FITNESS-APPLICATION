@@ -43,7 +43,6 @@ const GroupChallenge = lazy(() => import('@/pages/GroupChallenge').then((m) => (
 const Updates = lazy(() => import('@/pages/Updates').then((m) => ({ default: m.Updates })))
 const WeeklyReview = lazy(() => import('@/pages/WeeklyReview').then((m) => ({ default: m.WeeklyReview })))
 const Motivation = lazy(() => import('@/pages/Motivation').then((m) => ({ default: m.Motivation })))
-const Achievements = lazy(() => import('@/pages/Achievements').then((m) => ({ default: m.Achievements })))
 const More = lazy(() => import('@/pages/More').then((m) => ({ default: m.More })))
 const Profile = lazy(() => import('@/pages/Profile').then((m) => ({ default: m.Profile })))
 const Member = lazy(() => import('@/pages/Member').then((m) => ({ default: m.Member })))
@@ -111,7 +110,16 @@ function AppRoutes() {
         >
           {/* --- The seven primary destinations ------------------------- */}
           <Route index element={<Home />} />
+
+          {/*
+            Activity, and its one child. Nutrition is a sub-page of Activity
+            rather than a top-level screen: it is reached from the calories
+            card, the Activity tab stays lit while it is open, and back comes
+            straight here. Nesting it in the path is what makes every one of
+            those true without a single special case in the navigation.
+          */}
           <Route path="activity" element={<Activity />} />
+          <Route path="activity/nutrition" element={<Nutrition />} />
           <Route path="progress" element={<Progress />} />
           <Route path="me" element={<Me />} />
 
@@ -142,10 +150,8 @@ function AppRoutes() {
           <Route path="workout" element={<Workout />} />
           <Route path="workout/plan" element={<WorkoutPlan />} />
           <Route path="workout/logs" element={<WorkoutHistory />} />
-          <Route path="nutrition" element={<Nutrition />} />
           <Route path="review" element={<WeeklyReview />} />
           <Route path="motivation" element={<Motivation />} />
-          <Route path="achievements" element={<Achievements />} />
           <Route path="more" element={<More />} />
           <Route path="profile" element={<Profile />} />
           <Route path="u/:userId" element={<Member />} />
@@ -155,6 +161,13 @@ function AppRoutes() {
             somewhere sensible — a bookmark or a shared link from before the
             reorganisation must not 404 into the feed.
           */}
+          <Route path="nutrition" element={<Navigate to="/activity/nutrition" replace />} />
+          {/*
+            Achievements had a screen of its own that showed the same grid as
+            Group → Awards now shows, only without the detail overlay. One set,
+            one screen.
+          */}
+          <Route path="achievements" element={<Navigate to="/group/awards" replace />} />
           <Route path="group/overview" element={<Navigate to="/group" replace />} />
           <Route path="group/chat" element={<Navigate to="/chat/thread" replace />} />
           <Route path="chat/group" element={<Navigate to="/chat/thread" replace />} />

@@ -82,7 +82,7 @@ export function WorkoutPlan() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Plan" subtitle={plan?.name ?? 'No plan selected'} backTo="/workout" />
+      <PageHeader title="Plan" subtitle={plan?.name ?? 'No plan selected'} parent={{ label: 'Workout', to: '/workout' }} />
       <WorkoutTabs />
 
       {plan && enrollment ? (

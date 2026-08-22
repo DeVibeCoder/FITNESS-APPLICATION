@@ -34,7 +34,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (pref === 'system') delete root.dataset.theme
     else root.dataset.theme = pref
     // Keeps the mobile browser chrome in step with the app.
-    const color = resolved === 'dark' ? '#111214' : '#f3f2ef'
+    const color = resolved === 'dark' ? '#14100d' : '#faf6f2'
     document
       .querySelectorAll('meta[name="theme-color"]')
       .forEach((tag) => tag.setAttribute('content', color))
