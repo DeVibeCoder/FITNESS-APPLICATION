@@ -5,7 +5,7 @@ import { Section } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { EmptyState, LoadingScreen } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/Progress'
-import { CardArt } from '@/components/ui/CardArt'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { AwardDetail, type AwardDetailData } from '@/components/achievements/AwardDetail'
 import { useAuth } from '@/context/AuthContext'
 import { achievementService, userService } from '@/services'
@@ -77,7 +77,7 @@ export function GroupAwards() {
       {scope === 'mine' ? (
         <>
           <div className={`glass ${styles.summary}`}>
-            <CardArt variant="award" />
+            <CardPhoto image="achievements" className={styles.photo} />
             <p className="eyebrow">Your collection</p>
             <p className={styles.count}>
               <span className="tnum">{unlockedMine.length}</span>
@@ -151,7 +151,7 @@ export function GroupAwards() {
       ) : (
         <>
           <div className={`glass ${styles.summary}`}>
-            <CardArt variant="award" />
+            <CardPhoto image="achievements" className={styles.photo} />
             <p className="eyebrow">Between the {rows.length} of you</p>
             <p className={styles.count}>
               <span className="tnum">{earnedAcrossGroup}</span>

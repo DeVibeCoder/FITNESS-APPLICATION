@@ -4,10 +4,21 @@
   gap: var(--s-6);
 }
 
+/*
+ * Flush, so the photograph meets the card's edges without fighting a padding
+ * it would otherwise have to escape with negative margins.
+ */
 .quoteCard {
   display: flex;
   flex-direction: column;
+  overflow: hidden;
+}
+
+.quoteBody {
+  display: flex;
+  flex-direction: column;
   gap: 0.375rem;
+  padding: var(--card-pad);
 }
 
 .quote {

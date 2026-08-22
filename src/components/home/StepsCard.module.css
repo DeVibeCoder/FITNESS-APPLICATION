@@ -8,12 +8,13 @@
 
 .head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--s-3);
 }
 
+/* The figure takes the room the tile and the percentage do not. */
 .readout {
+  flex: 1;
   min-width: 0;
 }
 

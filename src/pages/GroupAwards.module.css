@@ -9,10 +9,11 @@
   box-shadow: var(--glow-gold);
 }
 
-/* The medal is behind everything; the content keeps its own stacking. */
-.summary > *:not(:first-child) {
-  position: relative;
-  z-index: 1;
+/* Full bleed to the card's edges, so it has to escape the card's padding. */
+.photo {
+  width: auto;
+  align-self: stretch;
+  margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
 }
 
 .count {

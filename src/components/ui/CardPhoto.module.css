@@ -1,0 +1,47 @@
+/*
+ * Compact by construction.
+ *
+ * Both shapes are a fixed height rather than an aspect ratio, because an
+ * aspect ratio on a card that spans the screen gives you a 260px photograph on
+ * a phone and a short card on a desktop — exactly backwards. A fixed height
+ * means the picture stays a detail of the card at every width.
+ */
+.photo {
+  display: block;
+  object-fit: cover;
+  background: var(--bg-sunk);
+  /* Nothing here should be draggable or selectable; it is decoration. */
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* --- Band: a strip across the top of a card ------------------------------- */
+
+/*
+ * Full bleed, so it meets the card's own edges. The card supplies the radius
+ * and `overflow: hidden`; this only has to fill the width it is given.
+ */
+.band {
+  width: 100%;
+  height: 84px;
+  /* Sits above any gradient the card draws, below the card's content. */
+  position: relative;
+  z-index: 0;
+}
+
+@media (min-width: 26rem) {
+  .band {
+    height: 104px;
+  }
+}
+
+/* --- Tile: a small square in a card header -------------------------------- */
+
+/* 56px, matching the crop the CDN is asked for exactly — see SHAPES. */
+.tile {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+}

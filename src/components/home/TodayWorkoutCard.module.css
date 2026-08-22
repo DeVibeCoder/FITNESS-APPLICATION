@@ -37,6 +37,17 @@
   z-index: 1;
 }
 
+/*
+ * The photograph runs to the card's own edges, so it has to escape the card's
+ * padding. `align-self: stretch` is what stops the empty state's
+ * `align-items: flex-start` shrinking it to nothing.
+ */
+.photo {
+  width: auto;
+  align-self: stretch;
+  margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
+}
+
 /* --- Nothing logged yet --------------------------------------------------- */
 
 .empty {

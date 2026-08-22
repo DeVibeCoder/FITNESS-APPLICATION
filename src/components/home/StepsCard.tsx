@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Footprints, Pencil, Plus } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { useToast } from '@/context/ToastContext'
@@ -41,6 +42,7 @@ export function StepsCard({ steps, goal }: StepsCardProps) {
   return (
     <Card className={styles.card}>
       <div className={styles.head}>
+        <CardPhoto image="steps" shape="tile" />
         <div className={styles.readout}>
           <p className={`${styles.value} tnum`}>{num(steps)}</p>
           <p className={styles.label}>of {num(goal)} steps</p>

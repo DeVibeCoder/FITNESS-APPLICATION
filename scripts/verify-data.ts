@@ -1495,6 +1495,68 @@ async function main() {
 
 
   // ---------------------------------------------------------------------
+  // Card photography is presentation only. The claim under test: an image URL
+  // reaches an <img src> and nothing else — no table, no service, no upload.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Card images are presentation, not data —\n')
+
+  const cardImageSource = await readFile(
+    new URL('../src/data/cardImages.ts', import.meta.url),
+    'utf8',
+  )
+  // Unsplash ids carry either a 10- or a 13-digit timestamp depending on when
+  // the photo was uploaded, so both shapes are legitimate.
+  const cardIds = cardImageSource.match(/id: 'photo-\d{10,13}-[0-9a-f]{12}'/g) ?? []
+  check('every card image is a well-formed Unsplash CDN id', cardIds.length, 7)
+  check('and none was hand-assembled from something else',
+    (cardImageSource.match(/id: '/g) ?? []).length, cardIds.length)
+
+  /*
+   * Comments stripped first. The component's own doc comment says in prose
+   * that it never writes to localStorage, and an unstripped scan reads that
+   * sentence as the very thing it is promising not to do.
+   */
+  const photoCode = (
+    await readFile(new URL('../src/components/ui/CardPhoto.tsx', import.meta.url), 'utf8')
+  )
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '')
+  for (const forbidden of ['localStorage', 'sessionStorage', 'indexedDB', 'db.', 'fetch(', 'FileReader', 'Blob']) {
+    ok(`CardPhoto never touches ${forbidden}`, !photoCode.includes(forbidden))
+  }
+
+  // A service that knew about card imagery would be one refactor away from
+  // writing one into a record. None of them may import it.
+  const serviceFiles = (await readdir(new URL('../src/services', import.meta.url)))
+    .filter((name) => String(name).endsWith('.ts'))
+  const serviceLeaks: string[] = []
+  for (const name of serviceFiles) {
+    const source = await readFile(new URL(`../src/services/${name}`, import.meta.url), 'utf8')
+    if (source.includes('cardImages') || source.includes('images.unsplash.com')) {
+      serviceLeaks.push(String(name))
+    }
+  }
+  ok('no service imports card imagery', serviceLeaks.length === 0,
+    serviceLeaks.join('; ') || `${serviceFiles.length} services scanned`)
+
+  await ensureSeeded()
+  const urlLeaks: string[] = []
+  for (const table of db.tables) {
+    for (const row of await table.toArray()) {
+      for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+        if (typeof value === 'string' && /images\.unsplash\.com|cardImages/.test(value)) {
+          urlLeaks.push(`${table.name}.${key}`)
+        }
+      }
+    }
+  }
+  ok('and no remote image URL is stored in any table', urlLeaks.length === 0,
+    urlLeaks.join('; ') || 'swept every row of every table')
+  await resetDatabase()
+
+
+  // ---------------------------------------------------------------------
   // The weekly weigh-in schedule. Every date is derived from the user's own
   // weigh-in day; nothing is hard-coded, and the spacing is always seven days.
   // ---------------------------------------------------------------------

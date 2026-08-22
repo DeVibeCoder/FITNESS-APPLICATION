@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Check, Dumbbell, Plus } from 'lucide-react'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { CardArt } from '@/components/ui/CardArt'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { DIFFICULTY_OPTIONS } from '@/services/workoutService'
 import { workoutAppLabel } from '@/data/workoutApps'
 import type { DailySnapshot } from '@/services/progressService'
@@ -20,8 +20,10 @@ function feelingLabel(value?: string): string | null {
  * that. So the empty state offers to record one rather than to start one, and
  * the finished state reads back exactly what the other app reported.
  *
- * The barbell in the corner is drawn in fixed colours and is the same picture
- * in both themes; see `CardArt`.
+ * The photograph is the same one in both themes, and it is presentation only:
+ * nothing about it is stored, and if it fails to load — offline, most likely —
+ * it removes itself and the card keeps the gradient underneath. See
+ * `CardPhoto`.
  */
 export function TodayWorkoutCard({
   snapshot,
@@ -35,7 +37,7 @@ export function TodayWorkoutCard({
   if (done.length === 0) {
     return (
       <section className={`glass ${styles.card} ${styles.empty}`}>
-        <CardArt variant="strength" />
+        <CardPhoto image="workout" className={styles.photo} />
         <span className={styles.emptyIcon}>
           <Dumbbell size={19} strokeWidth={1.9} />
         </span>
@@ -72,7 +74,7 @@ export function TodayWorkoutCard({
 
   return (
     <section className={`glass ${styles.card} ${styles.done}`}>
-      <CardArt variant="strength" />
+      <CardPhoto image="workout" className={styles.photo} />
       <header className={styles.head}>
         <span className={styles.check}>
           <Check size={15} strokeWidth={3} />

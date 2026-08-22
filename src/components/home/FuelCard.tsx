@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GlassWater, Pencil, Plus, UtensilsCrossed } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { useToast } from '@/context/ToastContext'
@@ -42,74 +43,84 @@ export function FuelCard({ snapshot }: { snapshot: DailySnapshot }) {
   return (
     <Card flush className={styles.card}>
       <section className={styles.half}>
-        <header className={styles.head}>
-          <span className={styles.label}>
-            <UtensilsCrossed size={13} strokeWidth={2} />
-            Calories
-          </span>
-          <button className={styles.action} onClick={() => open('meal')}>
-            <Plus size={13} strokeWidth={2.6} />
-            Add food
-          </button>
-        </header>
+        {/*
+          Beside the numbers, not above them: a band here would have doubled
+          the height of a card that is already two of these stacked.
+        */}
+        <CardPhoto image="calories" shape="tile" />
+        <div className={styles.body}>
+          <header className={styles.head}>
+            <span className={styles.label}>
+              <UtensilsCrossed size={13} strokeWidth={2} />
+              Calories
+            </span>
+            <button className={styles.action} onClick={() => open('meal')}>
+              <Plus size={13} strokeWidth={2.6} />
+              Add food
+            </button>
+          </header>
 
-        <p className={styles.readout}>
-          <span className={`${styles.value} tnum`}>{num(eaten)}</span>
-          <span className={styles.of}>
-            / <span className="tnum">{num(target)}</span> kcal
-          </span>
-        </p>
+          <p className={styles.readout}>
+            <span className={`${styles.value} tnum`}>{num(eaten)}</span>
+            <span className={styles.of}>
+              / <span className="tnum">{num(target)}</span> kcal
+            </span>
+          </p>
 
-        <div className={styles.track}>
-          <div
-            className={[styles.fill, over ? styles.fillWarn : ''].filter(Boolean).join(' ')}
-            style={{ width: `${kcalPct}%` }}
-          />
+          <div className={styles.track}>
+            <div
+              className={[styles.fill, over ? styles.fillWarn : ''].filter(Boolean).join(' ')}
+              style={{ width: `${kcalPct}%` }}
+            />
+          </div>
+
+          <p className={styles.note}>
+            <span className={over ? styles.warn : styles.strong}>
+              <span className="tnum">{num(difference)}</span> kcal {over ? 'over' : 'left'}
+            </span>
+            <span className={styles.estimate}> · estimated daily target</span>
+          </p>
         </div>
-
-        <p className={styles.note}>
-          <span className={over ? styles.warn : styles.strong}>
-            <span className="tnum">{num(difference)}</span> kcal {over ? 'over' : 'left'}
-          </span>
-          <span className={styles.estimate}> · estimated daily target</span>
-        </p>
       </section>
 
       <section className={styles.half}>
-        <header className={styles.head}>
-          <span className={styles.label}>
-            <GlassWater size={13} strokeWidth={2} />
-            Water
-          </span>
-          <button className={styles.action} onClick={() => open('water')}>
-            <Pencil size={12} strokeWidth={2.2} />
-            Edit
-          </button>
-        </header>
+        <CardPhoto image="water" shape="tile" />
+        <div className={styles.body}>
+          <header className={styles.head}>
+            <span className={styles.label}>
+              <GlassWater size={13} strokeWidth={2} />
+              Water
+            </span>
+            <button className={styles.action} onClick={() => open('water')}>
+              <Pencil size={12} strokeWidth={2.2} />
+              Edit
+            </button>
+          </header>
 
-        <p className={styles.readout}>
-          <span className={`${styles.value} tnum`}>{litres(snapshot.waterMl)}</span>
-          <span className={styles.of}>
-            / <span className="tnum">{num(snapshot.waterGoalMl / 1000, 1)}</span> L
-          </span>
-        </p>
+          <p className={styles.readout}>
+            <span className={`${styles.value} tnum`}>{litres(snapshot.waterMl)}</span>
+            <span className={styles.of}>
+              / <span className="tnum">{num(snapshot.waterGoalMl / 1000, 1)}</span> L
+            </span>
+          </p>
 
-        <div className={styles.track}>
-          <div
-            className={[styles.fill, styles.fillWater, waterHit ? styles.fillDone : ''].filter(Boolean).join(' ')}
-            style={{ width: `${waterPct}%` }}
-          />
-        </div>
+          <div className={styles.track}>
+            <div
+              className={[styles.fill, styles.fillWater, waterHit ? styles.fillDone : ''].filter(Boolean).join(' ')}
+              style={{ width: `${waterPct}%` }}
+            />
+          </div>
 
-        <div className={styles.waterActions}>
-          <button className={styles.quick} onClick={() => addWater(250)} disabled={busy}>
-            <Plus size={13} strokeWidth={2.6} />
-            250 ml
-          </button>
-          <button className={styles.quick} onClick={() => addWater(500)} disabled={busy}>
-            <Plus size={13} strokeWidth={2.6} />
-            500 ml
-          </button>
+          <div className={styles.waterActions}>
+            <button className={styles.quick} onClick={() => addWater(250)} disabled={busy}>
+              <Plus size={13} strokeWidth={2.6} />
+              250 ml
+            </button>
+            <button className={styles.quick} onClick={() => addWater(500)} disabled={busy}>
+              <Plus size={13} strokeWidth={2.6} />
+              500 ml
+            </button>
+          </div>
         </div>
       </section>
     </Card>

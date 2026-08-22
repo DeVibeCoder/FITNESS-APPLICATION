@@ -7,6 +7,13 @@
   box-shadow: var(--glow-accent);
 }
 
+/* Full bleed to the card's edges, so it has to escape the card's padding. */
+.photo {
+  width: auto;
+  align-self: stretch;
+  margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
+}
+
 .doneCard {
   /* A finished weigh-in gets a hint of the success colour along its edge. */
   border-color: color-mix(in srgb, var(--success) 32%, transparent);

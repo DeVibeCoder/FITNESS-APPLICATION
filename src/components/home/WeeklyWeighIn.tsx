@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, Scale } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { Field } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -91,6 +92,7 @@ export function WeeklyWeighIn() {
     const { thisWeek, changeKg } = comparison
     return (
       <section className={`glass ${styles.card} ${styles.doneCard}`} aria-labelledby="weighin-title">
+        <CardPhoto image="weighIn" className={styles.photo} />
         <header className={styles.head}>
           <span className={`${styles.badge} ${styles.badgeDone}`}>
             <Check size={15} strokeWidth={3} />
@@ -150,6 +152,7 @@ export function WeeklyWeighIn() {
   const last = comparison.lastWeek
   return (
     <section className={`glass ${styles.card}`} aria-labelledby="weighin-title">
+      <CardPhoto image="weighIn" className={styles.photo} />
       <header className={styles.head}>
         <span className={styles.badge}>
           <Scale size={15} strokeWidth={2.2} />

@@ -3,6 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Section } from '@/components/ui/Card'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
 import { Sheet } from '@/components/ui/Sheet'
@@ -50,9 +51,12 @@ export function Motivation() {
         }
       />
 
-      <Card className={styles.quoteCard}>
+      <Card flush className={styles.quoteCard}>
+        <CardPhoto image="motivation" />
+        <div className={styles.quoteBody}>
         <p className="eyebrow">Today's line</p>
         <p className={styles.quote}>{motivationService.quoteOfTheDay(user.id)}</p>
+        </div>
       </Card>
 
       {featured ? (
