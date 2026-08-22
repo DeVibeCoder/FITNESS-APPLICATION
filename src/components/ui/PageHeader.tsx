@@ -22,9 +22,16 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, action, backTo, parent }: PageHeaderProps) {
   const back = backTo ?? parent?.to
+  /*
+   * A header carrying nothing but the title has nothing to say on a phone —
+   * the app bar already prints the page name there, and `.title` is hidden.
+   * Left alone it still spends its own padding plus a section gap on printing
+   * nothing, which reads as the page starting a long way down.
+   */
+  const bare = !subtitle && !action && !back
 
   return (
-    <header className={styles.header}>
+    <header className={[styles.header, bare ? styles.bare : ''].filter(Boolean).join(' ')}>
       {back ? (
         <Link to={back} className={styles.back} aria-label={parent ? `Back to ${parent.label}` : 'Back'}>
           <ChevronLeft size={20} strokeWidth={2.2} />

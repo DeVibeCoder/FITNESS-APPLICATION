@@ -54,11 +54,12 @@ export function Activity() {
   return (
     <div className={styles.page}>
       {/*
-        Titled My activity, not Today: the title has to match the tab that got
-        you here, and on a phone this heading is hidden anyway because the app
-        bar already prints it. The subtitle says which day this is about.
+        Title only, which means nothing at all on a phone: the app bar prints
+        "My activity" already, and the subtitle underneath it was a sentence
+        restating what the first section says in one word. The day starts at
+        the top of the screen now.
       */}
-      <PageHeader title="My activity" subtitle="Today — what you have done so far" />
+      <PageHeader title="My activity" />
 
       <Section title="Today">
         <TodayStrip snapshot={snapshot} />

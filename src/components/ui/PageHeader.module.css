@@ -14,6 +14,15 @@
 }
 
 /*
+ * Title only: nothing a phone can show, so it takes no room there at all.
+ * It comes back at the desktop breakpoint, where the bar carries navigation
+ * instead of the page name and the heading is the only thing naming the page.
+ */
+.bare {
+  display: none;
+}
+
+/*
  * On a phone the top bar already shows the page name, so repeating it here
  * would print the same word twice. Hidden rather than removed: on desktop the
  * bar shows navigation links instead, and the page needs its own heading back.
@@ -28,6 +37,10 @@
 @media (min-width: 64rem) {
   .title {
     display: block;
+  }
+
+  .bare {
+    display: flex;
   }
 
   .header {
