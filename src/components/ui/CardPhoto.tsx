@@ -1,67 +1,66 @@
 import { useState } from 'react'
 import {
+  CARD_IMAGE_SIZES,
   CARD_IMAGES,
   cardImageSrcSet,
   cardImageUrl,
   type CardImageKey,
-  type CardPhotoShape,
 } from '@/data/cardImages'
 import styles from './CardPhoto.module.css'
 
 /**
- * A photograph on a card, in one of two compact shapes.
+ * A photograph filling a card, with the card's own content over it.
  *
- *   band — a shallow strip across the top of a card. 84px on a phone, 104px
- *          from 26rem. Enough to read as photography, short enough that the
- *          card is still mostly its numbers.
- *   tile — a 56px rounded square beside a card's numbers. For rows where a
- *          band would double the height of the thing it decorates.
+ * Positioned rather than laid out: it is absolutely placed against the card's
+ * box, so it adds no height whatever. That is what lets a card carry a
+ * full-bleed photograph and still be short — the height is decided entirely by
+ * the numbers and the buttons, exactly as it was before the picture arrived.
  *
- * Decorative, and marked as such: every card already states in text what it is
- * about, so an alt description here would only make a screen reader say it
- * twice. The subject is recorded in `cardImages.ts` for the humans instead.
+ * Three things make it work, and all three matter:
  *
- * Two behaviours matter more than the styling:
+ * The **ground** is a dark warm gradient that is always painted, image or no
+ * image. The card's text is fixed light — see `.onPhoto` in base.css — so
+ * something underneath has to guarantee it is readable. If the ground came
+ * from the photograph, an offline phone would get white text on a white card,
+ * which is not a degraded experience but an unusable one.
  *
- * It is purely presentational. The URL goes in an `src` and nowhere else —
- * nothing is written to IndexedDB, to localStorage or to any record, and
- * nothing is uploaded anywhere.
+ * The **scrim** sits over the photograph and under the content. Photographs
+ * are unpredictable — a bright kitchen and a dark gym both end up here — so it
+ * is deliberately heavier than looks necessary on any one of them.
  *
- * It disappears cleanly when it cannot load. This app works offline and these
- * images do not, so a failure is an ordinary Tuesday rather than an
- * exception: on error the element unmounts and the card falls back to the
- * gradient treatment it already had underneath. A torn-image glyph in the
- * middle of a fitness card is worse than no photograph at all.
+ * The **failure path** hides only the `<img>`. The ground and the scrim
+ * remain, so a card that cannot reach the CDN looks like a deliberately dark
+ * card rather than a broken one.
+ *
+ * Decorative throughout: every card already says in text what it is about, so
+ * this is `aria-hidden` and carries no alt description. The subject of each
+ * frame is recorded in `cardImages.ts` for the people reading the code.
  */
-export function CardPhoto({
-  image,
-  shape = 'band',
-  className,
-}: {
-  image: CardImageKey
-  shape?: CardPhotoShape
-  className?: string
-}) {
+export function CardPhoto({ image, className }: { image: CardImageKey; className?: string }) {
   const [failed, setFailed] = useState(false)
-  if (failed) return null
 
   return (
-    <img
-      className={[styles.photo, styles[shape], className ?? ''].filter(Boolean).join(' ')}
-      src={cardImageUrl(image, shape)}
-      srcSet={cardImageSrcSet(image, shape)}
-      alt=""
-      aria-hidden="true"
-      loading="lazy"
-      decoding="async"
-      draggable={false}
-      onError={() => setFailed(true)}
-      /*
-       * Read off the image, not passed in by the card: where a photograph
-       * wants to be cropped is a fact about the photograph. A card that had to
-       * know would get it wrong the first time the picture changed.
-       */
-      style={{ objectPosition: CARD_IMAGES[image].position }}
-    />
+    <span className={[styles.fill, className ?? ''].filter(Boolean).join(' ')} aria-hidden="true">
+      {failed ? null : (
+        <img
+          className={styles.image}
+          src={cardImageUrl(image)}
+          srcSet={cardImageSrcSet(image)}
+          sizes={CARD_IMAGE_SIZES}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+          onError={() => setFailed(true)}
+          /*
+           * Read off the image, not passed in by the card: where a photograph
+           * wants to be cropped is a fact about the photograph. A card that had
+           * to know would get it wrong the first time the picture changed.
+           */
+          style={{ objectPosition: CARD_IMAGES[image].position }}
+        />
+      )}
+      <span className={styles.scrim} />
+    </span>
   )
 }

@@ -1,20 +1,21 @@
 /* Steps are blue everywhere in this app, so the card's edge is too. */
+/* A photographic card: the frame and radius come from Card, the ink from
+ * `.onPhoto`, and the picture costs it no height. */
 .card {
   display: flex;
   flex-direction: column;
   gap: 0.625rem;
-  box-shadow: var(--glow-move);
+
 }
 
 .head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   gap: var(--s-3);
 }
 
-/* The figure takes the room the tile and the percentage do not. */
 .readout {
-  flex: 1;
   min-width: 0;
 }
 

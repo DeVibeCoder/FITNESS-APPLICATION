@@ -4,11 +4,21 @@
   gap: var(--s-6);
 }
 
+/*
+ * The page's title, as a short photographic card.
+ *
+ * Compact on purpose: it is a heading that happens to carry a picture, not a
+ * hero. The goal card immediately below is the thing with the numbers on it,
+ * and two tall cards stacked would push the actual progress off the screen.
+ */
 .intro {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--s-3);
+  min-height: 6.5rem;
+  padding: var(--card-pad);
+  border-radius: var(--card-radius-hero);
 }
 
 .introText {
@@ -24,7 +34,7 @@
 
 .sub {
   font-size: var(--t-small);
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .link {

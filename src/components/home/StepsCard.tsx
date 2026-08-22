@@ -40,9 +40,9 @@ export function StepsCard({ steps, goal }: StepsCardProps) {
   }
 
   return (
-    <Card className={styles.card}>
+    <Card className={`onPhoto ${styles.card}`}>
+      <CardPhoto image="steps" />
       <div className={styles.head}>
-        <CardPhoto image="steps" shape="tile" />
         <div className={styles.readout}>
           <p className={`${styles.value} tnum`}>{num(steps)}</p>
           <p className={styles.label}>of {num(goal)} steps</p>

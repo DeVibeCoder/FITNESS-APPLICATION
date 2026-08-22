@@ -76,8 +76,8 @@ export function GroupAwards() {
 
       {scope === 'mine' ? (
         <>
-          <div className={`glass ${styles.summary}`}>
-            <CardPhoto image="achievements" className={styles.photo} />
+          <div className={`onPhoto ${styles.summary}`}>
+            <CardPhoto image="achievements" />
             <p className="eyebrow">Your collection</p>
             <p className={styles.count}>
               <span className="tnum">{unlockedMine.length}</span>
@@ -150,8 +150,8 @@ export function GroupAwards() {
         </>
       ) : (
         <>
-          <div className={`glass ${styles.summary}`}>
-            <CardPhoto image="achievements" className={styles.photo} />
+          <div className={`onPhoto ${styles.summary}`}>
+            <CardPhoto image="achievements" />
             <p className="eyebrow">Between the {rows.length} of you</p>
             <p className={styles.count}>
               <span className="tnum">{earnedAcrossGroup}</span>

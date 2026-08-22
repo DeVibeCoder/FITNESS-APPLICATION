@@ -1,47 +1,64 @@
 /*
- * Compact by construction.
+ * The photograph layer of a card.
  *
- * Both shapes are a fixed height rather than an aspect ratio, because an
- * aspect ratio on a card that spans the screen gives you a 260px photograph on
- * a phone and a short card on a desktop — exactly backwards. A fixed height
- * means the picture stays a detail of the card at every width.
+ * Absolutely positioned against the card, so it costs no height: a card with a
+ * picture behind it is exactly as tall as the same card without one. The card
+ * supplies `position: relative`, `overflow: hidden` and the radius; this only
+ * has to fill whatever box it is given.
  */
-.photo {
-  display: block;
-  object-fit: cover;
-  background: var(--bg-sunk);
-  /* Nothing here should be draggable or selectable; it is decoration. */
-  user-select: none;
-  -webkit-user-drag: none;
-}
-
-/* --- Band: a strip across the top of a card ------------------------------- */
-
-/*
- * Full bleed, so it meets the card's own edges. The card supplies the radius
- * and `overflow: hidden`; this only has to fill the width it is given.
- */
-.band {
-  width: 100%;
-  height: 84px;
-  /* Sits above any gradient the card draws, below the card's content. */
-  position: relative;
+.fill {
+  position: absolute;
+  inset: 0;
   z-index: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  /*
+   * The ground, painted whether or not the photograph arrives.
+   *
+   * This is the load-bearing part. The content over it is fixed light ink, so
+   * if the darkness came from the image then a failed request would leave
+   * white text on a white card. A warm near-black with an ember lift keeps the
+   * card on-brand when it is the only thing showing.
+   */
+  background:
+    radial-gradient(120% 100% at 100% 0%, #6b2c05, transparent 62%),
+    linear-gradient(160deg, #241609, #120c06);
 }
 
-@media (min-width: 26rem) {
-  .band {
-    height: 104px;
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Fades in rather than snapping over the ground once it decodes. */
+  animation: photoIn var(--med) var(--ease) both;
+}
+
+@keyframes photoIn {
+  from {
+    opacity: 0;
   }
 }
 
-/* --- Tile: a small square in a card header -------------------------------- */
+/*
+ * Over the photograph, under the content.
+ *
+ * Heavier than any single photograph needs, because the set runs from a bright
+ * kitchen to a dark gym and the text has to hold on all of them. The vertical
+ * pass darkens the foot of the card, where the buttons and the small print
+ * live; the diagonal pass protects the top-left, where every one of these
+ * cards puts its heading.
+ */
+.scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(14, 9, 5, 0.48) 0%, rgba(14, 9, 5, 0.66) 100%),
+    linear-gradient(104deg, rgba(14, 9, 5, 0.42) 0%, rgba(14, 9, 5, 0.1) 68%);
+}
 
-/* 56px, matching the crop the CDN is asked for exactly — see SHAPES. */
-.tile {
-  width: 56px;
-  height: 56px;
-  flex: none;
-  border-radius: var(--r-sm);
-  border: 1px solid var(--line);
+@media (prefers-reduced-motion: reduce) {
+  .image {
+    animation: none;
+  }
 }

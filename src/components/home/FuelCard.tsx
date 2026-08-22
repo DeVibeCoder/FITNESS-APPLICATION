@@ -42,12 +42,9 @@ export function FuelCard({ snapshot }: { snapshot: DailySnapshot }) {
 
   return (
     <Card flush className={styles.card}>
-      <section className={styles.half}>
-        {/*
-          Beside the numbers, not above them: a band here would have doubled
-          the height of a card that is already two of these stacked.
-        */}
-        <CardPhoto image="calories" shape="tile" />
+      {/* Two halves, two photographs — the subjects are different questions. */}
+      <section className={`onPhoto ${styles.half}`}>
+        <CardPhoto image="calories" />
         <div className={styles.body}>
           <header className={styles.head}>
             <span className={styles.label}>
@@ -83,8 +80,8 @@ export function FuelCard({ snapshot }: { snapshot: DailySnapshot }) {
         </div>
       </section>
 
-      <section className={styles.half}>
-        <CardPhoto image="water" shape="tile" />
+      <section className={`onPhoto ${styles.half}`}>
+        <CardPhoto image="water" />
         <div className={styles.body}>
           <header className={styles.head}>
             <span className={styles.label}>

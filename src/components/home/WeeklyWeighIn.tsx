@@ -91,8 +91,8 @@ export function WeeklyWeighIn() {
   if (done) {
     const { thisWeek, changeKg } = comparison
     return (
-      <section className={`glass ${styles.card} ${styles.doneCard}`} aria-labelledby="weighin-title">
-        <CardPhoto image="weighIn" className={styles.photo} />
+      <section className={`onPhoto ${styles.card} ${styles.doneCard}`} aria-labelledby="weighin-title">
+        <CardPhoto image="weighIn" />
         <header className={styles.head}>
           <span className={`${styles.badge} ${styles.badgeDone}`}>
             <Check size={15} strokeWidth={3} />
@@ -151,8 +151,8 @@ export function WeeklyWeighIn() {
   // --- Not done ------------------------------------------------------------
   const last = comparison.lastWeek
   return (
-    <section className={`glass ${styles.card}`} aria-labelledby="weighin-title">
-      <CardPhoto image="weighIn" className={styles.photo} />
+    <section className={`onPhoto ${styles.card}`} aria-labelledby="weighin-title">
+      <CardPhoto image="weighIn" />
       <header className={styles.head}>
         <span className={styles.badge}>
           <Scale size={15} strokeWidth={2.2} />

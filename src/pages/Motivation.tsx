@@ -51,7 +51,7 @@ export function Motivation() {
         }
       />
 
-      <Card flush className={styles.quoteCard}>
+      <Card flush className={`onPhoto ${styles.quoteCard}`}>
         <CardPhoto image="motivation" />
         <div className={styles.quoteBody}>
         <p className="eyebrow">Today's line</p>

@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Avatar } from '@/components/ui/Avatar'
-import { CardArt } from '@/components/ui/CardArt'
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import { useAuth } from '@/context/AuthContext'
 import { chatService, progressService, userService } from '@/services'
 import { todayKey } from '@/utils/date'
@@ -48,8 +48,8 @@ export function GroupHeader() {
   const total = everyone?.length ?? active
 
   return (
-    <header className={`glass ${styles.header}`}>
-      <CardArt variant="run" />
+    <header className={`onPhoto ${styles.header}`}>
+      <CardPhoto image="group" />
       <p className="eyebrow">Our fitness group</p>
       <h1 className={styles.title}>
         {total > active ? `${active} of ${total} people` : `${active} people`}
@@ -58,7 +58,7 @@ export function GroupHeader() {
       <div className={styles.faces}>
         {(users ?? []).map((member) => (
           <span key={member.id} className={styles.face}>
-            <Avatar user={member} size="md" />
+            <Avatar user={member} size="sm" />
           </span>
         ))}
       </div>

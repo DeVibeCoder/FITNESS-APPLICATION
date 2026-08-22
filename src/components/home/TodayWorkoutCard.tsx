@@ -36,8 +36,8 @@ export function TodayWorkoutCard({
 
   if (done.length === 0) {
     return (
-      <section className={`glass ${styles.card} ${styles.empty}`}>
-        <CardPhoto image="workout" className={styles.photo} />
+      <section className={`onPhoto ${styles.card} ${styles.empty}`}>
+        <CardPhoto image="workout" />
         <span className={styles.emptyIcon}>
           <Dumbbell size={19} strokeWidth={1.9} />
         </span>
@@ -73,8 +73,8 @@ export function TodayWorkoutCard({
   const feeling = feelingLabel(first.difficulty)
 
   return (
-    <section className={`glass ${styles.card} ${styles.done}`}>
-      <CardPhoto image="workout" className={styles.photo} />
+    <section className={`onPhoto ${styles.card} ${styles.done}`}>
+      <CardPhoto image="workout" />
       <header className={styles.head}>
         <span className={styles.check}>
           <Check size={15} strokeWidth={3} />

@@ -1,17 +1,28 @@
+/*
+ * Two photographic halves in one frame, so the frame has to clip them —
+ * without this the pictures square off the card's rounded corners.
+ */
 .card {
   display: grid;
+  overflow: hidden;
 }
 
 /*
- * The tile sits to the left of the whole half rather than inside its header,
- * which is what keeps the photograph free: the block of numbers is already
- * taller than the tile, so the row costs no extra height at all.
+ * Each half carries its own photograph behind its own numbers, so the two
+ * questions stay visually separate inside one card. Neither gains any height
+ * from it: the picture is positioned, not laid out.
  */
 .half {
   display: flex;
-  align-items: flex-start;
-  gap: var(--s-3);
   padding: var(--s-4);
+  /*
+   * `.onPhoto` gives a card its own frame; these two are panes of a card that
+   * already has one, so they give it back. The hairline between them below is
+   * the only division they need.
+   */
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .body {
@@ -22,8 +33,9 @@
   min-width: 0;
 }
 
+/* The two grounds meet; a hairline keeps them from reading as one photograph. */
 .half + .half {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .head {

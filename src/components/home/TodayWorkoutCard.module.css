@@ -1,51 +1,17 @@
 /*
- * The workout hero.
+ * The workout hero: a photograph of a gym, with the day's numbers over it.
  *
- * Coral, because coral means "train" everywhere in this app. The visual is
- * drawn, not photographed: a pair of wide diagonal sweeps suggesting motion,
- * plus a corner glow. No stock gym photography — it would date instantly and
- * would not survive a theme switch.
+ * The drawn motion streaks that used to sit here are gone — a photograph and
+ * an illustration of the same idea, stacked, was one treatment too many. What
+ * stays is the shape: the card is still laid out entirely by its content, so
+ * the picture costs it no height.
  */
 .card {
-  position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
   padding: var(--card-pad);
   border-radius: var(--card-radius-hero);
-  /* Coral edge: this is the card that means "go and train". */
-  box-shadow: var(--glow-energy);
-}
-
-/* Motion streaks: two soft diagonals, low contrast, behind everything. */
-.card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background:
-    linear-gradient(114deg, transparent 38%, color-mix(in srgb, var(--energy) 9%, transparent) 39%, transparent 47%),
-    linear-gradient(114deg, transparent 54%, color-mix(in srgb, var(--energy) 6%, transparent) 55%, transparent 66%),
-    radial-gradient(64% 74% at 100% 0%, var(--energy-soft), transparent 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.card > * {
-  position: relative;
-  z-index: 1;
-}
-
-/*
- * The photograph runs to the card's own edges, so it has to escape the card's
- * padding. `align-self: stretch` is what stops the empty state's
- * `align-items: flex-start` shrinking it to nothing.
- */
-.photo {
-  width: auto;
-  align-self: stretch;
-  margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
 }
 
 /* --- Nothing logged yet --------------------------------------------------- */

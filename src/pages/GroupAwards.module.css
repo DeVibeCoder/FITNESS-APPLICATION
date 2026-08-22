@@ -6,14 +6,6 @@
   gap: var(--s-3);
   padding: var(--card-pad);
   border-radius: var(--card-radius-hero);
-  box-shadow: var(--glow-gold);
-}
-
-/* Full bleed to the card's edges, so it has to escape the card's padding. */
-.photo {
-  width: auto;
-  align-self: stretch;
-  margin: calc(var(--card-pad) * -1) calc(var(--card-pad) * -1) 0;
 }
 
 .count {

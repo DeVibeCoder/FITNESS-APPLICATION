@@ -7,19 +7,19 @@
  * none does now.
  *
  * Every URL below was taken from an Unsplash search page and then verified to
- * return `200 image/jpeg` before being written down. None was recalled from
- * memory or assembled by hand: a plausible-looking Unsplash ID that does not
+ * return `200 image/*` before being written down. None was recalled from
+ * memory or assembled by hand: a plausible-looking Unsplash id that does not
  * exist is a broken card, and the whole point of a photograph is that it is
- * there. If one of these ever rots, the card falls back to its gradient — see
- * `CardPhoto`, which hides itself on error rather than showing a torn image.
+ * there.
  *
  * One image per subject, and the same image in light and dark. A card whose
  * photograph changes with the theme reads as a rendering fault.
  *
  * These are remote URLs, which is a deliberate trade for a prototype: the rest
- * of the app works offline and these will simply not appear when it is. That
- * is why every card underneath still has a complete visual treatment of its
- * own, and why nothing structural depends on an image arriving.
+ * of the app works offline and these will not load when it is. That is why
+ * `CardPhoto` keeps its dark ground when the image fails — the text over it
+ * stays readable either way, which it would not if the photograph were the
+ * only thing making the card dark.
  */
 
 export interface CardImage {
@@ -28,8 +28,9 @@ export interface CardImage {
   /** What is actually in the frame. Used to reason about crops, not rendered. */
   subject: string
   /**
-   * Where the interesting part sits, as an `object-position`. Wide cards crop
-   * hard on a phone, and a barbell centred in the source can end up as a wall.
+   * Where the interesting part sits, as an `object-position`. A card is much
+   * wider than it is tall, so a full-bleed crop throws away most of the height
+   * and this decides which part survives.
    */
   position?: string
 }
@@ -37,25 +38,26 @@ export interface CardImage {
 const UNSPLASH = 'https://images.unsplash.com/'
 
 /**
- * The subjects, one per card that earns a photograph.
+ * The subjects, one per card that carries a photograph.
  *
- * Deliberately a short list. Steps, calories and water get a small tile;
- * workouts, the weigh-in and awards get a shallow band. Nothing here is a
- * full-bleed hero, because a feed of photo banners is a mood board rather than
- * a tracker — the numbers are the content.
+ * Deliberately a short list, and every one of them fills its card rather than
+ * sitting in a strip across the top. A band showed a slice of a picture and
+ * read as a cropped accident; a filled card reads as a card with a photograph
+ * in it. The cards themselves stay short — see `CardPhoto`, which is
+ * positioned rather than laid out and so adds no height at all.
  */
 export const CARD_IMAGES = {
-  /** Workout → weights and a gym floor. */
+  /** Today's workout → weights and a gym floor. */
   workout: {
     id: 'photo-1620188467120-5042ed1eb5da',
     subject: 'A gym with a barbell and weight plates',
-    position: '50% 60%',
+    position: '50% 55%',
   },
-  /** Steps → someone actually covering ground. */
+  /** Steps → feet actually covering ground, not a distant runner. */
   steps: {
-    id: 'photo-1486218119243-13883505764c',
-    subject: 'Man running on a road beside a grass field',
-    position: '50% 45%',
+    id: 'photo-1549992609-7a9043b5bf6b',
+    subject: 'Close-up of a person walking on pavement',
+    position: '50% 50%',
   },
   /** Calories → what the number is made of. */
   calories: {
@@ -63,17 +65,29 @@ export const CARD_IMAGES = {
     subject: 'Vegetables and meat in a bowl',
     position: '50% 50%',
   },
-  /** Water → hydration, in a training context rather than a still life. */
+  /** Water → water itself, rather than a person holding some. */
   water: {
-    id: 'photo-1600679472233-eabc13b79f07',
-    subject: 'Man drinking from a black sports bottle',
-    position: '50% 40%',
+    id: 'photo-1553564552-02656d6a2390',
+    subject: 'Water being poured into a drinking glass',
+    position: '50% 45%',
   },
   /** Weigh-in → the object itself. */
   weighIn: {
     id: 'photo-1522844990619-4951c40f7eda',
     subject: 'Person standing on a white digital bathroom scale',
-    position: '50% 55%',
+    position: '50% 50%',
+  },
+  /** Our fitness group → several people training together, not one athlete. */
+  group: {
+    id: 'photo-1554284126-aa88f22d8b74',
+    subject: 'Three people lifting barbells together',
+    position: '50% 45%',
+  },
+  /** My journey → distance covered, with an end of it in sight. */
+  journey: {
+    id: 'photo-1502224562085-639556652f33',
+    subject: 'Silhouette of a person running on a road at golden hour',
+    position: '50% 50%',
   },
   /** Motivation → the athletic lifestyle, not a slogan. */
   motivation: {
@@ -92,43 +106,50 @@ export const CARD_IMAGES = {
 export type CardImageKey = keyof typeof CARD_IMAGES
 
 /**
- * The two shapes a card photograph is ever drawn at, as pixels the CDN should
- * crop to.
+ * Two widths, and the browser picks.
  *
- * Both are given a height, which matters more than it looks: with a width
- * alone the CDN returns the whole frame at that width and the browser throws
- * most of it away, so a 104px tile arrives as a 480px-tall photograph. Asking
- * for the crop moves that work to the CDN and cuts the bytes by an order of
- * magnitude.
- *
- * The band's 5:1 is a compromise. The real box is about 4:1 on a phone and
- * nearer 7:1 on a wide desktop card, and one crop cannot be both — `object-fit:
- * cover` absorbs the difference either way, so this is chosen to lose the
- * least from the middle of the range.
+ * Width descriptors rather than 1x/2x, because the same card is 354px across
+ * on a phone and up to 704px on a desktop — a density descriptor cannot know
+ * that and would send a phone the desktop image. The larger of the two is
+ * asked for at a lower quality on purpose: everything here sits under a heavy
+ * scrim, where the difference between q70 and q55 is invisible and the
+ * difference in bytes is not.
  */
-const SHAPES = {
-  band: { width: 560, height: 112 },
-  tile: { width: 56, height: 56 },
-} as const
-
-export type CardPhotoShape = keyof typeof SHAPES
+const RENDITIONS = [
+  { width: 720, height: 400, quality: 70 },
+  { width: 1080, height: 600, quality: 55 },
+] as const
 
 /**
- * A CDN URL for one shape at one pixel density.
+ * How wide the image will actually be drawn.
  *
- * `auto=format` lets the CDN serve AVIF or WebP to browsers that take them,
- * `fit=crop` does the cropping server-side, and `q=70` is where these
- * particular photographs stop looking better and start only getting larger.
+ * The reading column is capped, so past the desktop breakpoint the card stops
+ * growing and there is no point fetching anything bigger.
  */
-export function cardImageUrl(key: CardImageKey, shape: CardPhotoShape, density = 1): string {
-  const { width, height } = SHAPES[shape]
+export const CARD_IMAGE_SIZES = '(min-width: 64rem) 704px, 100vw'
+
+/**
+ * `auto=format` lets the CDN serve AVIF or WebP to browsers that take them,
+ * and `fit=crop` with both a width and a height does the cropping server-side.
+ * Asking for a width alone returns the whole frame at that width and leaves
+ * the browser to throw most of it away — an order of magnitude more bytes for
+ * the same pixels on screen.
+ */
+function renditionUrl(key: CardImageKey, index: number): string {
+  const { width, height, quality } = RENDITIONS[index]
   return (
     `${UNSPLASH}${CARD_IMAGES[key].id}` +
-    `?w=${width * density}&h=${height * density}&q=70&auto=format&fit=crop`
+    `?w=${width}&h=${height}&q=${quality}&auto=format&fit=crop`
   )
 }
 
-/** 1x and 2x, so a retina screen is not served a blurred upscale. */
-export function cardImageSrcSet(key: CardImageKey, shape: CardPhotoShape): string {
-  return `${cardImageUrl(key, shape, 1)} 1x, ${cardImageUrl(key, shape, 2)} 2x`
+/** The default `src`, for browsers that ignore `srcset`. */
+export function cardImageUrl(key: CardImageKey): string {
+  return renditionUrl(key, 0)
+}
+
+export function cardImageSrcSet(key: CardImageKey): string {
+  return RENDITIONS.map(
+    (rendition, index) => `${renditionUrl(key, index)} ${rendition.width}w`,
+  ).join(', ')
 }

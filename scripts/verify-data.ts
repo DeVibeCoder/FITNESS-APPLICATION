@@ -1508,7 +1508,7 @@ async function main() {
   // Unsplash ids carry either a 10- or a 13-digit timestamp depending on when
   // the photo was uploaded, so both shapes are legitimate.
   const cardIds = cardImageSource.match(/id: 'photo-\d{10,13}-[0-9a-f]{12}'/g) ?? []
-  check('every card image is a well-formed Unsplash CDN id', cardIds.length, 7)
+  check('every card image is a well-formed Unsplash CDN id', cardIds.length, 9)
   check('and none was hand-assembled from something else',
     (cardImageSource.match(/id: '/g) ?? []).length, cardIds.length)
 

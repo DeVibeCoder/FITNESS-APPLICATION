@@ -243,6 +243,82 @@ ol {
   position: relative;
 }
 
+/*
+ * A card whose background is a photograph.
+ *
+ * The trick here is that it redefines the tokens rather than restyling the
+ * card. Every descendant already asks for `var(--ink-2)` or `var(--surface)`,
+ * so a `Field`, a `Button`, a progress track and a definition list all become
+ * light-on-dark by inheriting different values — no component below this needs
+ * to know it is sitting on a photograph, and none of them had to change.
+ *
+ * The values are fixed rather than theme-aware, and that is the point: the
+ * photograph is the same picture in light and dark, so the ink over it has to
+ * be the same ink. A card that flipped to dark text in light mode would put
+ * black type on a night-time gym.
+ *
+ * Surfaces go *darker* rather than lighter. A translucent white panel over a
+ * photograph is a mid grey, and white text on mid grey is the one combination
+ * that fails; a translucent near-black keeps every inner control legible.
+ */
+.onPhoto {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+
+  --ink: #ffffff;
+  --ink-2: rgba(255, 255, 255, 0.84);
+  --ink-3: rgba(255, 255, 255, 0.7);
+  --line: rgba(255, 255, 255, 0.2);
+  --line-strong: rgba(255, 255, 255, 0.34);
+  --surface: rgba(16, 10, 6, 0.44);
+  --surface-2: rgba(16, 10, 6, 0.56);
+  --bg-sunk: rgba(16, 10, 6, 0.52);
+  /* Brand and semantic colours lift to their bright ends, as in dark mode. */
+  --accent-strong: #ffb082;
+  --accent-soft: rgba(255, 122, 47, 0.28);
+  --success: #6ee79b;
+  --success-soft: rgba(110, 231, 155, 0.24);
+  --move: #8dbcff;
+  --move-soft: rgba(141, 188, 255, 0.24);
+  --gold: #f2d377;
+  --gold-soft: rgba(242, 211, 119, 0.24);
+  --warn: #f2d377;
+  --warn-soft: rgba(242, 211, 119, 0.24);
+
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: var(--shadow);
+  /*
+   * A shadow under every glyph. Small text over a photograph is the case a
+   * scrim alone cannot fully solve — a light patch in the image will always
+   * find the one label that sits on it — and this costs nothing where the
+   * background is already dark.
+   */
+  text-shadow: 0 1px 2px rgba(10, 6, 3, 0.5);
+}
+
+/* Inside a field, a text shadow reads as a rendering fault rather than depth. */
+.onPhoto input,
+.onPhoto textarea,
+.onPhoto select {
+  text-shadow: none;
+}
+
+.onPhoto input::placeholder,
+.onPhoto textarea::placeholder {
+  color: rgba(255, 255, 255, 0.58);
+}
+
+/*
+ * Everything the card renders sits above the photograph. `CardPhoto` puts
+ * itself at z-index 0, so this only has to lift the siblings that follow it.
+ */
+.onPhoto > *:not(:first-child) {
+  position: relative;
+  z-index: 1;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
