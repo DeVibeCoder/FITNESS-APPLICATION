@@ -158,6 +158,26 @@ export class CircuitDb extends Dexie {
       media: 'id',
       notifications: 'id, userId, createdAt, readAt',
     })
+
+    /**
+     * v5 — joining no longer needs approval.
+     *
+     * Sign-up now creates an active account, so any request already sitting in
+     * this browser would otherwise wait on a decision that can never arrive:
+     * the admin screen only ever saw its own device, never anyone else's.
+     * Flipping them here means an account made before this change simply works
+     * on the next load, on whichever phone created it.
+     *
+     * `rejected` is left alone — that was a decision someone actually made.
+     */
+    this.version(5).upgrade(async (tx) => {
+      await tx
+        .table('users')
+        .toCollection()
+        .modify((user: Partial<User>) => {
+          if (user.status === 'pending') user.status = 'approved'
+        })
+    })
   }
 }
 

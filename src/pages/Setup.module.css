@@ -218,22 +218,8 @@
   font-weight: 550;
 }
 
-/* Waiting on a decision — stated plainly, not dressed up as success. */
-.pending {
-  color: var(--warn);
-  font-weight: 700;
-}
-
 .note {
   font-size: var(--t-small);
   color: var(--ink-3);
   line-height: 1.55;
-}
-
-.backToLogin {
-  align-self: center;
-  padding: var(--s-2);
-  font-size: var(--t-small);
-  font-weight: 640;
-  color: var(--accent);
 }

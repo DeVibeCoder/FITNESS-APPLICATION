@@ -2834,24 +2834,18 @@ async function main() {
   ok('with any casing', await accountService.isEmailTaken('Ahmed.Rahman@Gmail.com'))
   ok('a free email is not', !(await accountService.isEmailTaken('nobody@example.com')))
 
-  console.log('\n— A pending request cannot get in —\n')
+  console.log('\n— Joining no longer waits on approval —\n')
   const waiting = await userService.getByHandle('leila')
   ok('the seeded request exists', Boolean(waiting))
   check('and it is pending', waiting!.status, 'pending')
   await authService.setPassword(waiting!.id, DEMO_PASSWORD)
 
-  let refusedPending = false
-  let pendingMessage = ''
-  try {
-    await authService.signIn('leila', DEMO_PASSWORD)
-  } catch (error) {
-    refusedPending = error instanceof AuthError
-    pendingMessage = error instanceof Error ? error.message : ''
-  }
-  ok('signing in is refused while pending', refusedPending)
-  ok('and the message says why', pendingMessage.toLowerCase().includes('approval'), pendingMessage)
+  // The gate is gone. Approval could only ever be granted on the device that
+  // asked for it, so it kept people out of their own account and nobody else's.
+  const admitted = await authService.signIn('leila', DEMO_PASSWORD)
+  ok('an account left pending is admitted anyway', admitted.id === waiting!.id)
   authService.signOut()
-  ok('a refused sign-in leaves no session', (await authService.currentUser()) === null)
+  ok('and signing out clears the session', (await authService.currentUser()) === null)
 
   console.log('\n— A pending request is not a group member —\n')
   const approvedMembers = await userService.listMembers()

@@ -53,15 +53,13 @@ export const authService = {
     if ((await digest(cleaned, password)) !== user.secret) throw wrong
 
     /*
-     * A pending or rejected request cannot get in. This is a product rule, not
-     * a security boundary — the record is local and editable — but the flow
-     * has to behave correctly before a server can enforce it.
+     * Joining needs no approval, so nothing is ever left pending — see the v5
+     * migration in `lib/db`. An account an admin turned away still cannot get
+     * in, which is a product rule rather than a security boundary: the record
+     * is local and editable.
      */
-    if (user.status === 'pending') {
-      throw new AuthError('Your request is still waiting for approval.')
-    }
     if (user.status === 'rejected') {
-      throw new AuthError('This request was not approved.')
+      throw new AuthError('This account was turned away.')
     }
 
     storageService.setSessionUserId(user.id)

@@ -35,7 +35,7 @@ const STEPS = ['You', 'About you', 'Your goal', 'Activity', 'Preferences', 'Read
  * add up to, so setup ends with something useful rather than a save button.
  */
 export function Setup() {
-  const { user, ready } = useAuth()
+  const { user, ready, signIn } = useAuth()
 
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -46,7 +46,6 @@ export function Setup() {
   const [password, setPassword] = useState('')
   const [email, setEmail] = useState('')
   const [confirm, setConfirm] = useState('')
-  const [submitted, setSubmitted] = useState(false)
   const [birthDate, setBirthDate] = useState('')
   const [sex, setSex] = useState<Sex>('male')
   const [heightCm, setHeightCm] = useState('')
@@ -77,50 +76,6 @@ export function Setup() {
   if (!ready) return null
   if (user) return <Navigate to="/" replace />
 
-  if (submitted) {
-    return (
-      <div className={styles.page}>
-        <div className={styles.inner}>
-          <div className={`glass ${styles.card}`}>
-            <Logo size={26} />
-            <div>
-              <h1 className={styles.title}>Request received</h1>
-              <p className={styles.sub}>
-                Your request has been sent for approval. You will be able to sign in as soon as
-                someone in the group approves it.
-              </p>
-            </div>
-            <dl className={styles.summary}>
-              <div className={styles.row}>
-                <dt>Name</dt>
-                <dd>{name.trim()}</dd>
-              </div>
-              <div className={styles.row}>
-                <dt>Email</dt>
-                <dd>{email.trim().toLowerCase()}</dd>
-              </div>
-              <div className={styles.row}>
-                <dt>Username</dt>
-                <dd>{handle.trim().toLowerCase()}</dd>
-              </div>
-              <div className={styles.row}>
-                <dt>Status</dt>
-                <dd className={styles.pending}>Pending</dd>
-              </div>
-            </dl>
-            <p className={styles.note}>
-              Approval currently happens on this device. Real verification arrives with the
-              server.
-            </p>
-            <Link to="/login" className={styles.backToLogin}>
-              Back to sign in
-            </Link>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   const canContinue = (): boolean => {
     switch (step) {
       case 0: {
@@ -147,11 +102,11 @@ export function Setup() {
   }
 
   /**
-   * Files a request rather than creating an active account.
+   * Creates the account and signs them straight in.
    *
-   * The person is stored with status 'pending' and cannot sign in until an
-   * admin approves them. This is a product flow, not a security boundary — the
-   * record is local and editable — but it is the shape the server will enforce.
+   * There is no approval step. Accounts live in this browser's database, so a
+   * request could only ever be seen — and approved — on the very device that
+   * filed it; waiting on someone else was a promise the app could not keep.
    */
   const finish = async () => {
     setBusy(true)
@@ -167,7 +122,7 @@ export function Setup() {
         return
       }
       if (await accountService.isEmailTaken(cleanEmail)) {
-        setError('There is already a request using that email.')
+        setError('There is already an account using that email.')
         setBusy(false)
         setStep(0)
         return
@@ -178,7 +133,7 @@ export function Setup() {
         handle: cleanHandle,
         email: cleanEmail,
         role: 'member',
-        status: 'pending',
+        status: 'approved',
         avatarColor: AVATAR_TINTS[Math.floor(Math.random() * AVATAR_TINTS.length)],
         birthDate,
         sex,
@@ -199,8 +154,8 @@ export function Setup() {
       })
 
       await authService.setPassword(created.id, password)
-      setSubmitted(true)
-      setBusy(false)
+      // Straight in: `user` lands in context and the redirect above takes over.
+      await signIn(cleanHandle, password)
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Something went wrong. Try again.')
       setBusy(false)
@@ -513,7 +468,7 @@ export function Setup() {
             </Button>
           ) : (
             <Button size="lg" block disabled={busy} onClick={finish}>
-              {busy ? 'Sending…' : 'Send request'}
+              {busy ? 'Creating…' : 'Create account'}
             </Button>
           )}
         </div>
