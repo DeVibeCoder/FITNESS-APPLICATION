@@ -1,3 +1,4 @@
+import { CardPhoto } from '@/components/ui/CardPhoto'
 import type { User } from '@/models'
 import type { WeightProgress } from '@/utils/progress'
 import { goalLabel } from '@/utils/calories'
@@ -6,12 +7,17 @@ import { num } from '@/utils/format'
 import styles from './GoalHero.module.css'
 
 /**
- * The one thing Home is about: how far along you are.
+ * The one thing Progress is about: how far along you are.
  *
  * Drawn as a track rather than a ring. A weight goal is a journey between two
  * numbers, and a straight line from where you started to where you are going
  * says that far better than a donut — the marker's position *is* the story,
  * and both ends stay labelled the whole time.
+ *
+ * It is the screen's one photographic card. Everything below it is a table or
+ * a chart that needs an opaque surface to be read on, so the picture belongs
+ * here or nowhere — and here it sits behind the single number the whole page
+ * exists to state.
  *
  * Purely presentational: every figure comes from `weightProgress`, which this
  * component does not touch.
@@ -21,7 +27,8 @@ export function GoalHero({ user, progress }: { user: User; progress: WeightProgr
   const pct = Math.round(progress.pct)
 
   return (
-    <section className={`glass ${styles.hero}`} aria-labelledby="goal-hero-title">
+    <section className={`onPhoto ${styles.hero}`} aria-labelledby="goal-hero-title">
+      <CardPhoto image="journey" />
       <header className={styles.head}>
         <p className="eyebrow">Your goal</p>
         <span className={styles.badge}>{goalLabel(user.goal)}</span>

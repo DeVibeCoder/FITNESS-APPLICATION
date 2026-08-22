@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Plus } from 'lucide-react'
 import { Card, Section } from '@/components/ui/Card'
-import { CardPhoto } from '@/components/ui/CardPhoto'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { EmptyState, LoadingScreen } from '@/components/ui/EmptyState'
 import { TrendChart } from '@/components/charts/TrendChart'
@@ -93,12 +92,11 @@ export function Progress() {
         A primary tab, so no back arrow: there is nothing above this to go back
         to. And no sideways link either — this page is one person's.
 
-        The heading is a card now rather than plain text on the page, because
-        it is the one place a photograph belongs here: everything below it is
-        numbers that have to stay readable on an opaque surface.
+        Plain text, not a card. It is a page title; the card directly beneath
+        it is the thing worth looking at, and giving the heading its own
+        surface put two competing objects at the top of the screen.
       */}
-      <header className={`onPhoto ${styles.intro}`}>
-        <CardPhoto image="journey" />
+      <header className={styles.intro}>
         <div className={styles.introText}>
           <h1 className={styles.heading}>My journey</h1>
           <p className={styles.sub}>Where you started, where you are</p>
@@ -106,8 +104,8 @@ export function Progress() {
       </header>
 
       {/*
-        The hero this screen is named after: start, now, goal and how far along
-        that is, drawn as a track.
+        The hero this screen is named after, and the one card here that carries
+        a photograph: start, now, goal and how far along that is.
       */}
       <GoalHero user={user} progress={me.progress} />
 

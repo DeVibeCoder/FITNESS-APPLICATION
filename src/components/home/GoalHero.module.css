@@ -1,43 +1,18 @@
 /*
- * The one glass surface on Home. It earns it: everything else on the screen is
- * a detail of the number stated here, and the brand wash behind it is what
- * makes the top of the app feel like a product rather than a report.
+ * The one photographic card on Progress.
+ *
+ * Everything else on the screen is a detail of the number stated here, so this
+ * is where the picture goes — and the green wash that used to sit behind it is
+ * gone, because a photograph and a gradient of the same idea, stacked, is one
+ * treatment too many. The layering, the light ink and the frame all come from
+ * `.onPhoto`; this only has to lay the content out.
  */
 .hero {
-  position: relative;
-  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: var(--s-4);
   padding: var(--card-pad);
   border-radius: var(--card-radius-hero);
-  /*
-   * Green, not the brand orange: this card is about moving the right way, and
-   * green means exactly that everywhere else in the app. One of the six
-   * surfaces allowed a highlight — a hero, and the hero of its own screen.
-   */
-  box-shadow: var(--glow-success);
-}
-
-/* A soft brand light in the top-left corner, under the content. */
-.hero::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(72% 58% at 4% 0%, var(--success-soft), transparent 72%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/*
- * .glass already gives children `position: relative`, which would paint them
- * *below* a later ::after in the same stacking context. The explicit z-index
- * puts the content back above the wash.
- */
-.hero > * {
-  position: relative;
-  z-index: 1;
 }
 
 .head {
@@ -118,7 +93,7 @@
   height: 10px;
   border-radius: var(--r-pill);
   background: var(--bg-sunk);
-  border: 1px solid var(--glass-border);
+  border: 1px solid var(--line);
 }
 
 .fill {
@@ -137,9 +112,14 @@
   margin-left: -9px;
   transform: translateY(-50%);
   border-radius: var(--r-pill);
-  background: var(--surface);
+  /*
+   * Solid white rather than `--surface`: on this card that token is a
+   * translucent near-black, and a dark disc inside a green ring on a dark
+   * track loses the marker exactly where it matters most.
+   */
+  background: #fff;
   border: 3px solid var(--success);
-  box-shadow: var(--success-glow);
+  box-shadow: 0 2px 8px rgba(10, 6, 3, 0.5);
   transition: left var(--slow) var(--ease-out);
 }
 

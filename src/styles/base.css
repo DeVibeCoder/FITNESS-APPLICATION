@@ -274,7 +274,16 @@ ol {
   --surface: rgba(16, 10, 6, 0.44);
   --surface-2: rgba(16, 10, 6, 0.56);
   --bg-sunk: rgba(16, 10, 6, 0.52);
-  /* Brand and semantic colours lift to their bright ends, as in dark mode. */
+  --glass-border: rgba(255, 255, 255, 0.18);
+  /*
+   * Brand and semantic colours lift to their bright ends, as in dark mode.
+   *
+   * `--accent` and `--accent-ink` move as a pair or not at all: the accent is
+   * a button's fill and the ink is the label on it, and lifting one without
+   * the other is how you get white type on bright orange at 2.6:1.
+   */
+  --accent: #ff7a2f;
+  --accent-ink: #2a0d00;
   --accent-strong: #ffb082;
   --accent-soft: rgba(255, 122, 47, 0.28);
   --success: #6ee79b;
