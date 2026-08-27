@@ -96,9 +96,18 @@
   display: none;
 }
 
+/*
+ * Paragraphs survive.
+ *
+ * Somebody who pressed Enter twice meant it, and collapsing that into one
+ * block is the difference between a written post and a wall. `pre-wrap` keeps
+ * the breaks they typed while still wrapping long lines normally; the stored
+ * text is untouched, because the text was never the problem.
+ */
 .text {
   font-size: var(--t-body);
-  line-height: 1.5;
+  line-height: 1.55;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
@@ -136,6 +145,13 @@
 /* Nothing under the media needs the gap the caption gets. */
 .media + .footer {
   margin-top: 0.5rem;
+}
+
+/* The whole picture is a control, so it needs no styling of its own. */
+.mediaButton {
+  display: block;
+  width: 100%;
+  cursor: zoom-in;
 }
 
 /*

@@ -1,6 +1,6 @@
 import { db, DataError } from '@/lib/db'
 import { now, uid } from '@/lib/id'
-import type { ID, MediaAsset, Story, StoryView, User } from '@/models'
+import type { ID, MediaAsset, Story, StoryBackground, StoryView, User } from '@/models'
 import { mediaService } from './mediaService'
 import type { MediaInput } from './mediaService'
 import { assertOwner, assertOwnerOf } from './ownership'
@@ -21,11 +21,13 @@ import { userService } from './userService'
 
 export const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000
 
-/** A story is a photo, a few words, or both. Nothing else is offered. */
+/** A story is a photo, a clip, a few words, or a picture with words on it. */
 export interface NewStory {
   userId: ID
   text?: string
   media?: MediaInput
+  /** Only used when there is no media; a picture is its own background. */
+  background?: StoryBackground
 }
 
 export interface StoryRing {
@@ -114,9 +116,12 @@ export const storyService = {
       id: uid('st'),
       userId: input.userId,
       // What it is follows from what it carries, exactly as a post's type does.
-      type: asset ? 'photo' : 'text',
+      type: asset ? (asset.kind === 'video' ? 'video' : 'photo') : 'text',
       text: text || undefined,
       mediaId: asset?.id,
+      // Stored only where it means something, so a photo story never carries a
+      // colour that nothing will ever paint.
+      background: asset ? undefined : input.background,
       createdAt: createdAt.toISOString(),
       expiresAt: this.expiryFrom(createdAt),
     }

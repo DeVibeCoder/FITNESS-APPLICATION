@@ -91,6 +91,13 @@ import {
   weighInShare,
   workoutShare,
 } from '../src/utils/shareText'
+import {
+  classify,
+  displayRatio,
+  reject,
+  STORY_VIDEO_MAX_SEC,
+  withinStoryLimit,
+} from '../src/lib/mediaPick'
 
 let failures = 0
 
@@ -2986,6 +2993,77 @@ async function main() {
     0,
   )
   check('and the reference nothing points at', await mediaService.get(droppedStoryAsset), undefined)
+  console.log('\n— Photos, clips, and the story minute —\n')
+
+  const asFile = (type: string, bytes = 1024) =>
+    new File([new Uint8Array(bytes)], 'clip', { type })
+
+  check('a photo is an image', classify(asFile('image/jpeg')), 'image')
+  check('a clip is a video', classify(asFile('video/mp4')), 'video')
+  check('a spreadsheet is neither', classify(asFile('text/csv')), null)
+  check('and is refused', reject(asFile('text/csv')), 'not_media')
+  check('an enormous file is refused', reject(asFile('image/jpeg', 200 * 1024 * 1024)), 'too_large')
+  check('an ordinary photo is fine', reject(asFile('image/jpeg')), null)
+
+  ok('a photo is never over the story limit', withinStoryLimit({ kind: 'image', mimeType: 'image/jpeg' }))
+  ok(
+    'a minute-long clip just fits',
+    withinStoryLimit({ kind: 'video', mimeType: 'video/mp4', durationSec: STORY_VIDEO_MAX_SEC }),
+  )
+  ok(
+    'a second over does not',
+    !withinStoryLimit({
+      kind: 'video',
+      mimeType: 'video/mp4',
+      durationSec: STORY_VIDEO_MAX_SEC + 1,
+    }),
+  )
+  ok(
+    'a clip the browser could not measure is let through rather than blocked',
+    withinStoryLimit({ kind: 'video', mimeType: 'video/mp4' }),
+  )
+
+  check('a square photo keeps its shape', displayRatio({ width: 1000, height: 1000 }), '1.0000 / 1')
+  ok('a panorama is clamped rather than drawn as a sliver',
+    displayRatio({ width: 4000, height: 1000 }) === '1.7778 / 1')
+  ok('and a very tall screenshot is clamped too',
+    displayRatio({ width: 500, height: 2000 }) === '0.8000 / 1')
+  check('unmeasured media falls back to 4:3', displayRatio({}), '4 / 3')
+
+  const clipStory = await storyService.create({
+    userId: 'u_ahmed',
+    text: 'One set, filmed.',
+    media: {
+      kind: 'video',
+      ref: 'blob:test/story-clip',
+      mimeType: 'video/mp4',
+      width: 1080,
+      height: 1920,
+      durationSec: 22,
+    },
+  })
+  check('a story carrying a clip is a video story', clipStory.type, 'video')
+  check('and the asset knows how long it runs',
+    (await mediaService.get(clipStory.mediaId!))?.durationSec, 22)
+
+  const grounded = await storyService.create({
+    userId: 'u_ahmed',
+    text: 'Rest day.',
+    background: 'ocean',
+  })
+  check('a written story keeps the ground it was made on', grounded.background, 'ocean')
+  const overpainted = await storyService.create({
+    userId: 'u_ahmed',
+    text: 'With a picture.',
+    background: 'violet',
+    media: { kind: 'image', ref: 'blob:test/ground', mimeType: 'image/jpeg' },
+  })
+  ok('but a story with media never carries one', overpainted.background === undefined)
+
+  await storyService.remove(clipStory.id)
+  await storyService.remove(grounded.id)
+  await storyService.remove(overpainted.id)
+
   check('with no stray media left behind', await db.media.count(), storyMediaBefore)
   check(
     'and nothing the seed put there was disturbed',
@@ -3479,6 +3557,23 @@ async function main() {
     },
   })
   check('a post carrying a picture is a photo post', withPhoto.type, 'photo')
+
+  const withClip = await postService.create({
+    userId: 'u_ahmed',
+    text: 'Last set.',
+    media: {
+      kind: 'video',
+      ref: 'blob:test/post-clip',
+      mimeType: 'video/mp4',
+      width: 1920,
+      height: 1080,
+      durationSec: 14,
+    },
+  })
+  check('a post carrying a clip is a video post', withClip.type, 'video')
+  check('and its length is on the asset, not the post',
+    (await mediaService.get(withClip.mediaIds[0]))?.durationSec, 14)
+  await postService.remove(withClip.id)
   check('and references exactly one asset', withPhoto.mediaIds.length, 1)
   const postAsset = await mediaService.get(withPhoto.mediaIds[0])
   check('the asset holds a pointer', postAsset?.ref, 'blob:test/post-photo')

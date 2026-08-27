@@ -1,7 +1,27 @@
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
-import type { MediaAsset, Story, User } from '@/models'
+import type { MediaAsset, Story, StoryBackground, User } from '@/models'
 import styles from './StoryFrame.module.css'
+
+/**
+ * The seven grounds a written story can be drawn on.
+ *
+ * A small, fixed set rather than a colour picker: every one of them has been
+ * checked against white text, and none of them stops looking like this app.
+ * `ember` is first and is the default, so every story written before the
+ * picker existed still looks exactly as it did.
+ */
+export const STORY_BACKGROUNDS: { value: StoryBackground; label: string }[] = [
+  { value: 'ember', label: 'Ember' },
+  { value: 'violet', label: 'Violet' },
+  { value: 'ocean', label: 'Ocean' },
+  { value: 'forest', label: 'Forest' },
+  { value: 'blossom', label: 'Blossom' },
+  { value: 'midnight', label: 'Midnight' },
+  { value: 'stone', label: 'Stone' },
+]
+
+export const DEFAULT_STORY_BACKGROUND: StoryBackground = 'ember'
 
 /**
  * What a story looks like.
@@ -17,24 +37,37 @@ import styles from './StoryFrame.module.css'
  * The blurred copy behind it fills those bars with the picture's own colours,
  * which is what stops a portrait photo sitting in a black void.
  *
- * A story with no picture is drawn in the brand gradient with the words large
- * and centred — the same "written, not photographed" treatment every story
- * product uses, in this app's own colours rather than a new palette.
+ * A story with no media is drawn on one of the chosen grounds with the words
+ * large and centred. A story *with* media never takes a ground — the picture
+ * is the background, and painting over it would be discarding what the story
+ * is of.
  */
 export function StoryFrame({
   story,
   media,
   author,
+  compact = false,
 }: {
-  story: Pick<Story, 'type' | 'text' | 'sharedType' | 'sharedDataId'>
+  story: Pick<Story, 'type' | 'text' | 'sharedType' | 'sharedDataId' | 'background'>
   media?: MediaAsset
   /** Needed only by a story that carries a record. */
   author?: User
+  /** The composer's small preview, which has no viewer controls to clear. */
+  compact?: boolean
 }) {
   const written = !media
+  const ground = story.background ?? DEFAULT_STORY_BACKGROUND
 
   return (
-    <div className={[styles.frame, written ? styles.written : ''].filter(Boolean).join(' ')}>
+    <div
+      className={[
+        styles.frame,
+        compact ? styles.compact : '',
+        written ? `${styles.written} ${styles[ground]}` : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       {media ? (
         <>
           {/*
@@ -45,7 +78,15 @@ export function StoryFrame({
             <MediaFrame asset={media} rounded={false} fill />
           </div>
           <div className={styles.picture}>
-            <MediaFrame asset={media} rounded={false} fill contain />
+            <MediaFrame
+              asset={media}
+              rounded={false}
+              fill
+              contain
+              /* A story clip starts on its own; the small composer preview
+                 does the same, and neither needs a control bar over it. */
+              autoPlay={media.kind === 'video'}
+            />
           </div>
         </>
       ) : null}

@@ -75,6 +75,17 @@ export function StoryViewer({
   const story = ring?.stories[Math.min(storyIndex, (ring?.stories.length ?? 1) - 1)]
   const mine = Boolean(story && isOwner(story.userId))
 
+  /*
+   * How long this story is on screen. A picture or a few words get the usual
+   * five seconds; a clip gets its own length, so the bar finishing and the
+   * video finishing are the same moment rather than two competing ones.
+   */
+  const asset = story?.mediaId ? ring?.media.get(story.mediaId) : undefined
+  const holdSec =
+    asset?.kind === 'video' && asset.durationSec
+      ? Math.min(Math.max(asset.durationSec, 3), 60)
+      : 5
+
   const viewers = useLiveQuery(
     () => (story && mine ? storyService.viewersOf(story.id) : undefined),
     [story?.id, mine],
@@ -231,7 +242,10 @@ export function StoryViewer({
                   .join(' ')}
                 style={
                   index === storyIndex
-                    ? { animationPlayState: paused ? 'paused' : 'running' }
+                    ? {
+                        animationPlayState: paused ? 'paused' : 'running',
+                        animationDuration: `${holdSec}s`,
+                      }
                     : undefined
                 }
                 onAnimationEnd={index === storyIndex ? next : undefined}

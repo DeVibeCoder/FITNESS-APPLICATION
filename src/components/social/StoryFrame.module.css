@@ -14,10 +14,61 @@
   background: #12100f;
 }
 
-/* Written stories carry the brand rather than a photograph. */
+/* Written stories carry a colour rather than a photograph. */
 .written {
   justify-content: center;
-  background: var(--brand-gradient);
+}
+
+/* --- The grounds ----------------------------------------------------------
+ *
+ * Seven, fixed, and every one of them checked against white text. Literal
+ * values rather than tokens on purpose: this is imagery, and a story whose
+ * colour flips with the theme reads as a rendering bug rather than a design.
+ * Each is two stops of the same hue plus one warmer corner, so they belong to
+ * the same set instead of looking like seven unrelated swatches.
+ */
+
+/* The default, and the one every story written before the picker used. */
+.ember {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(255, 176, 92, 0.55), transparent 72%),
+    linear-gradient(150deg, #b8480a 0%, #f97316 52%, #fb9a4b 100%);
+}
+
+.violet {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(232, 168, 255, 0.42), transparent 72%),
+    linear-gradient(150deg, #3b1a63 0%, #6d28d9 54%, #a855f7 100%);
+}
+
+.ocean {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(147, 214, 255, 0.42), transparent 72%),
+    linear-gradient(150deg, #0c2f4a 0%, #1668a8 54%, #38a3d9 100%);
+}
+
+.forest {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(168, 232, 168, 0.36), transparent 72%),
+    linear-gradient(150deg, #0f2f22 0%, #1f6b45 54%, #3fa06a 100%);
+}
+
+.blossom {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(255, 196, 214, 0.46), transparent 72%),
+    linear-gradient(150deg, #6b1338 0%, #c0356e 54%, #ef7ba3 100%);
+}
+
+.midnight {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(249, 115, 22, 0.3), transparent 74%),
+    linear-gradient(150deg, #0a0a0f 0%, #1c1c28 56%, #33334a 100%);
+}
+
+.stone {
+  background:
+    radial-gradient(70% 55% at 80% 12%, rgba(255, 255, 255, 0.16), transparent 72%),
+    linear-gradient(150deg, #3a352f 0%, #5f574d 56%, #8b8074 100%);
 }
 
 /*
@@ -41,23 +92,31 @@
  * The caption on a photo story. Sits on a gradient rather than a solid bar:
  * the words stay legible over a bright picture without a slab of black
  * covering the bottom third of it.
+ *
+ * It is lifted clear of the bottom edge rather than pinned to it. The gap has
+ * to clear three things at once — the home indicator, the viewer's own "seen
+ * by" control, and the plain fact that text touching the edge of a screen
+ * reads as a mistake. `env()` handles the first and the rest is deliberate
+ * breathing room.
  */
 .caption {
   position: relative;
-  padding: var(--s-8) var(--s-5) var(--s-5);
+  padding: var(--s-8) var(--s-5) calc(env(safe-area-inset-bottom) + 4.25rem);
   background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
   color: #fff;
   font-size: var(--t-body);
   font-weight: 600;
   line-height: 1.45;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
 
 /* A story that is only words. Large, centred, and the point of the screen. */
 .words {
   position: relative;
-  padding: var(--s-6) var(--s-5);
+  padding: var(--s-6) var(--s-5) calc(env(safe-area-inset-bottom) + var(--s-6));
+  white-space: pre-wrap;
   color: var(--accent-ink);
   font-family: var(--font-display);
   font-size: 1.5rem;
@@ -88,4 +147,17 @@
   .words {
     font-size: 1.75rem;
   }
+}
+
+/*
+ * Inside the composer's small preview the viewer's controls do not exist, so
+ * the caption does not need to clear them — only the edge.
+ */
+.compact .caption {
+  padding-bottom: var(--s-4);
+}
+
+.compact .words {
+  padding: var(--s-4);
+  font-size: 1.0625rem;
 }

@@ -95,6 +95,89 @@
   color: var(--accent);
 }
 
+/*
+ * Why a clip was refused, said where the decision was made rather than in a
+ * toast that scrolls away while somebody is still looking at the video.
+ */
+.limit {
+  padding: var(--s-3) var(--s-4);
+  border-radius: var(--r);
+  background: var(--danger-soft);
+  color: var(--ink);
+  font-size: var(--t-small);
+  line-height: 1.45;
+}
+
+/* --- Backgrounds ----------------------------------------------------------
+ *
+ * Swatches, not a list of names: the colour is the label. Each is the same
+ * gradient the story is drawn in, so what is picked is exactly what appears.
+ */
+.grounds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4375rem;
+  border: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.groundRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.ground {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: var(--r-pill);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+  transition:
+    transform var(--fast) var(--ease),
+    box-shadow var(--fast) var(--ease);
+}
+
+.ground:hover {
+  transform: scale(1.06);
+}
+
+/* The chosen one gets a ring in the page colour, not a tick over the colour. */
+.groundOn {
+  box-shadow:
+    0 0 0 2px var(--bg),
+    0 0 0 4px var(--accent);
+}
+
+.ember {
+  background: linear-gradient(150deg, #b8480a, #f97316 52%, #fb9a4b);
+}
+
+.violet {
+  background: linear-gradient(150deg, #3b1a63, #6d28d9 54%, #a855f7);
+}
+
+.ocean {
+  background: linear-gradient(150deg, #0c2f4a, #1668a8 54%, #38a3d9);
+}
+
+.forest {
+  background: linear-gradient(150deg, #0f2f22, #1f6b45 54%, #3fa06a);
+}
+
+.blossom {
+  background: linear-gradient(150deg, #6b1338, #c0356e 54%, #ef7ba3);
+}
+
+.midnight {
+  background: linear-gradient(150deg, #0a0a0f, #1c1c28 56%, #33334a);
+}
+
+.stone {
+  background: linear-gradient(150deg, #3a352f, #5f574d 56%, #8b8074);
+}
+
 /* The words come after the picture, and are sized like it. */
 .field {
   display: flex;

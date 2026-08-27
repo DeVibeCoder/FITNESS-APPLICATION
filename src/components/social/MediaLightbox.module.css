@@ -1,0 +1,96 @@
+/*
+ * Above the bottom navigation, like every other overlay in the app. A picture
+ * the tab bar cuts into is not full screen.
+ */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: grid;
+  place-items: center;
+  padding: env(safe-area-inset-top) var(--s-3) env(safe-area-inset-bottom);
+  background: rgba(8, 5, 3, 0.94);
+  overscroll-behavior: contain;
+  animation: fade var(--med) var(--ease-out);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Fills the overlay behind the picture, so tapping beside it closes. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+
+/*
+ * The picture, contained. `fill` on the frame means it takes this box rather
+ * than imposing a ratio, and `contain` on the media means the whole frame is
+ * inside it whatever shape it is — which is the entire point of this view.
+ */
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  animation: rise var(--med) var(--ease-out);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+.close {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + var(--s-3));
+  right: var(--s-3);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  transition: background var(--fast) var(--ease);
+}
+
+.close:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .stage {
+    animation: none;
+  }
+}
+
+/*
+ * Desktop: a centred stage with real space around it rather than a picture
+ * pinned to the window edges. The cap is on both axes so a very wide or very
+ * tall frame still sits inside a comfortable reading area.
+ */
+@media (min-width: 64rem) {
+  .root {
+    padding: var(--s-8);
+  }
+
+  .stage {
+    width: min(72rem, 88vw);
+    height: min(84vh, 52rem);
+  }
+
+  .close {
+    top: var(--s-5);
+    right: var(--s-5);
+  }
+}

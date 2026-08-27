@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { ImagePlus, Trash2, X } from 'lucide-react'
+import { Camera, Images, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { OptionGroup } from '@/components/ui/Field'
 import { MediaFrame } from './MediaFrame'
@@ -7,15 +7,13 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
 import { postService, DEFAULT_VISIBILITY } from '@/services'
+import { describeMedia, PICK_MESSAGE, reject, type PickedMedia } from '@/lib/mediaPick'
 import type { FeedPost } from '@/services/postService'
 import type { MediaAsset, Visibility } from '@/models'
 import styles from './PostComposer.module.css'
 
 /** Long enough for a real thought, short enough to still be a post. */
 const MAX_LENGTH = 600
-
-/** Bigger than any phone photo worth attaching; a guard, not a target. */
-const MAX_BYTES = 20 * 1024 * 1024
 
 /**
  * Who a post is for, in the two answers this app actually has.
@@ -69,12 +67,11 @@ export function PostComposer({
   const [visibility, setVisibility] = useState<Visibility>(post?.visibility ?? DEFAULT_VISIBILITY)
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  /** The picture the post already had, until the person removes it. */
+  /** The media the post already had, until the person removes it. */
   const [keptMedia, setKeptMedia] = useState<MediaAsset | undefined>(post?.media[0])
-  const [picked, setPicked] = useState<{ mimeType: string; width?: number; height?: number } | null>(
-    null,
-  )
-  const fileInput = useRef<HTMLInputElement>(null)
+  const [picked, setPicked] = useState<PickedMedia | null>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  const libraryInput = useRef<HTMLInputElement>(null)
   const textId = useId()
 
   // The preview URL, and the only thing that owns it. Posting hands it over;
@@ -103,20 +100,16 @@ export function PostComposer({
 
   const pick = async (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      show('That file is not an image.', 'error')
-      return
-    }
-    if (file.size > MAX_BYTES) {
-      show('That image is too large.', 'error')
+    const problem = reject(file)
+    if (problem) {
+      show(PICK_MESSAGE[problem], 'error')
       return
     }
     const url = preview.set(file)
     // Measured from the preview rather than by decoding the file a second
-    // time. The card needs it to know whether to draw the frame tall or wide.
-    const size = await measure(url).catch(() => undefined)
-    setPicked({ mimeType: file.type, width: size?.width, height: size?.height })
-    // A new picture replaces the old one rather than sitting beside it.
+    // time. The card needs it to know what shape to reserve.
+    setPicked(await describeMedia(file, url))
+    // New media replaces the old rather than sitting beside it.
     setKeptMedia(undefined)
   }
 
@@ -126,13 +119,27 @@ export function PostComposer({
     setKeptMedia(undefined)
   }
 
+  /** Both inputs behave identically once a file exists; only the ask differs. */
+  const onFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void pick(event.target.files?.[0])
+    // Reset, so picking the same file twice in a row still fires.
+    event.target.value = ''
+  }
+
   const submit = async () => {
     if (!canPost || saving) return
     setSaving(true)
 
     const media =
       preview.url && picked
-        ? { kind: 'image' as const, ref: preview.url, mimeType: picked.mimeType, width: picked.width, height: picked.height }
+        ? {
+            kind: picked.kind,
+            ref: preview.url,
+            mimeType: picked.mimeType,
+            width: picked.width,
+            height: picked.height,
+            durationSec: picked.durationSec,
+          }
         : undefined
 
     if (editing && post) {
@@ -178,11 +185,12 @@ export function PostComposer({
     preview.url && picked
       ? {
           id: 'draft',
-          kind: 'image',
+          kind: picked.kind,
           ref: preview.url,
           mimeType: picked.mimeType,
           width: picked.width,
           height: picked.height,
+          durationSec: picked.durationSec,
           temporary: true,
           createdAt: '',
         }
@@ -210,34 +218,51 @@ export function PostComposer({
 
       {previewAsset ? (
         <div className={styles.preview}>
-          <MediaFrame asset={previewAsset} />
-          <button className={styles.removeImage} onClick={clearImage} aria-label="Remove photo">
+          <MediaFrame asset={previewAsset} natural />
+          <button className={styles.removeImage} onClick={clearImage} aria-label="Remove media">
             <X size={15} strokeWidth={2.4} />
           </button>
         </div>
       ) : null}
 
+      {/*
+        Two ways in, both accepting photos and video. `capture` asks for the
+        camera; anything that cannot honour it opens the picker instead, which
+        is the fallback working rather than a feature failing.
+      */}
       <input
-        ref={fileInput}
+        ref={cameraInput}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
+        capture="environment"
         className={styles.file}
-        onChange={(event) => {
-          void pick(event.target.files?.[0])
-          // Reset, so picking the same file twice in a row still fires.
-          event.target.value = ''
-        }}
+        onChange={onFile}
       />
-      <Button
-        variant="secondary"
-        icon={<ImagePlus size={16} strokeWidth={2.1} />}
-        onClick={() => fileInput.current?.click()}
-      >
-        {previewAsset ? 'Change photo' : 'Add a photo'}
-      </Button>
+      <input
+        ref={libraryInput}
+        type="file"
+        accept="image/*,video/*"
+        className={styles.file}
+        onChange={onFile}
+      />
+
+      <div className={styles.capture}>
+        <button className={styles.captureButton} onClick={() => cameraInput.current?.click()}>
+          <span className={styles.captureIcon}>
+            <Camera size={18} strokeWidth={2} />
+          </span>
+          Camera
+        </button>
+        <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
+          <span className={styles.captureIcon}>
+            <Images size={18} strokeWidth={2} />
+          </span>
+          Photos &amp; videos
+        </button>
+      </div>
       {previewAsset?.temporary ? (
         <p className={styles.note}>
-          The photo is referenced, never copied into the app — it stays on this device and will not
+          Media is referenced, never copied into the app — it stays on this device and will not
           survive a reload until cloud storage arrives.
         </p>
       ) : null}
@@ -281,14 +306,4 @@ export function PostComposer({
       )}
     </>
   )
-}
-
-/** The picked image's natural size, read from the preview URL. */
-function measure(url: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
-    image.onerror = () => reject(new Error('decode_failed'))
-    image.src = url
-  })
 }

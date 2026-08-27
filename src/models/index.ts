@@ -542,6 +542,24 @@ export type StoryType =
   | 'motivation'
 
 /**
+ * The ground a written story is drawn on.
+ *
+ * Named rather than a colour value, so the palette can be retuned in one CSS
+ * file without rewriting rows, and so a theme means the same thing in light
+ * and dark. Absent on everything written before the picker existed, which is
+ * why every read falls back to `ember` — the orange those stories were made
+ * in, and still the default.
+ */
+export type StoryBackground =
+  | 'ember'
+  | 'violet'
+  | 'ocean'
+  | 'forest'
+  | 'blossom'
+  | 'midnight'
+  | 'stone'
+
+/**
  * A story is a post with a deadline.
  *
  * `expiresAt` is authoritative and always written at creation; nothing reads a
@@ -554,6 +572,14 @@ export interface Story {
   type: StoryType
   text?: string
   mediaId?: ID
+  /**
+   * Only meaningful for a story with no media — a picture is its own
+   * background, and painting a colour over one would be discarding the thing
+   * the story is of.
+   *
+   * Not indexed: nothing queries by it, so adding it needs no schema version.
+   */
+  background?: StoryBackground
   createdAt: Timestamp
   expiresAt: Timestamp
   sharedType?: SharedType

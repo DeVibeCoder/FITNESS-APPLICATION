@@ -21,6 +21,53 @@
 }
 
 /*
+ * The media's own shape, clamped by `displayRatio` and set inline. A feed that
+ * forces every picture into one box crops the thing the picture was of; one
+ * that honours every ratio exactly turns a panorama into a sliver. The clamp
+ * is the compromise, and the lightbox is where the whole frame always is.
+ */
+.natural {
+  aspect-ratio: 4 / 3;
+}
+
+/* --- Video ---------------------------------------------------------------- */
+
+/*
+ * The affordance that says this is a clip. Centre of the frame, over a still
+ * first frame — nothing plays until somebody opens it.
+ */
+.playBadge {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  color: #fff;
+  box-shadow: 0 6px 20px -8px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+
+/* How long it runs, so nobody has to open it to find out. */
+.length {
+  position: absolute;
+  right: var(--s-2);
+  bottom: var(--s-2);
+  padding: 0.125rem 0.4375rem;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.62);
+  color: #fff;
+  font-size: var(--t-micro);
+  font-weight: 700;
+  pointer-events: none;
+}
+
+/*
  * Takes the size the parent hands it instead of holding a ratio of its own.
  * The story stage owns its own height, and a frame that insisted on 4:3 inside
  * it would letterbox twice.

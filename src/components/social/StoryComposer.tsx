@@ -1,48 +1,53 @@
 import { useId, useRef, useState } from 'react'
-import { Camera, ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
+import { Camera, Images, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { StoryFrame } from './StoryFrame'
+import { StoryFrame, STORY_BACKGROUNDS, DEFAULT_STORY_BACKGROUND } from './StoryFrame'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
 import { storyService } from '@/services'
-import type { MediaAsset } from '@/models'
+import {
+  describeMedia,
+  PICK_MESSAGE,
+  reject,
+  STORY_VIDEO_MAX_SEC,
+  withinStoryLimit,
+  type PickedMedia,
+} from '@/lib/mediaPick'
+import type { MediaAsset, StoryBackground } from '@/models'
 import styles from './StoryComposer.module.css'
 
 /** A story is a glance, not an essay. */
 const MAX_LENGTH = 140
 
-/** Bigger than any phone photo worth attaching; a guard, not a target. */
-const MAX_BYTES = 20 * 1024 * 1024
-
 /**
  * Making a story.
  *
  * The preview leads and everything else serves it: a 9:16 stage at the top
- * drawn by the same `StoryFrame` the viewer uses, then the two ways to put a
- * picture in it, then the words. That order is the whole design — this is a
- * thing you look at, not a record you fill in, and the previous layout put a
- * text field first and the picture last, which is backwards.
+ * drawn by the same `StoryFrame` the viewer uses, then the two ways to fill
+ * it, then the words. This is a thing you look at, not a record you fill in.
  *
  * Two capture paths, because a phone has two. `capture="environment"` asks the
  * browser for the camera directly; a device or browser that cannot honour it
  * simply opens the file picker instead, which is why the fallback needs no
- * detection and no permission prompt of our own. Either way the file arrives
- * through the same handler and becomes the preview immediately — there is no
- * second "now upload it" step.
+ * detection and no permission prompt of our own. Both accept photos and video,
+ * so recording a clip is the same gesture as taking a picture.
  *
- * The picture stays a reference the whole way down. The file becomes an object
- * URL owned by `useTempImage`, and publishing hands that ownership over so
- * closing the sheet no longer revokes what the rail is showing. No bytes reach
- * the database.
+ * A clip over a minute is refused before anything is written, and the reason
+ * is stated in the composer rather than in a toast that scrolls away. There is
+ * no trimming: cutting somebody's video for them, in a browser, without ever
+ * having read the bytes, is not a thing to do quietly.
+ *
+ * Media stays a reference the whole way down. The file becomes an object URL
+ * owned by `useTempImage`, and publishing hands that ownership over so closing
+ * the sheet no longer revokes what the rail is showing.
  */
 export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const { user } = useAuth()
   const { show, guard } = useToast()
   const [text, setText] = useState('')
-  const [picked, setPicked] = useState<{ mimeType: string; width?: number; height?: number } | null>(
-    null,
-  )
+  const [picked, setPicked] = useState<PickedMedia | null>(null)
+  const [background, setBackground] = useState<StoryBackground>(DEFAULT_STORY_BACKGROUND)
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   const cameraInput = useRef<HTMLInputElement>(null)
@@ -54,25 +59,22 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
 
   if (!user) return null
 
+  const tooLong = Boolean(picked && !withinStoryLimit(picked))
   const hasDraft = text.trim().length > 0 || preview.url !== null
-  const canShare = hasDraft
+  const canShare = hasDraft && !tooLong
 
   const pick = async (file: File | undefined) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      show('That file is not an image.', 'error')
-      return
-    }
-    if (file.size > MAX_BYTES) {
-      show('That image is too large.', 'error')
+    const problem = reject(file)
+    if (problem) {
+      show(PICK_MESSAGE[problem], 'error')
       return
     }
     const url = preview.set(file)
-    const size = await measure(url).catch(() => undefined)
-    setPicked({ mimeType: file.type, width: size?.width, height: size?.height })
+    setPicked(await describeMedia(file, url))
   }
 
-  const clearImage = () => {
+  const clearMedia = () => {
     preview.release()
     setPicked(null)
   }
@@ -84,15 +86,24 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
     const media =
       preview.url && picked
         ? {
-            kind: 'image' as const,
+            kind: picked.kind,
             ref: preview.url,
             mimeType: picked.mimeType,
             width: picked.width,
             height: picked.height,
+            durationSec: picked.durationSec,
           }
         : undefined
 
-    const created = await guard(() => storyService.create({ userId: user.id, text, media }))
+    const created = await guard(() =>
+      storyService.create({
+        userId: user.id,
+        text,
+        media,
+        // Only meaningful without media, and the service drops it otherwise.
+        background: media ? undefined : background,
+      }),
+    )
     setSaving(false)
     // The draft survives a failed write rather than vanishing with it.
     if (!created) return
@@ -114,11 +125,12 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
     preview.url && picked
       ? {
           id: 'draft',
-          kind: 'image',
+          kind: picked.kind,
           ref: preview.url,
           mimeType: picked.mimeType,
           width: picked.width,
           height: picked.height,
+          durationSec: picked.durationSec,
           temporary: true,
           createdAt: '',
         }
@@ -135,28 +147,37 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
     <>
       {/* Exactly what the group will see, at the shape they will see it in. */}
       <div className={styles.stage}>
-        <StoryFrame story={{ type: previewAsset ? 'photo' : 'text', text }} media={previewAsset} />
+        <StoryFrame
+          story={{ type: previewAsset ? 'photo' : 'text', text, background }}
+          media={previewAsset}
+          compact
+        />
         {!hasDraft ? (
-          <p className={styles.placeholder}>
-            Take a photo, pick one, or just say something.
-          </p>
+          <p className={styles.placeholder}>Take something, pick something, or just say it.</p>
         ) : null}
         {previewAsset ? (
-          <button className={styles.clear} onClick={clearImage} aria-label="Remove photo">
+          <button className={styles.clear} onClick={clearMedia} aria-label="Remove media">
             <Trash2 size={15} strokeWidth={2.2} />
           </button>
         ) : null}
       </div>
 
+      {tooLong ? (
+        <p className={styles.limit} role="alert">
+          That clip is {picked?.durationSec}s. A story can be up to {STORY_VIDEO_MAX_SEC} seconds —
+          pick a shorter one, or trim it before choosing it.
+        </p>
+      ) : null}
+
       {/*
         `capture` asks for the camera; a desktop browser that cannot honour it
         opens the file picker instead, which is the fallback working rather
-        than a feature failing.
+        than a feature failing. Both take photos and video.
       */}
       <input
         ref={cameraInput}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         capture="environment"
         className={styles.file}
         onChange={onFile}
@@ -164,7 +185,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       <input
         ref={libraryInput}
         type="file"
-        accept="image/*"
+        accept="image/*,video/*"
         className={styles.file}
         onChange={onFile}
       />
@@ -172,21 +193,45 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       <div className={styles.capture}>
         <button className={styles.captureButton} onClick={() => cameraInput.current?.click()}>
           <span className={styles.captureIcon}>
-            {previewAsset ? (
-              <RefreshCw size={20} strokeWidth={2} />
-            ) : (
-              <Camera size={20} strokeWidth={2} />
-            )}
+            <Camera size={20} strokeWidth={2} />
           </span>
-          {previewAsset ? 'Retake' : 'Take photo'}
+          Camera
         </button>
         <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
           <span className={styles.captureIcon}>
-            <ImagePlus size={20} strokeWidth={2} />
+            <Images size={20} strokeWidth={2} />
           </span>
-          {previewAsset ? 'Change' : 'Add photo'}
+          Photos &amp; videos
         </button>
       </div>
+
+      {/*
+        Only when there is no media. A picture is its own background, and
+        offering a colour that will never be painted is offering a lie.
+      */}
+      {previewAsset ? null : (
+        <fieldset className={styles.grounds}>
+          <legend className={styles.label}>Background</legend>
+          <div className={styles.groundRow}>
+            {STORY_BACKGROUNDS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-label={option.label}
+                aria-pressed={background === option.value}
+                className={[
+                  styles.ground,
+                  styles[option.value],
+                  background === option.value ? styles.groundOn : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setBackground(option.value)}
+              />
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor={textId}>
@@ -232,14 +277,4 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       )}
     </>
   )
-}
-
-/** The picked image's natural size, read from the preview URL. */
-function measure(url: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight })
-    image.onerror = () => reject(new Error('decode_failed'))
-    image.src = url
-  })
 }

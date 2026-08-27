@@ -8,7 +8,9 @@ import { Sheet } from '@/components/ui/Sheet'
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
 import { CommentsSheet } from './CommentsSheet'
+import { MediaLightbox } from './MediaLightbox'
 import { PostComposer } from './PostComposer'
+import type { MediaAsset } from '@/models'
 import type { FeedPost } from '@/services/postService'
 import { postService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
@@ -22,9 +24,11 @@ import styles from './PostCard.module.css'
  *
  * A character count rather than a measured height: it costs no layout pass,
  * it is the same on every screen width, and being approximately right about
- * "this is long" is all the decision needs.
+ * "this is long" is all the decision needs. A caption with paragraphs in it
+ * folds sooner, because blank lines make it taller than its length suggests.
  */
 const FOLD_AT = 220
+const FOLD_AT_LINES = 6
 
 /** A short label for what kind of post this is, when it is worth saying. */
 const KIND_LABEL: Partial<Record<FeedPost['type'], string>> = {
@@ -78,10 +82,13 @@ export function PostCard({ post }: { post: FeedPost }) {
   const [editing, setEditing] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  const [lightbox, setLightbox] = useState<MediaAsset | null>(null)
   const kind = KIND_LABEL[post.type]
   const isMine = isOwner(post.userId)
   const reaction = post.reactionCount > 0 ? REACTION_WORD[post.type] : undefined
-  const folded = post.text.length > FOLD_AT && !expanded
+  const longCaption =
+    post.text.length > FOLD_AT || post.text.split('\n').length > FOLD_AT_LINES
+  const folded = longCaption && !expanded
 
   const reactions = useLiveQuery(() => postService.reactionsFor(post.id), [post.id])
   const mineReacted = Boolean(reactions?.some((r) => r.userId === user?.id))
@@ -188,7 +195,7 @@ export function PostCard({ post }: { post: FeedPost }) {
         {post.text ? (
           <p className={folded ? `${styles.text} ${styles.folded}` : styles.text}>{post.text}</p>
         ) : null}
-        {post.text.length > FOLD_AT ? (
+        {longCaption ? (
           <button className={styles.more} onClick={() => setExpanded((open) => !open)}>
             {expanded ? 'See less' : 'See more'}
           </button>
@@ -201,11 +208,22 @@ export function PostCard({ post }: { post: FeedPost }) {
         ) : null}
       </div>
 
-      {/* Full-bleed, under the words it belongs to. */}
+      {/*
+        Full-bleed, under the words it belongs to, and in the media's own
+        shape rather than a fixed box. Pressing it opens the whole frame —
+        the feed's clamp is a scanning compromise, not the only way to see it.
+      */}
       {post.media.length > 0 ? (
         <div className={styles.media}>
           {post.media.map((asset) => (
-            <MediaFrame key={asset.id} asset={asset} rounded={false} />
+            <button
+              key={asset.id}
+              className={styles.mediaButton}
+              onClick={() => setLightbox(asset)}
+              aria-label={asset.kind === 'video' ? 'Play this clip' : 'View this photo'}
+            >
+              <MediaFrame asset={asset} rounded={false} natural />
+            </button>
           ))}
         </div>
       ) : null}
@@ -253,6 +271,8 @@ export function PostCard({ post }: { post: FeedPost }) {
       {commentsOpen ? (
         <CommentsSheet post={post} open onClose={() => setCommentsOpen(false)} />
       ) : null}
+
+      {lightbox ? <MediaLightbox asset={lightbox} onClose={() => setLightbox(null)} /> : null}
 
       {/*
         The same composer that wrote it, opened on what it already says — and

@@ -49,6 +49,56 @@
 
 .preview {
   position: relative;
+  border-radius: var(--r);
+  overflow: hidden;
+}
+
+/*
+ * Two ways to attach something, side by side and equal — neither the camera
+ * nor the library is the "real" one, and a single "Add a photo" button hid
+ * half of what the composer can actually do.
+ */
+.capture {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-2);
+}
+
+.captureButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  min-height: 52px;
+  padding: var(--s-3);
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink);
+  transition:
+    border-color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.captureButton:hover {
+  border-color: var(--accent);
+}
+
+.captureButton:active {
+  transform: scale(0.98);
+}
+
+.captureIcon {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 /*

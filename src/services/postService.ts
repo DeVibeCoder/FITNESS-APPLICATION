@@ -119,7 +119,7 @@ export const postService = {
     const post: Post = {
       id: uid('p'),
       userId: input.userId,
-      type: postTypeFor({ mediaIds, sharedType: share }),
+      type: postTypeFor({ mediaIds, mediaKind: asset?.kind, sharedType: share }),
       text,
       createdAt: now(),
       visibility: input.visibility ?? DEFAULT_VISIBILITY,
@@ -179,8 +179,15 @@ export const postService = {
        * announced a workout, a weigh-in or a piece of motivation keeps saying
        * so — removing its photo changes what it shows, not what it was.
        */
-      const derived = postTypeFor({ mediaIds: patch.mediaIds, sharedType: post.sharedType })
-      patch.type = post.type === 'photo' || post.type === 'status' ? derived : post.type
+      const derived = postTypeFor({
+        mediaIds: patch.mediaIds,
+        mediaKind: asset?.kind,
+        sharedType: post.sharedType,
+      })
+      patch.type =
+        post.type === 'photo' || post.type === 'video' || post.type === 'status'
+          ? derived
+          : post.type
     }
 
     await db.posts.update(postId, patch)
@@ -319,7 +326,11 @@ export const DEFAULT_VISIBILITY: Visibility = 'group'
  * Kept beside the writer rather than asked of the caller, so a photo post can
  * never claim to be a status and a shared workout can never lose its label.
  */
-function postTypeFor(input: { mediaIds: ID[]; sharedType?: SharedType }): PostType {
+function postTypeFor(input: {
+  mediaIds: ID[]
+  mediaKind?: MediaAsset['kind']
+  sharedType?: SharedType
+}): PostType {
   switch (input.sharedType) {
     case 'workout':
       return 'workout'
@@ -330,5 +341,6 @@ function postTypeFor(input: { mediaIds: ID[]; sharedType?: SharedType }): PostTy
     case 'achievement':
       return 'achievement'
   }
-  return input.mediaIds.length > 0 ? 'photo' : 'status'
+  if (input.mediaIds.length === 0) return 'status'
+  return input.mediaKind === 'video' ? 'video' : 'photo'
 }
