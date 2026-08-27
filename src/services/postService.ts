@@ -2,7 +2,6 @@ import { db, DataError } from '@/lib/db'
 import { now, uid } from '@/lib/id'
 import type {
   Comment,
-  DateKey,
   ID,
   MediaAsset,
   Post,
@@ -11,7 +10,6 @@ import type {
   User,
   Visibility,
 } from '@/models'
-import { chatService } from './chatService'
 import { mediaService } from './mediaService'
 import type { MediaInput } from './mediaService'
 import { assertOwner, assertOwnerOf } from './ownership'
@@ -39,6 +37,11 @@ export interface FeedPost extends Post {
  * A subset of `SharedType` on purpose: every one of these has a matching
  * `PostType`, so what the card announces and what it points at are the same
  * fact rather than two that can drift apart.
+ *
+ * Nothing in the UI writes one any more, and that is the point: sharing runs
+ * from the record to the composer as words, not from the composer back to the
+ * record as a lookup. The type stays because seeded posts carry it and the
+ * feed still renders those cards live.
  */
 export const POST_SHARES = ['workout', 'weigh_in', 'steps', 'achievement'] as const
 export type PostShare = (typeof POST_SHARES)[number]
@@ -205,48 +208,6 @@ export const postService = {
     await db.comments.bulkDelete(commentKeys)
     await db.posts.delete(postId)
     await mediaService.releaseUnused(post.mediaIds, { postId })
-  },
-
-  // --- Sharing a record ----------------------------------------------------
-
-  /**
-   * What this person actually has to attach, in the same terms the chat's
-   * share menu uses — deliberately the same call, so the two menus can never
-   * disagree about what exists. Only the kinds a post can *be* are offered;
-   * the weekly challenge belongs to the group rather than to one person's
-   * progress.
-   */
-  async shareOptions(userId: ID, date: DateKey): Promise<Set<PostShare>> {
-    const available = await chatService.shareable(userId, date)
-    return new Set(POST_SHARES.filter((kind) => available.has(kind)))
-  },
-
-  /**
-   * The id of the record a share points at, resolved at post time. The post
-   * stores the id and never a copy, so correcting the workout later corrects
-   * the card that announced it.
-   */
-  async shareTarget(userId: ID, kind: PostShare, date: DateKey): Promise<ID | undefined> {
-    switch (kind) {
-      case 'workout': {
-        const sessions = await db.sessions
-          .where('userId')
-          .equals(userId)
-          .filter((session) => session.status === 'completed')
-          .sortBy('date')
-        return sessions.at(-1)?.id
-      }
-      case 'weigh_in': {
-        const weights = await db.weights.where('userId').equals(userId).sortBy('date')
-        return weights.filter((entry) => entry.kind === 'official').at(-1)?.id
-      }
-      case 'steps':
-        return (await db.steps.where('[userId+date]').equals([userId, date]).first())?.id
-      case 'achievement': {
-        const unlocked = await db.achievements.where('userId').equals(userId).toArray()
-        return unlocked.sort((a, b) => (a.unlockedAt < b.unlockedAt ? 1 : -1))[0]?.achievementKey
-      }
-    }
   },
 
   // --- Reactions -----------------------------------------------------------

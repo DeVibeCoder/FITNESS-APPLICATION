@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Check, Scale } from 'lucide-react'
+import { Check, Scale, Share2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CardPhoto } from '@/components/ui/CardPhoto'
 import { useAuth } from '@/context/AuthContext'
@@ -8,6 +8,7 @@ import { weightService } from '@/services'
 import { formatDay, todayKey } from '@/utils/date'
 import { num, signed } from '@/utils/format'
 import { goalProfile, weeklyChangeNote, weeklyChangeSentiment } from '@/utils/goals'
+import { weighInShare } from '@/utils/shareText'
 import styles from './WeeklyWeighIn.module.css'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -26,7 +27,16 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
  * building muscle sees +0.6 kg as a good week; someone maintaining sees it as
  * neither.
  */
-export function WeeklyWeighIn() {
+export function WeeklyWeighIn({
+  onShare,
+}: {
+  /**
+   * Hands the composer an opening line. The card writes it rather than the
+   * screen above, because the card is what holds the entry and the week's
+   * change — see utils/shareText for why the words live outside the markup.
+   */
+  onShare?: (text: string) => void
+}) {
   const { user } = useAuth()
   const { open } = useLogSheet()
   const today = todayKey()
@@ -85,9 +95,21 @@ export function WeeklyWeighIn() {
           Next weigh-in {dayName} {formatDay(status.nextDate)}.
         </p>
 
-        <Button variant="secondary" size="md" onClick={() => open('weight')}>
-          Edit this week
-        </Button>
+        <div className={styles.actions}>
+          <Button variant="secondary" size="md" onClick={() => open('weight')}>
+            Edit this week
+          </Button>
+          {onShare ? (
+            <Button
+              variant="ghost"
+              size="md"
+              icon={<Share2 size={15} strokeWidth={2.2} />}
+              onClick={() => onShare(weighInShare(status.entry!.weightKg, status.changeKg))}
+            >
+              Share
+            </Button>
+          ) : null}
+        </div>
       </section>
     )
   }

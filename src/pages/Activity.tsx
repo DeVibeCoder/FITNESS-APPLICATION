@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Share2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Section } from '@/components/ui/Card'
 import { LoadingScreen } from '@/components/ui/EmptyState'
@@ -16,6 +17,7 @@ import { useLogSheet } from '@/context/LogSheetContext'
 import { progressService } from '@/services'
 import { todayKey, formatRange, startOfWeek, endOfWeek } from '@/utils/date'
 import { duration, num, pct, signed } from '@/utils/format'
+import { caloriesShare, stepsShare, waterShare, workoutShare } from '@/utils/shareText'
 import styles from './Activity.module.css'
 
 /**
@@ -36,6 +38,12 @@ import styles from './Activity.module.css'
  * Nutrition is a child of this screen rather than a sibling of it — the
  * calories card links into /activity/nutrition, the Activity tab stays lit,
  * and back comes here.
+ *
+ * Sharing starts here, on the record itself. Each section that holds a number
+ * worth saying out loud carries a Share, which opens the post composer with
+ * the sentence already written. The composer never learns what a workout is;
+ * this screen already knows, and it is where somebody is standing when they
+ * decide the number is worth sharing.
  */
 export function Activity() {
   const { user } = useAuth()
@@ -57,6 +65,9 @@ export function Activity() {
 
   if (!user || !snapshot || !me) return <LoadingScreen />
 
+  // The most recent thing finished today, if anything was.
+  const done = snapshot.completedSessions.at(-1)
+
   return (
     <div className={styles.page}>
       {/*
@@ -73,11 +84,41 @@ export function Activity() {
         <TodayStrip snapshot={snapshot} />
       </Section>
 
-      <Section title="Today's workout">
+      <Section
+        title="Today's workout"
+        action={
+          done ? (
+            <ShareAction
+              label="Share today's workout"
+              onShare={() =>
+                open('post', {
+                  text: workoutShare(
+                    done.planName || done.name,
+                    done.durationSec,
+                    done.caloriesKcal,
+                  ),
+                })
+              }
+            />
+          ) : null
+        }
+      >
         <TodayWorkoutCard snapshot={snapshot} onLog={() => open('workout')} />
       </Section>
 
-      <Section title="Steps">
+      <Section
+        title="Steps"
+        action={
+          snapshot.steps > 0 ? (
+            <ShareAction
+              label="Share today's steps"
+              onShare={() =>
+                open('post', { text: stepsShare(snapshot.steps, snapshot.stepGoal) })
+              }
+            />
+          ) : null
+        }
+      >
         <StepsCard steps={snapshot.steps} goal={snapshot.stepGoal} />
       </Section>
 
@@ -86,7 +127,30 @@ export function Activity() {
         used to be two sections here — "Calories & water" and "Nutrition" —
         both ending in a link called Details that went to the same screen.
       */}
-      <Section title="Calories & water">
+      <Section
+        title="Calories & water"
+        action={
+          snapshot.nutrition.kcal > 0 || snapshot.waterMl > 0 ? (
+            <ShareAction
+              label="Share today's calories and water"
+              onShare={() =>
+                open('post', {
+                  text: [
+                    snapshot.nutrition.kcal > 0
+                      ? caloriesShare(snapshot.nutrition.kcal, snapshot.energy.target)
+                      : '',
+                    snapshot.waterMl > 0
+                      ? waterShare(snapshot.waterMl, snapshot.waterGoalMl)
+                      : '',
+                  ]
+                    .filter(Boolean)
+                    .join('\n'),
+                })
+              }
+            />
+          ) : null
+        }
+      >
         <FuelCard snapshot={snapshot} />
         <Link to="/activity/nutrition" className={styles.detailLink}>
           View nutrition
@@ -152,12 +216,28 @@ export function Activity() {
           </dl>
         ) : null}
 
-        <WeeklyWeighIn />
+        <WeeklyWeighIn onShare={(text) => open('post', { text })} />
       </Section>
 
       <p className={styles.footnote}>
         Calories and energy figures are estimates from your profile, not measurements.
       </p>
     </div>
+  )
+}
+
+/**
+ * The Share that sits on a section heading.
+ *
+ * Deliberately quiet — a small control beside the label rather than a button
+ * on the card. Sharing is something you occasionally decide to do about a
+ * number, not the reason the number is on screen.
+ */
+function ShareAction({ label, onShare }: { label: string; onShare: () => void }): ReactNode {
+  return (
+    <button className={styles.shareAction} onClick={onShare} aria-label={label}>
+      <Share2 size={14} strokeWidth={2.3} />
+      Share
+    </button>
   )
 }

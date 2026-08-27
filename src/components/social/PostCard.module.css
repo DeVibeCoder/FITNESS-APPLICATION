@@ -67,19 +67,29 @@
   text-transform: uppercase;
 }
 
-/* Edge to edge. The card's overflow:hidden clips it to the radius. */
+/*
+ * Edge to edge, and below the caption now. The card's overflow:hidden clips it
+ * to the radius; the margin is the breathing room between what somebody said
+ * and what they are showing — without it the two read as one block.
+ */
 .media {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  margin-top: 0.75rem;
   background: var(--bg-sunk);
+}
+
+/* No caption above it: the picture meets the header directly. */
+.body:empty + .media {
+  margin-top: 0.5rem;
 }
 
 .body {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
-  padding: 0.625rem var(--s-4) 0;
+  padding: 0.125rem var(--s-4) 0;
 }
 
 .body:empty {
@@ -121,6 +131,11 @@
 /* The shared record sits inset, so it reads as an attachment not the post. */
 .shared > * {
   box-shadow: none;
+}
+
+/* Nothing under the media needs the gap the caption gets. */
+.media + .footer {
+  margin-top: 0.5rem;
 }
 
 /*

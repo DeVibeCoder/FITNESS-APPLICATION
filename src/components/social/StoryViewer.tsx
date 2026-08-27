@@ -9,6 +9,7 @@ import type { StoryRing } from '@/services/storyService'
 import { storyService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
+import { useHistoryDismiss } from '@/hooks/useHistoryDismiss'
 import { timeAgo } from '@/utils/date'
 import { firstName } from '@/utils/format'
 import styles from './StoryViewer.module.css'
@@ -30,6 +31,11 @@ import styles from './StoryViewer.module.css'
  * from a live query, and watching a story rewrites the seen state that query
  * sorts on — reading it live would reorder the rail out from under someone
  * mid-story.
+ *
+ * Opening pushes a history entry, so the phone's Back gesture closes the story
+ * rather than leaving the app. That is the whole reason for the entry: without
+ * it, a full-screen overlay is invisible to the browser's idea of "where am
+ * I", and Back does the only thing it can — leave. See `useHistoryDismiss`.
  */
 export function StoryViewer({
   rings,
@@ -54,6 +60,8 @@ export function StoryViewer({
   // timer fires, the tap that follows is suppressed.
   const holdTimer = useRef<number | null>(null)
   const held = useRef(false)
+  /** Where a drag started, so a swipe can be told from a tap. */
+  const swipeFrom = useRef<{ x: number; y: number } | null>(null)
 
   const live = useMemo(
     () =>
@@ -138,10 +146,14 @@ export function StoryViewer({
     if (live.length === 0) onClose()
   }, [live.length, onClose])
 
+  // Back closes the story instead of leaving the app.
+  useHistoryDismiss(onClose)
+
   if (!user || !ring || !story) return null
 
-  const startHold = () => {
+  const startHold = (event: React.PointerEvent) => {
     held.current = false
+    swipeFrom.current = { x: event.clientX, y: event.clientY }
     holdTimer.current = window.setTimeout(() => {
       held.current = true
       setPaused(true)
@@ -151,7 +163,31 @@ export function StoryViewer({
   const endHold = () => {
     if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
     holdTimer.current = null
+    swipeFrom.current = null
     if (held.current) setPaused(false)
+  }
+
+  /**
+   * A swipe, if it was one.
+   *
+   * Horizontal moves between stories. Vertical is caught and deliberately
+   * ignored — the point is that a stray downward flick, which on a phone is
+   * the gesture that dismisses things, does nothing here rather than something
+   * surprising. Back is the way out, and the close button is the other one.
+   */
+  const endSwipe = (event: React.PointerEvent) => {
+    const from = swipeFrom.current
+    endHold()
+    if (!from || held.current) return
+
+    const dx = event.clientX - from.x
+    const dy = event.clientY - from.y
+    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return
+
+    // A swipe is navigation, so the tap underneath it must not also fire.
+    held.current = true
+    if (dx < 0) next()
+    else previous()
   }
 
   /** A tap navigates; the tap that ends a hold does not. */
@@ -232,7 +268,7 @@ export function StoryViewer({
           key={story.id}
           className={styles.card}
           onPointerDown={startHold}
-          onPointerUp={endHold}
+          onPointerUp={endSwipe}
           onPointerCancel={endHold}
           onPointerLeave={endHold}
         >

@@ -84,6 +84,13 @@ import { WorkoutScanFailure } from '../server/workoutScan/types'
 import type { WorkoutVisionProvider, WorkoutVisionResult } from '../server/workoutScan/types'
 import { addDays, daysBetween, endOfWeek, formatRange, fromDateKey, lastNDays, startOfWeek, todayKey, weekDays } from '../src/utils/date'
 import { duration, num } from '../src/utils/format'
+import {
+  caloriesShare,
+  stepsShare,
+  waterShare,
+  weighInShare,
+  workoutShare,
+} from '../src/utils/shareText'
 
 let failures = 0
 
@@ -3495,25 +3502,41 @@ async function main() {
   ok('and no post was written for it',
     !(await db.posts.toArray()).some((post) => post.text === 'embedded'))
 
-  console.log('\n— Sharing a record from a post —\n')
+  console.log('\n— Sharing a record starts at the record —\n')
 
-  const postShare = await postService.shareOptions('u_ahmed', today)
-  ok('the composer offers the workout Ahmed logged', postShare.has('workout'))
-  ok('and the weigh-in', postShare.has('weigh_in'))
-  ok('but never the group challenge — a post is one person\u2019s',
-    !(postShare as Set<string>).has('challenge'))
+  /*
+   * Sharing runs one way: the card holding the numbers turns them into a
+   * sentence and hands it to the composer. So what is checked here is the
+   * sentence, not a picker — the composer no longer knows what a workout is.
+   */
+  check('steps read as a sentence', stepsShare(6543, 10000), '6,543 steps today')
+  ok('and say so when the goal was hit', stepsShare(11000, 10000).includes('goal hit'))
+  check(
+    'a weigh-in leads with the number and explains the week underneath',
+    weighInShare(76.8, -0.8),
+    'Weekly weigh-in: 76.8 kg\n−0.8 kg this week.',
+  )
+  check('a first weigh-in has no week to compare', weighInShare(76.8), 'Weekly weigh-in: 76.8 kg')
+  ok('a workout names itself', workoutShare('Full Body Strength', 2468, 868).startsWith('Finished Full Body Strength today.'))
+  ok('and carries its numbers', workoutShare('Full Body Strength', 2468, 868).includes('868 kcal'))
+  ok('calories read against the target', caloriesShare(1840, 2100).includes('of 2,100 kcal'))
+  ok('water reads in litres', waterShare(2500, 2500).includes('2.5 L'))
 
-  const sharedTarget = await postService.shareTarget('u_ahmed', 'workout', today)
-  ok('the latest workout resolves to something real',
-    Boolean(sharedTarget && (await db.sessions.get(sharedTarget))))
+  const sharedSession = (
+    await db.sessions.where('userId').equals('u_ahmed').filter((s) => s.status === 'completed').sortBy('date')
+  ).at(-1)
   const sharedPost = await postService.create({
     userId: 'u_ahmed',
     text: 'Got it done.',
     sharedType: 'workout',
-    sharedDataId: sharedTarget,
+    sharedDataId: sharedSession?.id,
   })
-  check('a shared workout is a workout post', sharedPost.type, 'workout')
-  check('and points at the record rather than copying it', sharedPost.sharedDataId, sharedTarget)
+  check('a seeded-style shared workout is still a workout post', sharedPost.type, 'workout')
+  check('and points at the record rather than copying it', sharedPost.sharedDataId, sharedSession?.id)
+  ok(
+    'so the feed can still render the cards the seed created',
+    (await db.posts.toArray()).some((post) => post.sharedType === 'workout'),
+  )
 
   console.log('\n— Who can see it —\n')
 
@@ -3580,7 +3603,7 @@ async function main() {
   check('its reactions', (await postService.reactionsFor(sharedPost.id)).length, 0)
   check('and its comments', (await postService.commentsFor(sharedPost.id)).length, 0)
   ok('but never the workout it only referenced',
-    Boolean(sharedTarget && (await db.sessions.get(sharedTarget))))
+    Boolean(sharedSession && (await db.sessions.get(sharedSession.id))))
 
   // Leave the feed exactly as the seed built it.
   for (const id of [written.id, withPhoto.id, onlyMe.id]) await postService.remove(id)

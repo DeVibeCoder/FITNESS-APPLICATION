@@ -1,5 +1,4 @@
 import { useId, useRef, useState } from 'react'
-import { useLiveQuery } from 'dexie-react-hooks'
 import { ImagePlus, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { OptionGroup } from '@/components/ui/Field'
@@ -8,10 +7,8 @@ import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
 import { postService, DEFAULT_VISIBILITY } from '@/services'
-import type { PostShare } from '@/services'
 import type { FeedPost } from '@/services/postService'
 import type { MediaAsset, Visibility } from '@/models'
-import { todayKey } from '@/utils/date'
 import styles from './PostComposer.module.css'
 
 /** Long enough for a real thought, short enough to still be a post. */
@@ -19,13 +16,6 @@ const MAX_LENGTH = 600
 
 /** Bigger than any phone photo worth attaching; a guard, not a target. */
 const MAX_BYTES = 20 * 1024 * 1024
-
-const SHARE_LABEL: Record<PostShare, string> = {
-  workout: 'Workout',
-  weigh_in: 'Weigh-in',
-  steps: 'Steps',
-  achievement: 'Achievement',
-}
 
 /**
  * Who a post is for, in the two answers this app actually has.
@@ -46,6 +36,12 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
  * the picture, who can see it. Editing simply starts with them filled in and
  * writes through `update` instead of `create`.
  *
+ * It does not know what a workout is, and that is deliberate. Sharing a record
+ * runs the other way: the card that already holds the numbers turns them into
+ * a sentence and opens this with the sentence in the box. A composer that
+ * picked records was a second, worse way to look up your own data, sitting in
+ * the one place nobody was looking for it.
+ *
  * The picture is a reference the whole way down. The file is never read into
  * the database — it becomes an object URL owned by `useTempImage`, and posting
  * hands that ownership over so closing the composer no longer revokes it. When
@@ -54,22 +50,23 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
  */
 export function PostComposer({
   post,
+  initialText,
   onDone,
   onCancel,
 }: {
   /** Present when editing an existing post. */
   post?: FeedPost
+  /** Words a Share action prepared. The person edits them from here. */
+  initialText?: string
   onDone: () => void
   onCancel: () => void
 }) {
   const { user } = useAuth()
   const { show, guard } = useToast()
-  const today = todayKey()
   const editing = Boolean(post)
 
-  const [text, setText] = useState(post?.text ?? '')
+  const [text, setText] = useState(post?.text ?? initialText ?? '')
   const [visibility, setVisibility] = useState<Visibility>(post?.visibility ?? DEFAULT_VISIBILITY)
-  const [share, setShare] = useState<PostShare | 'none'>('none')
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
   /** The picture the post already had, until the person removes it. */
@@ -84,11 +81,6 @@ export function PostComposer({
   // anything else — cancelling, closing, unmounting — revokes it.
   const preview = useTempImage()
 
-  const options = useLiveQuery(
-    () => (user && !editing ? postService.shareOptions(user.id, today) : undefined),
-    [user?.id, today, editing],
-  )
-
   /*
    * The draft is seeded once, from the props, and never re-seeded.
    *
@@ -102,13 +94,12 @@ export function PostComposer({
   if (!user) return null
 
   const hasDraft =
-    text.trim() !== (post?.text ?? '') ||
+    text.trim() !== (post?.text ?? initialText ?? '') ||
     preview.url !== null ||
-    share !== 'none' ||
     keptMedia?.id !== post?.media[0]?.id ||
     visibility !== (post?.visibility ?? DEFAULT_VISIBILITY)
 
-  const canPost = Boolean(text.trim() || preview.url || keptMedia || share !== 'none' || post?.sharedType)
+  const canPost = Boolean(text.trim() || preview.url || keptMedia || post?.sharedType)
 
   const pick = async (file: File | undefined) => {
     if (!file) return
@@ -162,20 +153,8 @@ export function PostComposer({
       return
     }
 
-    // Resolved now rather than stored as a copy: the post keeps the id, and
-    // the card reads the record live.
-    const sharedType = share === 'none' ? undefined : share
-    const sharedDataId = sharedType
-      ? await postService.shareTarget(user.id, sharedType, today)
-      : undefined
-    if (sharedType && !sharedDataId) {
-      setSaving(false)
-      show('That is not available to share any more.', 'error')
-      return
-    }
-
     const created = await guard(() =>
-      postService.create({ userId: user.id, text, visibility, media, sharedType, sharedDataId }),
+      postService.create({ userId: user.id, text, visibility, media }),
     )
     setSaving(false)
     // The draft survives a failed write — losing what somebody typed is worse
@@ -185,7 +164,6 @@ export function PostComposer({
     if (media) preview.detach()
     setText('')
     setPicked(null)
-    setShare('none')
     show(visibility === 'private' ? 'Saved, just for you.' : 'Posted to the group.', 'success')
     onDone()
   }
@@ -196,7 +174,6 @@ export function PostComposer({
   }
 
   const remaining = MAX_LENGTH - text.length
-  const shareable = [...(options ?? [])]
   const previewAsset: MediaAsset | undefined =
     preview.url && picked
       ? {
@@ -265,22 +242,8 @@ export function PostComposer({
         </p>
       ) : null}
 
-      {!editing && shareable.length > 0 ? (
-        <OptionGroup
-          label="Attach something you logged"
-          value={share}
-          options={[
-            { value: 'none' as const, label: 'Nothing' },
-            ...shareable.map((kind) => ({ value: kind, label: SHARE_LABEL[kind] })),
-          ]}
-          onChange={setShare}
-        />
-      ) : null}
-
       {editing && post?.sharedType ? (
-        <p className={styles.note}>
-          {`This post shares your ${SHARE_LABEL[post.sharedType as PostShare]?.toLowerCase() ?? 'record'}. That stays attached.`}
-        </p>
+        <p className={styles.note}>The record this post shares stays attached.</p>
       ) : null}
 
       <OptionGroup

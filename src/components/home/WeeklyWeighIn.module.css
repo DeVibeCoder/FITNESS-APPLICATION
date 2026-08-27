@@ -1,3 +1,10 @@
+/* Edit and Share, side by side, each keeping its own tap target. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
 .card {
   display: flex;
   flex-direction: column;

@@ -53,10 +53,11 @@ const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
 /**
  * One post in the feed.
  *
- * Media-first: when a post carries an image it runs full-bleed to the card's
- * edges and the text sits underneath, which is what makes a feed scan as a
- * feed rather than as a list of notes. Text-only posts keep their padding and
- * lead with the words.
+ * Words first, then the picture. A caption underneath a photo is read after
+ * the thing it was meant to introduce, and a caption *on* a photo fights it
+ * for the same pixels — so the order here is author, what they said, what they
+ * are showing. The picture still runs full-bleed to the card's edges, which is
+ * what keeps a feed scanning as a feed rather than as a list of notes.
  *
  * Reacting and commenting are live. The heart toggles your own reaction — one
  * per person, tap again to take it back — and the comment count opens the
@@ -183,15 +184,6 @@ export function PostCard({ post }: { post: FeedPost }) {
         ) : null}
       </header>
 
-      {/* Full-bleed, above the words — the card's subject when there is one. */}
-      {post.media.length > 0 ? (
-        <div className={styles.media}>
-          {post.media.map((asset) => (
-            <MediaFrame key={asset.id} asset={asset} rounded={false} />
-          ))}
-        </div>
-      ) : null}
-
       <div className={styles.body}>
         {post.text ? (
           <p className={folded ? `${styles.text} ${styles.folded}` : styles.text}>{post.text}</p>
@@ -208,6 +200,15 @@ export function PostCard({ post }: { post: FeedPost }) {
           </div>
         ) : null}
       </div>
+
+      {/* Full-bleed, under the words it belongs to. */}
+      {post.media.length > 0 ? (
+        <div className={styles.media}>
+          {post.media.map((asset) => (
+            <MediaFrame key={asset.id} asset={asset} rounded={false} />
+          ))}
+        </div>
+      ) : null}
 
       <footer className={styles.footer}>
         <span className={styles.counts}>

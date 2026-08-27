@@ -12,6 +12,9 @@
   justify-content: center;
   gap: var(--s-6);
   background: #0a0705;
+  /* A flick inside the viewer stays inside it — no pull-to-refresh, no
+     scroll chaining to the feed underneath. */
+  overscroll-behavior: contain;
   animation: fade var(--med) var(--ease-out);
 }
 
@@ -41,6 +44,13 @@
   flex: 1;
   min-height: 0;
   overflow: hidden;
+  /*
+   * The viewer handles its own gestures, so the browser handles none of them.
+   * This is what stops a downward flick pulling the page to refresh or
+   * scrolling something behind the story — see StoryViewer.tsx, where a
+   * vertical swipe is caught and deliberately does nothing.
+   */
+  touch-action: none;
   animation: enter var(--med) var(--ease-out);
 }
 

@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { ImagePlus, Trash2, X } from 'lucide-react'
+import { Camera, ImagePlus, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { StoryFrame } from './StoryFrame'
 import { useAuth } from '@/context/AuthContext'
@@ -18,14 +18,23 @@ const MAX_BYTES = 20 * 1024 * 1024
 /**
  * Making a story.
  *
- * The preview is the real thing: the same `StoryFrame` the viewer draws, at
- * story proportions, updating as you type. Nothing is written until Share is
- * pressed, so cancelling costs a revoked object URL and nothing else.
+ * The preview leads and everything else serves it: a 9:16 stage at the top
+ * drawn by the same `StoryFrame` the viewer uses, then the two ways to put a
+ * picture in it, then the words. That order is the whole design — this is a
+ * thing you look at, not a record you fill in, and the previous layout put a
+ * text field first and the picture last, which is backwards.
  *
- * The picture is a reference the whole way down — the file becomes an object
+ * Two capture paths, because a phone has two. `capture="environment"` asks the
+ * browser for the camera directly; a device or browser that cannot honour it
+ * simply opens the file picker instead, which is why the fallback needs no
+ * detection and no permission prompt of our own. Either way the file arrives
+ * through the same handler and becomes the preview immediately — there is no
+ * second "now upload it" step.
+ *
+ * The picture stays a reference the whole way down. The file becomes an object
  * URL owned by `useTempImage`, and publishing hands that ownership over so
- * closing the sheet no longer revokes what the rail is now showing. No bytes
- * reach the database, which is the rule `mediaService` exists to enforce.
+ * closing the sheet no longer revokes what the rail is showing. No bytes reach
+ * the database.
  */
 export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const { user } = useAuth()
@@ -36,7 +45,8 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
   )
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
+  const cameraInput = useRef<HTMLInputElement>(null)
+  const libraryInput = useRef<HTMLInputElement>(null)
   const textId = useId()
 
   // The preview URL, and the only thing that owns it until the story lands.
@@ -90,7 +100,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
     if (media) preview.detach()
     setText('')
     setPicked(null)
-    show('Added to your story. It is gone in 24 hours.', 'success')
+    show('Added to your story. Gone in 24 hours.', 'success')
     onDone()
   }
 
@@ -114,41 +124,73 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         }
       : undefined
 
+  /** Both inputs behave identically once a file exists; only the ask differs. */
+  const onFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    void pick(event.target.files?.[0])
+    // Reset, so picking the same file twice in a row still fires.
+    event.target.value = ''
+  }
+
   return (
     <>
       {/* Exactly what the group will see, at the shape they will see it in. */}
-      <div className={styles.preview}>
+      <div className={styles.stage}>
         <StoryFrame story={{ type: previewAsset ? 'photo' : 'text', text }} media={previewAsset} />
+        {!hasDraft ? (
+          <p className={styles.placeholder}>
+            Take a photo, pick one, or just say something.
+          </p>
+        ) : null}
         {previewAsset ? (
-          <button className={styles.removeImage} onClick={clearImage} aria-label="Remove photo">
-            <X size={15} strokeWidth={2.4} />
+          <button className={styles.clear} onClick={clearImage} aria-label="Remove photo">
+            <Trash2 size={15} strokeWidth={2.2} />
           </button>
         ) : null}
-        {!hasDraft ? <p className={styles.placeholder}>Your story appears here.</p> : null}
       </div>
 
+      {/*
+        `capture` asks for the camera; a desktop browser that cannot honour it
+        opens the file picker instead, which is the fallback working rather
+        than a feature failing.
+      */}
       <input
-        ref={fileInput}
+        ref={cameraInput}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className={styles.file}
+        onChange={onFile}
+      />
+      <input
+        ref={libraryInput}
         type="file"
         accept="image/*"
         className={styles.file}
-        onChange={(event) => {
-          void pick(event.target.files?.[0])
-          // Reset, so picking the same file twice in a row still fires.
-          event.target.value = ''
-        }}
+        onChange={onFile}
       />
-      <Button
-        variant="secondary"
-        icon={<ImagePlus size={16} strokeWidth={2.1} />}
-        onClick={() => fileInput.current?.click()}
-      >
-        {previewAsset ? 'Change photo' : 'Add a photo'}
-      </Button>
+
+      <div className={styles.capture}>
+        <button className={styles.captureButton} onClick={() => cameraInput.current?.click()}>
+          <span className={styles.captureIcon}>
+            {previewAsset ? (
+              <RefreshCw size={20} strokeWidth={2} />
+            ) : (
+              <Camera size={20} strokeWidth={2} />
+            )}
+          </span>
+          {previewAsset ? 'Retake' : 'Take photo'}
+        </button>
+        <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
+          <span className={styles.captureIcon}>
+            <ImagePlus size={20} strokeWidth={2} />
+          </span>
+          {previewAsset ? 'Change' : 'Add photo'}
+        </button>
+      </div>
 
       <div className={styles.field}>
         <label className={styles.label} htmlFor={textId}>
-          {previewAsset ? 'Caption' : 'Say something'}
+          {previewAsset ? 'Caption' : 'Your words'}
         </label>
         <textarea
           id={textId}
@@ -162,15 +204,10 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         {remaining <= 40 ? <p className={`${styles.counter} tnum`}>{remaining} left</p> : null}
       </div>
 
-      <p className={styles.note}>
-        {previewAsset
-          ? 'Shared with the group and gone in 24 hours. The photo is referenced, never copied into the app — it stays on this device and will not survive a reload until cloud storage arrives.'
-          : 'Shared with the group and gone in 24 hours.'}
-      </p>
-
       <Button size="lg" block onClick={share} disabled={!canShare || saving}>
-        {saving ? 'Sharing…' : 'Share story'}
+        {saving ? 'Sharing…' : 'Share to your story'}
       </Button>
+      <p className={styles.note}>Your group only. Gone in 24 hours.</p>
 
       {confirmDiscard ? (
         <div className={styles.confirm}>
@@ -187,7 +224,6 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       ) : (
         <Button
           variant="ghost"
-          icon={hasDraft ? <Trash2 size={15} strokeWidth={2.1} /> : undefined}
           onClick={() => (hasDraft ? setConfirmDiscard(true) : discard())}
           disabled={saving}
         >

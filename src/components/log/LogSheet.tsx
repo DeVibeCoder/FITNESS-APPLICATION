@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { ProgressBar } from '@/components/ui/Progress'
 import { useAuth } from '@/context/AuthContext'
+import type { LogDraft } from '@/context/LogSheetContext'
 import { useToast } from '@/context/ToastContext'
 import { achievementService, checkinService, nutritionService, stepsService } from '@/services'
 import { ENERGY_OPTIONS, FEELING_OPTIONS, feelingFor, MOOD_OPTIONS, SORENESS_OPTIONS } from '@/services/checkinService'
@@ -62,10 +63,13 @@ export function LogSheet({
   open,
   onClose,
   initialMode = 'menu',
+  draft,
 }: {
   open: boolean
   onClose: () => void
   initialMode?: Mode
+  /** Text a Share action prepared, for the post composer to start from. */
+  draft?: LogDraft
 }) {
   const [mode, setMode] = useState<Mode>(initialMode)
 
@@ -92,7 +96,9 @@ export function LogSheet({
       ) : null}
 
       {mode === 'menu' ? <Menu onPick={setMode} /> : null}
-      {mode === 'post' ? <PostComposer onDone={close} onCancel={close} /> : null}
+      {mode === 'post' ? (
+        <PostComposer initialText={draft?.text} onDone={close} onCancel={close} />
+      ) : null}
       {mode === 'story' ? <StoryComposer onDone={close} onCancel={close} /> : null}
       {mode === 'motivation' ? <ComingSoon mode={mode} /> : null}
       {mode === 'workout' ? <LogWorkoutForm onDone={close} /> : null}
