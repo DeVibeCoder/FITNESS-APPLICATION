@@ -29,8 +29,9 @@ import styles from './Home.module.css'
  * The desktop rail is the exception, and only because it sits beside the feed
  * rather than after it.
  *
- * Phase 1 renders the feed read-only from seeded posts. Writing, reacting and
- * commenting are Phase 2.
+ * The feed is live: the prompt opens the composer, new posts appear here the
+ * moment they are written, and reacting and commenting happen on the card.
+ * Stories are still the rail's own phase.
  */
 export function Home() {
   const { user } = useAuth()

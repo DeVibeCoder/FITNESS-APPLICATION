@@ -65,11 +65,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-.down {
+/* Movement the person's goal points at, and movement away from it. */
+.toward {
   color: var(--success);
 }
 
-.up {
+.away {
   color: var(--ink);
 }
 

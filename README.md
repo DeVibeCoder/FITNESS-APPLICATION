@@ -144,9 +144,10 @@ weight/health/progress engine, nutrition, and the group/motivation layer.**
 
 - Local auth: pick a member or sign in by username; session persists across reloads
 - Mobile bottom nav with a raised log action; desktop sidebar and two-column home
-- Home: greeting, one-tap check-in, today's five habits with a completion ring,
-  today's workout, weight journey, the group's progress, the update feed with
-  reactions
+- Home: greeting, stories rail, and the group's feed — write a post with an
+  optional photo and an optional workout/weigh-in/steps/achievement attached,
+  choose who can see it, react, comment in the overlay, and edit or delete your
+  own; long captions fold behind "See more"
 - Quick-log sheet: weight, steps, water, food, check-in
 - Workout, in three tabs (Today / Plan / History):
   - **Player** — a full-screen mode outside the app shell: prep screen, one

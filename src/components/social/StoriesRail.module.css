@@ -30,11 +30,17 @@
   position: relative;
   display: grid;
   place-items: center;
+}
+
+/* The ring itself is the control that opens a story. */
+.ringButton {
+  display: grid;
+  place-items: center;
   border-radius: var(--r-pill);
   transition: transform var(--fast) var(--ease);
 }
 
-.add:active {
+.ringButton:active {
   transform: scale(0.94);
 }
 
@@ -81,6 +87,10 @@
   padding: 0.5px;
 }
 
+/*
+ * Add, always. It sits on the corner of your own ring and is its own button —
+ * see StoriesRail.tsx for why that is two controls rather than one.
+ */
 .plus {
   position: absolute;
   right: -2px;
@@ -93,6 +103,11 @@
   background: var(--accent);
   color: var(--accent-ink);
   border: 2px solid var(--bg);
+  transition: transform var(--fast) var(--ease);
+}
+
+.plus:active {
+  transform: scale(0.9);
 }
 
 .name {

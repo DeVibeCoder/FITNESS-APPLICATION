@@ -59,6 +59,13 @@ export interface UserSnapshot {
   lastActive?: DateKey
 }
 
+/**
+ * Weighing is weekly. Older databases can still hold `daily` rows from before
+ * that was true, so every read of a weight goes through here — a morning
+ * reading must never be mistaken for the week's number.
+ */
+const weekly = (entry: WeightEntry) => entry.kind === 'official'
+
 /** Every date the user did anything at all — the basis for the streak. */
 async function activeDates(userId: ID): Promise<Set<DateKey>> {
   const [sessions, steps, weights, foods, checkins] = await Promise.all([
@@ -91,7 +98,7 @@ async function energyFor(user: User, weightKg: number): Promise<EnergyPlan> {
 
 export const progressService = {
   async currentWeight(userId: ID): Promise<number> {
-    const rows = await db.weights.where('userId').equals(userId).sortBy('date')
+    const rows = (await db.weights.where('userId').equals(userId).sortBy('date')).filter(weekly)
     const user = await db.users.get(userId)
     return rows.length ? rows[rows.length - 1].weightKg : (user?.startWeightKg ?? 0)
   },
@@ -113,8 +120,9 @@ export const progressService = {
       workoutService.scheduledFor(userId, date),
     ])
 
-    const weightToday =
-      weightRows.find((w) => w.kind === 'official') ?? weightRows[0] ?? undefined
+    // Only a weekly weigh-in counts. A legacy `daily` row on this date is a
+    // reading, not the week's number, and must not become "today's weight".
+    const weightToday = weightRows.find(weekly)
     const weightKg = weightToday?.weightKg ?? (await this.currentWeight(userId))
     const energy = await energyFor(user, weightKg)
     const waterMl = waterRows.reduce((sum, row) => sum + row.ml, 0)
@@ -169,10 +177,12 @@ export const progressService = {
     const nutritionDays = new Set(foods.map((f) => f.date)).size
     const workoutGoal = user?.workoutsPerWeekGoal ?? 5
 
-    // Weight change across the week: last entry in the week vs the last entry
-    // on or before the week started.
-    const inWeek = weights.filter((w) => w.date >= from && w.date <= to)
-    const before = weights.filter((w) => w.date < from)
+    // Weight change across the week: last weigh-in in the week vs the last one
+    // on or before the week started. Weekly readings only — a leftover daily
+    // row would report a change the person never weighed.
+    const weighIns = weights.filter(weekly)
+    const inWeek = weighIns.filter((w) => w.date >= from && w.date <= to)
+    const before = weighIns.filter((w) => w.date < from)
     const weightChangeKg =
       inWeek.length && before.length
         ? Math.round((inWeek[inWeek.length - 1].weightKg - before[before.length - 1].weightKg) * 10) / 10
@@ -288,6 +298,7 @@ export const progressService = {
       .between([userId, from], [userId, todayKey()], true, true)
       .toArray()
     return rows
+      .filter(weekly)
       .sort((a, b) => (a.date < b.date ? -1 : 1))
       .map((row) => ({ date: row.date, weightKg: row.weightKg }))
   },

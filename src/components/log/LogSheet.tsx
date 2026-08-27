@@ -5,13 +5,15 @@ import { Sheet } from '@/components/ui/Sheet'
 import { WeightEntryForm } from '@/components/progress/WeightEntryForm'
 import { LogWorkoutForm } from './LogWorkoutForm'
 import { AddFoodFlow } from '@/components/nutrition/AddFoodSheet'
+import { PostComposer } from '@/components/social/PostComposer'
+import { StoryComposer } from '@/components/social/StoryComposer'
 import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { ProgressBar } from '@/components/ui/Progress'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { achievementService, checkinService, nutritionService, stepsService } from '@/services'
-import { ENERGY_OPTIONS, MOOD_OPTIONS, SORENESS_OPTIONS } from '@/services/checkinService'
+import { ENERGY_OPTIONS, FEELING_OPTIONS, feelingFor, MOOD_OPTIONS, SORENESS_OPTIONS } from '@/services/checkinService'
 import type { DailyCheckIn } from '@/models'
 import { todayKey } from '@/utils/date'
 import { litres, num } from '@/utils/format'
@@ -32,11 +34,11 @@ const MENU: {
 }[] = [
   // Sharing comes first now: this is a social app that also logs, not a
   // logger that also shares.
-  { mode: 'post', label: 'Post', hint: 'Say something to the group', icon: PenLine, group: 'share', primary: true, soon: true },
-  { mode: 'story', label: 'Story', hint: 'Gone in 24 hours', icon: Camera, group: 'share', soon: true },
+  { mode: 'post', label: 'Post', hint: 'Say something to the group', icon: PenLine, group: 'share', primary: true },
+  { mode: 'story', label: 'Story', hint: 'Gone in 24 hours', icon: Camera, group: 'share' },
   { mode: 'motivation', label: 'Motivation', hint: 'A quote or a video', icon: Quote, group: 'share', soon: true },
   { mode: 'workout', label: 'Workout', hint: 'From Home Workout or another app', icon: Dumbbell, group: 'log' },
-  { mode: 'weight', label: 'Weight', hint: 'Log a weigh-in', icon: Scale, group: 'log' },
+  { mode: 'weight', label: 'Weight', hint: "This week's weigh-in", icon: Scale, group: 'log' },
   { mode: 'steps', label: 'Steps', hint: "Today's count", icon: Footprints, group: 'log' },
   { mode: 'water', label: 'Water', hint: 'Add a glass', icon: GlassWater, group: 'log' },
   { mode: 'meal', label: 'Meal', hint: 'Food and macros', icon: UtensilsCrossed, group: 'log' },
@@ -49,7 +51,7 @@ const TITLES: Record<Mode, string> = {
   story: 'New story',
   motivation: 'Share motivation',
   workout: "Log today's workout",
-  weight: 'Log weigh-in',
+  weight: 'Weekly weigh-in',
   steps: 'Log steps',
   water: 'Water',
   meal: 'Add food',
@@ -90,9 +92,9 @@ export function LogSheet({
       ) : null}
 
       {mode === 'menu' ? <Menu onPick={setMode} /> : null}
-      {mode === 'post' || mode === 'story' || mode === 'motivation' ? (
-        <ComingSoon mode={mode} />
-      ) : null}
+      {mode === 'post' ? <PostComposer onDone={close} onCancel={close} /> : null}
+      {mode === 'story' ? <StoryComposer onDone={close} onCancel={close} /> : null}
+      {mode === 'motivation' ? <ComingSoon mode={mode} /> : null}
       {mode === 'workout' ? <LogWorkoutForm onDone={close} /> : null}
       {mode === 'weight' ? <WeightEntryForm onDone={close} /> : null}
       {mode === 'steps' ? <StepsForm onDone={close} /> : null}
@@ -144,22 +146,14 @@ function Menu({ onPick }: { onPick: (mode: Mode) => void }) {
 }
 
 /**
- * The creation flows that do not exist yet.
+ * The one creation flow that does not exist yet.
  *
  * Saying so plainly beats a form that looks real and silently does nothing.
- * Posting, stories and shared motivation are Phase 4; what already works —
- * workouts, weigh-ins, steps, water, meals, check-ins — is right below.
+ * Everything else in this sheet — posts, stories, workouts, weigh-ins, steps,
+ * water, meals and check-ins — works.
  */
-function ComingSoon({ mode }: { mode: 'post' | 'story' | 'motivation' }) {
+function ComingSoon({ mode }: { mode: 'motivation' }) {
   const copy = {
-    post: {
-      title: 'Posting is being built',
-      body: 'The feed and its seeded posts are here so you can see the shape of it. Writing your own arrives with the creation flow.',
-    },
-    story: {
-      title: 'Stories are being built',
-      body: 'The rail on Home is live and stories already expire after 24 hours. Capturing one is the next piece.',
-    },
     motivation: {
       title: 'Sharing motivation is being built',
       body: 'Adding a video to the weekly rotation already works from the Motivation screen.',
@@ -244,8 +238,9 @@ function StepsForm({ onDone }: { onDone: () => void }) {
 
 function WaterForm({ onDone }: { onDone: () => void }) {
   const { user } = useAuth()
-  const { guard } = useToast()
+  const { show, guard } = useToast()
   const today = todayKey()
+  const [custom, setCustom] = useState('')
   const ml = useLiveQuery(
     () => (user ? nutritionService.waterForDay(user.id, today) : undefined),
     [user?.id, today],
@@ -254,6 +249,24 @@ function WaterForm({ onDone }: { onDone: () => void }) {
   if (!user) return null
   const goalMl = user.waterGoalL * 1000
   const current = ml ?? 0
+
+  // "Set amount" sets the day's total rather than adding to it: someone who
+  // has been drinking from a 1.5 L bottle knows the total, not the glasses.
+  const setTotal = async () => {
+    const target = Number.parseInt(custom, 10)
+    if (!Number.isFinite(target) || target < 0 || target > 20_000) {
+      show('That amount looks off.', 'error')
+      return
+    }
+    const result = await guard(async () => {
+      await nutritionService.setWaterTotal(user.id, today, target)
+      return true
+    })
+    if (result) {
+      setCustom('')
+      show('Water updated.', 'success')
+    }
+  }
 
   return (
     <>
@@ -276,6 +289,20 @@ function WaterForm({ onDone }: { onDone: () => void }) {
           </Button>
         ))}
       </div>
+
+      <Field
+        label="Set amount"
+        type="number"
+        inputMode="numeric"
+        suffix="ml"
+        value={custom}
+        placeholder={String(current)}
+        onChange={(event) => setCustom(event.target.value)}
+        hint="Replaces today's total."
+      />
+      <Button variant="secondary" onClick={setTotal} disabled={!custom.trim()}>
+        Set today's total
+      </Button>
 
       <Button
         variant="ghost"
@@ -334,8 +361,38 @@ export function CheckInForm({ onDone }: { onDone: () => void }) {
     }
   }
 
+  const feeling = feelingFor({ mood, energy })
+
   return (
     <>
+      {/*
+        The quick answer, and the same five the Activity prompt offers. Picking
+        one fills the three controls below rather than saving on its own, so
+        somebody who wants to adjust soreness or add a note still can.
+      */}
+      <div className={styles.feelings} role="group" aria-label="How are you feeling today?">
+        {FEELING_OPTIONS.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            aria-pressed={feeling?.key === option.key}
+            className={[styles.feeling, feeling?.key === option.key ? styles.feelingOn : '']
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => {
+              setMood(option.mood)
+              setEnergy(option.energy)
+              setSoreness(option.soreness)
+            }}
+          >
+            <span className={styles.feelingEmoji} aria-hidden="true">
+              {option.emoji}
+            </span>
+            <span className={styles.feelingLabel}>{option.label}</span>
+          </button>
+        ))}
+      </div>
+
       <OptionGroup label="Energy" value={energy} options={ENERGY_OPTIONS} onChange={setEnergy} />
       <OptionGroup
         label="Mood"

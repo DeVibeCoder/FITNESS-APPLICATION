@@ -1,56 +1,60 @@
 import { Card } from '@/components/ui/Card'
-import type { WeighInComparison } from '@/utils/progress'
+import type { FitnessGoal } from '@/models'
+import type { WeeklyWeighIn } from '@/utils/weighIn'
 import { formatDay } from '@/utils/date'
 import { num, signed } from '@/utils/format'
+import { weeklyChangeNote, weeklyChangeSentiment } from '@/utils/goals'
 import styles from './WeighInCard.module.css'
 
 /**
- * This week's weigh-in, side by side with last week's.
+ * This week's weigh-in, side by side with the one before it.
  *
- * Weighing is weekly, full stop — one number per scheduled day. Older daily
- * readings still exist as rows and are deliberately not shown anywhere: this
- * is the number the group compares, and it should not move because of a salty
- * dinner.
+ * Weighing is weekly, full stop — one number per seven-day cycle, anchored to
+ * the day the person chose rather than to the calendar week. The change is
+ * coloured by what it means for their goal: down is progress when cutting,
+ * up is progress when gaining, and neither is anything at all when the goal is
+ * to hold steady.
  */
-export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
-  const { thisWeek, lastWeek, changeKg } = comparison
+export function WeighInCard({ status, goal }: { status: WeeklyWeighIn; goal: FitnessGoal }) {
+  const { entry, previous, changeKg } = status
+  const sentiment = weeklyChangeSentiment(goal, changeKg)
 
   return (
     <Card className={styles.card}>
       <div className={styles.head}>
         <span className="eyebrow">Weekly weigh-in</span>
-        <span className={styles.week}>Week {comparison.weekNumber}</span>
+        <span className={styles.week}>{formatDay(status.slotDate)}</span>
       </div>
 
       <div className={styles.columns}>
         <div>
           <p className={styles.label}>This week</p>
           <p className={styles.value}>
-            {thisWeek ? (
+            {entry ? (
               <>
-                <span className="tnum">{num(thisWeek.weightKg, 1)}</span>
+                <span className="tnum">{num(entry.weightKg, 1)}</span>
                 <span className={styles.unit}>kg</span>
               </>
             ) : (
-              <span className={styles.pending}>Not yet</span>
+              <span className={styles.pending}>Due</span>
             )}
           </p>
-          {thisWeek ? <p className={styles.when}>{formatDay(thisWeek.date)}</p> : null}
+          {entry ? <p className={styles.when}>{formatDay(entry.date)}</p> : null}
         </div>
 
         <div>
-          <p className={styles.label}>Last week</p>
+          <p className={styles.label}>Previous</p>
           <p className={styles.value}>
-            {lastWeek ? (
+            {previous ? (
               <>
-                <span className="tnum">{num(lastWeek.weightKg, 1)}</span>
+                <span className="tnum">{num(previous.weightKg, 1)}</span>
                 <span className={styles.unit}>kg</span>
               </>
             ) : (
               <span className={styles.pending}>—</span>
             )}
           </p>
-          {lastWeek ? <p className={styles.when}>{formatDay(lastWeek.date)}</p> : null}
+          {previous ? <p className={styles.when}>{formatDay(previous.date)}</p> : null}
         </div>
 
         <div>
@@ -58,7 +62,13 @@ export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
           <p
             className={[
               styles.value,
-              changeKg === undefined ? '' : changeKg < 0 ? styles.down : changeKg > 0 ? styles.up : '',
+              changeKg === undefined
+                ? ''
+                : sentiment === 'progress'
+                  ? styles.toward
+                  : sentiment === 'away'
+                    ? styles.away
+                    : '',
             ]
               .filter(Boolean)
               .join(' ')}
@@ -76,9 +86,9 @@ export function WeighInCard({ comparison }: { comparison: WeighInComparison }) {
       </div>
 
       <p className={styles.note}>
-        {thisWeek
-          ? 'One weigh-in a week, on your chosen day. Nothing else counts toward it.'
-          : "Log this week's weigh-in to update your week."}
+        {entry
+          ? weeklyChangeNote(goal, changeKg)
+          : `Log this week's weigh-in — next one ${formatDay(status.nextDate)}.`}
       </p>
     </Card>
   )

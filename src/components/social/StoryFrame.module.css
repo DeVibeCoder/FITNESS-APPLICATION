@@ -1,0 +1,91 @@
+/*
+ * The story surface itself: a dark stage that a picture or a sentence sits on.
+ * It has no size of its own — the viewer makes it fill the screen and the
+ * composer makes it a card, and both get the same picture either way.
+ */
+.frame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #12100f;
+}
+
+/* Written stories carry the brand rather than a photograph. */
+.written {
+  justify-content: center;
+  background: var(--brand-gradient);
+}
+
+/*
+ * The picture again, blurred and pushed past the edges, so a portrait photo
+ * has something other than black beside it. Scaled up because a blur samples
+ * outside its own box and would otherwise show a soft edge.
+ */
+.backdrop {
+  position: absolute;
+  inset: 0;
+  transform: scale(1.25);
+  filter: blur(28px) saturate(1.3) brightness(0.55);
+}
+
+.picture {
+  position: absolute;
+  inset: 0;
+}
+
+/*
+ * The caption on a photo story. Sits on a gradient rather than a solid bar:
+ * the words stay legible over a bright picture without a slab of black
+ * covering the bottom third of it.
+ */
+.caption {
+  position: relative;
+  padding: var(--s-8) var(--s-5) var(--s-5);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.72), transparent);
+  color: #fff;
+  font-size: var(--t-body);
+  font-weight: 600;
+  line-height: 1.45;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  overflow-wrap: anywhere;
+}
+
+/* A story that is only words. Large, centred, and the point of the screen. */
+.words {
+  position: relative;
+  padding: var(--s-6) var(--s-5);
+  color: var(--accent-ink);
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  text-align: center;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A shared record inside a story — the same card the chat and the feed draw,
+ * so a workout looks like itself everywhere. Placement is left to the frame's
+ * own justification: centred on a written story, where it is the subject, and
+ * down with the caption on a photo one, where it is not.
+ */
+.shared {
+  position: relative;
+  padding: var(--s-5) var(--s-5) 0;
+}
+
+.shared > * {
+  box-shadow: var(--shadow-lg);
+}
+
+@media (min-width: 48rem) {
+  .words {
+    font-size: 1.75rem;
+  }
+}

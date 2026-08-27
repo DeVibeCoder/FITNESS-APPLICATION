@@ -6,85 +6,141 @@ import { Field } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { achievementService, weightService } from '@/services'
-import type { WeightEntry } from '@/models'
-import { todayKey } from '@/utils/date'
+import { isPlausibleWeight } from '@/services/weightService'
+import type { DateKey, WeightEntry } from '@/models'
+import { formatDay, todayKey } from '@/utils/date'
+import { num, signed } from '@/utils/format'
+import { weeklyChangeNote, weeklyChangeSentiment } from '@/utils/goals'
 import styles from './WeightEntryForm.module.css'
 
 interface WeightEntryFormProps {
-  /** Editing an existing record rather than adding a new one. */
+  /** Editing an existing weekly record rather than logging this week's. */
   entry?: WeightEntry
   onDone: () => void
 }
 
 /**
- * The one weight form in the app. Used by the quick-log sheet and by the
- * history editor, so adding and correcting a weigh-in behave identically.
+ * The one weigh-in form in the app. Used by the Create sheet and by the
+ * history editor, so logging and correcting a week behave identically.
+ *
+ * Two fields: the weight, and an optional note. There is no date picker and no
+ * Official/Daily switch — weighing is weekly, and the app already knows which
+ * seven-day cycle today sits in. Asking the person to confirm a date they
+ * cannot get wrong was a field that could only ever be answered incorrectly.
+ *
+ * Saving is private. The group is told only if the second step is answered
+ * with Post update, and only once per week however many times the number is
+ * corrected afterwards.
  */
 export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
   const { user } = useAuth()
   const { show, guard } = useToast()
   const editing = Boolean(entry)
 
-  /*
-   * New entries are always the weekly official one — weighing is weekly here,
-   * and the Official/Daily switch that used to sit at the top of this form was
-   * asking a question the product no longer poses.
-   *
-   * Editing keeps whatever the stored row says. Some existing records are
-   * daily, and silently promoting one to official would change a past week's
-   * reported number without anybody asking for it.
-   */
-  const kind: WeightEntry['kind'] = entry?.kind ?? 'official'
   const [value, setValue] = useState(entry ? entry.weightKg.toFixed(1) : '')
-  const [date, setDate] = useState(entry?.date ?? todayKey())
   const [note, setNote] = useState(entry?.note ?? '')
   const [saving, setSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  /** Set once saved, which turns the form into the share question. */
+  const [saved, setSaved] = useState<{ date: DateKey; weightKg: number; changeKg?: number } | null>(
+    null,
+  )
 
-  const latest = useLiveQuery(
-    () => (user && !editing ? weightService.latest(user.id) : undefined),
+  const status = useLiveQuery(
+    () => (user && !editing ? weightService.thisWeek(user.id) : undefined),
     [user?.id, editing],
   )
 
   // A new entry starts from the last known weight — most people move a little,
   // not a lot, and typing 76.8 from scratch every time is friction.
   useEffect(() => {
-    if (!editing && latest && value === '') setValue(latest.weightKg.toFixed(1))
-  }, [latest, value, editing])
+    if (editing || value !== '') return
+    const seed = status?.entry ?? status?.previous
+    if (seed) setValue(seed.weightKg.toFixed(1))
+  }, [status, value, editing])
 
   if (!user) return null
 
+  // --- Saved: the one question that follows ---------------------------------
+  if (saved) {
+    const sentiment = weeklyChangeSentiment(user.goal, saved.changeKg)
+    return (
+      <div className={styles.after}>
+        <p className={styles.afterValue}>
+          <span className="tnum">{num(saved.weightKg, 1)}</span> kg
+          <span className={styles.afterDate}>{formatDay(saved.date)}</span>
+        </p>
+        {saved.changeKg === undefined ? null : (
+          <p className={[styles.afterChange, styles[sentiment]].join(' ')}>
+            <span className="tnum">{signed(saved.changeKg)} kg</span> this week
+          </p>
+        )}
+        <p className={styles.afterNote}>{weeklyChangeNote(user.goal, saved.changeKg)}</p>
+
+        <p className={styles.shareAsk}>Share this week's progress with the group?</p>
+        <Button
+          size="lg"
+          block
+          onClick={async () => {
+            const posted = await guard(() => weightService.shareWeighIn(user.id, saved.date))
+            if (posted) show('Posted to the group.', 'success')
+            onDone()
+          }}
+        >
+          Post update
+        </Button>
+        <Button variant="secondary" size="lg" block onClick={onDone}>
+          Keep private
+        </Button>
+      </div>
+    )
+  }
+
   const save = async () => {
     const weightKg = Number.parseFloat(value)
-    if (!Number.isFinite(weightKg) || weightKg < 20 || weightKg > 400) {
+    if (!isPlausibleWeight(weightKg)) {
       show('That weight looks off. Check the number.', 'error')
       return
     }
     setSaving(true)
-    const result = await guard(async () => {
-      if (entry) {
+
+    if (entry) {
+      // Correcting a past week. Its date is already the week it belongs to, so
+      // it is updated where it stands rather than moved into the current cycle.
+      const result = await guard(async () => {
         await weightService.update(entry.id, {
           weightKg: Math.round(weightKg * 10) / 10,
-          date,
-          kind,
           note: note.trim() || undefined,
         })
-      } else {
-        await weightService.add({
-          userId: user.id,
-          date,
-          weightKg,
-          kind,
-          note: note.trim() || undefined,
-        })
+        await achievementService.evaluate(user.id)
+      })
+      setSaving(false)
+      if (result !== undefined) {
+        show('Weigh-in updated.', 'success')
+        onDone()
       }
+      return
+    }
+
+    const result = await guard(async () => {
+      const written = await weightService.weighIn({
+        userId: user.id,
+        weightKg,
+        note: note.trim() || undefined,
+      })
       await achievementService.evaluate(user.id)
+      return written
     })
     setSaving(false)
-    if (result !== undefined) {
-      show(editing ? 'Weigh-in updated.' : 'Weigh-in saved.', 'success')
+    if (result === undefined) return
+
+    show(result.created ? 'Weigh-in saved.' : "This week's weigh-in updated.", 'success')
+    // Already told the group about this week? Then there is nothing to ask.
+    if (await weightService.isShared(user.id, result.slotDate)) {
       onDone()
+      return
     }
+    setSaved({ date: result.slotDate, weightKg: result.entry.weightKg, changeKg: result.changeKg })
   }
 
   const remove = async () => {
@@ -98,6 +154,9 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
     }
   }
 
+  const weekDate = entry?.date ?? status?.slotDate ?? todayKey()
+  const alreadyThisWeek = !editing && Boolean(status?.entry)
+
   return (
     <>
       <Field
@@ -107,19 +166,15 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
         step="0.1"
         suffix="kg"
         value={value}
+        placeholder="76.0"
         onChange={(event) => setValue(event.target.value)}
         hint={
-          kind === 'official'
-            ? 'This is the one the group compares each week.'
-            : 'An older daily reading. It stays out of the weekly comparison.'
+          editing
+            ? `The week of ${formatDay(weekDate)}.`
+            : alreadyThisWeek
+              ? `Updates this week's weigh-in — ${formatDay(weekDate)}.`
+              : `This week's weigh-in — ${formatDay(weekDate)}.`
         }
-      />
-      <Field
-        label="Date"
-        type="date"
-        value={date}
-        max={todayKey()}
-        onChange={(event) => setDate(event.target.value)}
       />
       <Field
         label="Note"
@@ -129,7 +184,7 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
         onChange={(event) => setNote(event.target.value)}
       />
 
-      <Button size="lg" block onClick={save} disabled={saving}>
+      <Button size="lg" block onClick={save} disabled={saving || !value.trim()}>
         {saving ? 'Saving…' : editing ? 'Save changes' : 'Save weigh-in'}
       </Button>
 

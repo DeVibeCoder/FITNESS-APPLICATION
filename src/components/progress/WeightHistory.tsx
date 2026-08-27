@@ -4,10 +4,11 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
 import { WeightEntryForm } from './WeightEntryForm'
-import type { Weekday, WeightEntry } from '@/models'
+import type { FitnessGoal, Weekday, WeightEntry } from '@/models'
 import { weighInSchedule } from '@/utils/weighIn'
 import { formatDay } from '@/utils/date'
 import { num, signed } from '@/utils/format'
+import { weeklyChangeSentiment } from '@/utils/goals'
 import styles from './WeightHistory.module.css'
 
 /**
@@ -19,16 +20,19 @@ import styles from './WeightHistory.module.css'
  * nobody notices. The dates are derived from the profile, so changing the
  * weigh-in day moves the whole column.
  *
- * There used to be All / Official / Daily filters here. Weighing is weekly;
- * daily readings exist so people can watch the noise if they want to, but
- * presenting them as the history made a salty Tuesday look like progress lost.
+ * There used to be All / Official / Daily filters here. Weighing is weekly and
+ * there is nothing else to filter for: the app writes one number per seven-day
+ * cycle, so the history is the schedule and the schedule is the history.
  */
 export function WeightHistory({
   entries,
   weighInDay,
+  goal,
 }: {
   entries: WeightEntry[]
   weighInDay: Weekday
+  /** Decides what a week's movement is worth. Down is not always good. */
+  goal: FitnessGoal
 }) {
   const [editing, setEditing] = useState<WeightEntry | null>(null)
   const [adding, setAdding] = useState(false)
@@ -91,16 +95,9 @@ export function WeightHistory({
                   </span>
                   <span className={styles.right}>
                     <span
-                      className={[
-                        styles.change,
-                        changeKg === undefined
-                          ? styles.flat
-                          : changeKg < 0
-                            ? styles.down
-                            : changeKg > 0
-                              ? styles.up
-                              : styles.flat,
-                      ].join(' ')}
+                      className={[styles.change, styles[weeklyChangeSentiment(goal, changeKg)]].join(
+                        ' ',
+                      )}
                     >
                       {changeKg === undefined ? '—' : `${signed(changeKg)} kg`}
                     </span>

@@ -66,7 +66,9 @@ export const achievementService = {
      * Someone building muscle earns the same milestones for going up as
      * someone cutting earns for coming down.
      */
-    const latest = weights.length ? weights[weights.length - 1].weightKg : user.startWeightKg
+    const latest = officialWeighIns.length
+      ? officialWeighIns[officialWeighIns.length - 1].weightKg
+      : user.startWeightKg
     const wantsToGain = user.targetWeightKg > user.startWeightKg
     const wantsToLose = user.targetWeightKg < user.startWeightKg
     const movedKg = wantsToGain
@@ -75,7 +77,7 @@ export const achievementService = {
         ? user.startWeightKg - latest
         : 0
     const reachedGoal =
-      weights.length > 0 &&
+      officialWeighIns.length > 0 &&
       ((wantsToLose && latest <= user.targetWeightKg) ||
         (wantsToGain && latest >= user.targetWeightKg))
 

@@ -44,7 +44,7 @@ export function MyActivity() {
     [user?.id],
   )
   const weights = useLiveQuery(
-    () => (user ? weightService.listForUser(user.id) : undefined),
+    () => (user ? weightService.listWeekly(user.id) : undefined),
     [user?.id],
   )
   const achievements = useLiveQuery(
@@ -54,7 +54,7 @@ export function MyActivity() {
 
   if (!user || posts === undefined) return <LoadingScreen />
 
-  const officials = withDeltas((weights ?? []).filter((entry) => entry.kind === 'official')).slice(0, 6)
+  const officials = withDeltas(weights ?? []).slice(0, 6)
   const unlocked = (achievements ?? []).filter((a) => a.unlockedAt)
 
   return (

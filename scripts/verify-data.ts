@@ -28,7 +28,7 @@ import { progressService } from '../src/services/progressService'
 import { workoutService } from '../src/services/workoutService'
 import { challengeService } from '../src/services/challengeService'
 import { chatService, mentionedIn } from '../src/services/chatService'
-import { postService, canView } from '../src/services/postService'
+import { postService, canView, DEFAULT_VISIBILITY } from '../src/services/postService'
 import { storyService } from '../src/services/storyService'
 import { mediaService, isPlaceholder } from '../src/services/mediaService'
 import { notificationService } from '../src/services/notificationService'
@@ -42,11 +42,10 @@ import { updateService } from '../src/services/updateService'
 import { achievementService } from '../src/services/achievementService'
 import { authService, AuthError } from '../src/services/authService'
 import { userService } from '../src/services/userService'
-import { checkinService } from '../src/services/checkinService'
+import { checkinService, FEELING_OPTIONS, feelingFor } from '../src/services/checkinService'
 import {
   goalProgress,
   measurementChange,
-  weighInComparison,
   weightProgress,
   withDeltas,
 } from '../src/utils/progress'
@@ -54,6 +53,7 @@ import { measurementService } from '../src/services/measurementService'
 import { calcBmi } from '../src/utils/bmi'
 import { calcBmr, calcEnergyPlan, calcTdee } from '../src/utils/calories'
 import { buildInsights } from '../src/utils/insights'
+import { weeklyChangeNote, weeklyChangeSentiment } from '../src/utils/goals'
 import { TempImage } from '../src/lib/tempImage'
 import { scanTotals } from '../src/services/foodScanService'
 import { calorieStatus, formatPortion, macroProgress } from '../src/utils/nutrition'
@@ -77,12 +77,12 @@ import {
   scanCacheSize,
 } from '../src/lib/scanCache'
 import type { FoodVisionProvider, NutritionProvider } from '../server/foodScan/types'
-import { currentWeighInDate, nextWeighInDate, weighInSchedule } from '../src/utils/weighIn'
+import { currentWeighInDate, nextWeighInDate, slotFor, weeklyWeighIn, weighInSchedule } from '../src/utils/weighIn'
 import { runWorkoutScan, resolveWorkoutProviders } from '../server/workoutScan/handler'
 import { parseClock, validateWorkoutResult } from '../server/workoutScan/validate'
 import { WorkoutScanFailure } from '../server/workoutScan/types'
 import type { WorkoutVisionProvider, WorkoutVisionResult } from '../server/workoutScan/types'
-import { addDays, endOfWeek, formatRange, lastNDays, startOfWeek, todayKey, weekDays } from '../src/utils/date'
+import { addDays, daysBetween, endOfWeek, formatRange, fromDateKey, lastNDays, startOfWeek, todayKey, weekDays } from '../src/utils/date'
 import { duration, num } from '../src/utils/format'
 
 let failures = 0
@@ -229,13 +229,14 @@ async function main() {
   await nutritionService.addWater('u_ahmed', today, 700)
   check('water adds up', await nutritionService.waterForDay('u_ahmed', today), 2500)
 
-  await weightService.add({ userId: 'u_ahmed', date: today, weightKg: 76.5, kind: 'official' })
+  const corrected = await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.5 })
   const afterWeight = await progressService.userSnapshot('u_ahmed', today)
-  check('weigh-in overwrites the same day', afterWeight!.currentWeightKg, 76.5)
+  check('weigh-in corrects this week rather than adding one', afterWeight!.currentWeightKg, 76.5)
   check('progress recalculated', afterWeight!.progress.changeKg, -5.5)
+  check('the existing weekly record was reused', corrected.created, false)
   check(
-    'weigh-in count unchanged for today',
-    (await weightService.listForUser('u_ahmed')).filter((w) => w.date === today && w.kind === 'official').length,
+    'still one weigh-in for this week',
+    (await weightService.listWeekly('u_ahmed')).filter((w) => w.date === corrected.slotDate).length,
     1,
   )
 
@@ -307,6 +308,8 @@ async function main() {
   await authService.signIn('nadia', DEMO_PASSWORD)
   const attempts: [string, () => Promise<unknown>][] = [
     ["Ahmed's weight", () => weightService.add({ userId: 'u_ahmed', date: today, weightKg: 60, kind: 'official' })],
+    ["Ahmed's weekly weigh-in", () => weightService.weighIn({ userId: 'u_ahmed', weightKg: 60 })],
+    ["sharing Ahmed's weigh-in", () => weightService.shareWeighIn('u_ahmed', today)],
     ["Ahmed's steps", () => stepsService.set({ userId: 'u_ahmed', date: today, steps: 1 })],
     ["Ahmed's check-in", () => checkinService.save({ userId: 'u_ahmed', date: today, energy: 1, mood: 1, soreness: 'high' })],
     ["Ahmed's water", () => nutritionService.addWater('u_ahmed', today, 9999)],
@@ -572,36 +575,44 @@ async function main() {
   // reset database above, so it starts from a known baseline.
   // ---------------------------------------------------------------------
 
-  console.log('\n— Official vs daily weigh-ins —\n')
-  const ahmedWeights = await weightService.listForUser('u_ahmed')
-  const compare = weighInComparison(ahmedWeights, today)
-  ok('the week number counts from the first official weigh-in', compare.weekNumber >= 10,
-    `week ${compare.weekNumber}`)
-  check('this week uses the official entry', compare.thisWeek?.weightKg, 76.8)
-  check('last week uses the previous official entry', compare.lastWeek?.weightKg, 77.6)
-  check('weekly change comes from officials only', compare.changeKg, -0.8)
+  console.log('\n— Weighing is weekly, and only weekly —\n')
+  const allWeights = await db.weights.toArray()
+  ok('every weight record in the app is a weekly weigh-in',
+    allWeights.every((row) => row.kind === 'official'),
+    `${allWeights.length} rows, none daily`)
+  const ahmedWeights = await weightService.listWeekly('u_ahmed')
+  ok('and every one of them falls on the weigh-in day',
+    ahmedWeights.every((row) => fromDateKey(row.date).getDay() === 0),
+    `${ahmedWeights.length} weeks`)
+  ok('with exactly seven days between consecutive weeks',
+    ahmedWeights.slice(1).every((row, index) =>
+      daysBetween(ahmedWeights[index].date, row.date) === 7))
+
+  const ahmedWeek = await weightService.thisWeek('u_ahmed', today)
+  ok('this week is already recorded in the seed', ahmedWeek.done)
+  check('and it reports the latest number', ahmedWeek.entry?.weightKg, 76.8)
+  check('the comparison is the week before it', ahmedWeek.previous?.weightKg, 77.6)
+  check('the weekly change is the difference between the two', ahmedWeek.changeKg, -0.8)
+  check('the previous reading was one week back', ahmedWeek.weeksSincePrevious, 1)
+  check('the next weigh-in is seven days on', ahmedWeek.nextDate, addDays(ahmedWeek.slotDate, 7))
 
   await authService.signIn('ahmed', DEMO_PASSWORD)
-  await weightService.add({ userId: 'u_ahmed', date: today, weightKg: 79.9, kind: 'daily' })
-  const afterDaily = weighInComparison(await weightService.listForUser('u_ahmed'), today)
-  check('a wild daily reading does not move the weekly comparison', afterDaily.changeKg, -0.8)
-  ok(
-    'but it does become the current weight',
-    (await weightService.currentWeight('u_ahmed')) === 79.9,
-  )
+  const weeklyCount = ahmedWeights.length
+  const rewrite = await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.4 })
+  check('logging again in the same week corrects rather than adds', rewrite.created, false)
+  check('so the number of weekly records does not move',
+    (await weightService.listWeekly('u_ahmed')).length, weeklyCount)
+  const rewritten = await weightService.thisWeek('u_ahmed', today)
+  check('the corrected figure is what the week now reports', rewritten.entry?.weightKg, 76.4)
+  check('and the weekly change follows it', rewritten.changeKg, -1.2)
+  check('the record kept its id rather than being replaced',
+    rewritten.entry?.id, ahmedWeek.entry?.id)
+  await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.8 })
+  check('and putting the number back restores the week',
+    await weightService.currentWeight('u_ahmed'), 76.8)
 
-  const dailyToday = (await weightService.listForUser('u_ahmed')).find(
-    (entry) => entry.date === today && entry.kind === 'daily',
-  )!
-  await weightService.update(dailyToday.id, { weightKg: 77.0 })
-  check('editing a weigh-in updates it', (await db.weights.get(dailyToday.id))!.weightKg, 77)
-  await weightService.remove(dailyToday.id)
-  check('deleting a weigh-in removes it', await db.weights.get(dailyToday.id), undefined)
-  check('current weight falls back to the official', await weightService.currentWeight('u_ahmed'), 76.8)
-
-  const deltas = withDeltas(await weightService.listForUser('u_ahmed'))
-  const latestOfficial = deltas.find((row) => row.entry.kind === 'official')!
-  check('history compares official against official', latestOfficial.changeKg, -0.8)
+  const deltas = withDeltas(await weightService.listWeekly('u_ahmed'))
+  check('history compares each week against the week before', deltas[0].changeKg, -0.8)
   ok(
     'the oldest entry has no delta',
     deltas[deltas.length - 1].changeKg === undefined,
@@ -621,12 +632,26 @@ async function main() {
   check('progress with no entries reads as zero change', blankSnap!.progress.changeKg, 0)
   check('and full distance remaining', blankSnap!.progress.remainingKg, 5)
 
+  const newUserWeek = await weightService.thisWeek(blank.id, today)
+  ok('a brand new account has no weigh-in', !newUserWeek.done)
+  check('and nothing is shown for this week', newUserWeek.entry, undefined)
+  check('and nothing is invented for the week before', newUserWeek.previous, undefined)
+  check('and there is no change to report', newUserWeek.changeKg, undefined)
+  check('but the schedule already knows the next date',
+    newUserWeek.nextDate, addDays(newUserWeek.slotDate, 7))
+  check('and the history is empty rather than padded with blanks',
+    weighInSchedule(await weightService.listWeekly(blank.id), 0, { on: today }).filter((slot) => slot.entry).length,
+    0)
+
   await authService.signIn('test', DEMO_PASSWORD)
-  await weightService.add({ userId: blank.id, date: today, weightKg: 68, kind: 'official' })
+  const firstEver = await weightService.weighIn({ userId: blank.id, weightKg: 68 })
+  check('the first weigh-in creates a record', firstEver.created, true)
+  check('filed against this week rather than against today',
+    firstEver.slotDate, currentWeighInDate(0, today))
   check('one entry becomes the current weight', await weightService.currentWeight(blank.id), 68)
-  const oneEntry = weighInComparison(await weightService.listForUser(blank.id), today)
+  const oneEntry = await weightService.thisWeek(blank.id, today)
+  ok('the week now reads as complete', oneEntry.done)
   check('one entry means no comparison yet', oneEntry.changeKg, undefined)
-  check('and it is still week 1', oneEntry.weekNumber, 1)
 
   console.log('\n— Goal progress in every direction —\n')
   check('loss goal, above target', Math.round(goalProgress(82, 76.8, 72).pct), 52)
@@ -773,8 +798,8 @@ async function main() {
   console.log('\n— Ownership on health records —\n')
   await authService.signIn('nadia', DEMO_PASSWORD)
   for (const [label, attempt] of [
-    ["edit Ahmed's weigh-in", () => weightService.update(latestOfficial.entry.id, { weightKg: 50 })],
-    ["delete Ahmed's weigh-in", () => weightService.remove(latestOfficial.entry.id)],
+    ["edit Ahmed's weigh-in", () => weightService.update(deltas[0].entry.id, { weightKg: 50 })],
+    ["delete Ahmed's weigh-in", () => weightService.remove(deltas[0].entry.id)],
     ["add a measurement for Ahmed", () => measurementService.save({ userId: 'u_ahmed', date: today, waistCm: 60 })],
     ["delete Ahmed's measurement", () => measurementService.remove(ahmedMeasurements[0].id)],
     ["change Ahmed's height", () => userService.update('u_ahmed', { heightCm: 200 })],
@@ -787,7 +812,7 @@ async function main() {
     }
     ok(`Nadia refused: ${label}`, refused)
   }
-  check("Ahmed's weigh-in is untouched", (await db.weights.get(latestOfficial.entry.id))!.weightKg, 76.8)
+  check("Ahmed's weigh-in is untouched", (await db.weights.get(deltas[0].entry.id))!.weightKg, 76.8)
   check("Ahmed's height is untouched", (await userService.get('u_ahmed'))!.heightCm, 165)
   authService.signOut()
 
@@ -943,6 +968,18 @@ async function main() {
     (await nutritionService.foodForDay('u_ahmed', today)).length, beforeCancel)
   check('and leaves no object URL behind', liveUrls.size, 0)
 
+  // Posting hands the URL over: the composer stops owning it, so closing the
+  // composer must not revoke the picture the feed is now showing.
+  const handedHolder = new TempImage()
+  const handed = handedHolder.set(photo)
+  const revokedBeforeHandover = revoked
+  check('detaching returns the URL', handedHolder.detach(), handed)
+  check('and gives up ownership', handedHolder.current, null)
+  handedHolder.release()
+  check('so releasing afterwards revokes nothing', revoked, revokedBeforeHandover)
+  ok('and the URL is still alive for the post that took it', liveUrls.has(handed))
+  globalThis.URL.revokeObjectURL(handed)
+
   globalThis.URL.createObjectURL = originalCreate
   globalThis.URL.revokeObjectURL = originalRevoke
 
@@ -1018,16 +1055,34 @@ async function main() {
   await authService.signIn('ahmed', DEMO_PASSWORD)
   const postsBefore = (await updateService.all(200)).length
 
-  await weightService.add({ userId: 'u_ahmed', date: today, weightKg: 76.7, kind: 'official' })
+  // Saving a weigh-in is private. The group hears about it only when the
+  // person answers the share question, and only once per week however many
+  // times the number is corrected afterwards.
+  const privateWeighIn = await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.7 })
+  check('saving a weigh-in tells nobody', (await updateService.all(200)).length, postsBefore)
+  ok('and it is not marked as shared',
+    !(await weightService.isShared('u_ahmed', privateWeighIn.slotDate)))
+
+  await weightService.shareWeighIn('u_ahmed', privateWeighIn.slotDate)
   const afterFirstWeighIn = await updateService.all(200)
-  check('a weigh-in posts once', afterFirstWeighIn.length, postsBefore + 1)
-  await weightService.add({ userId: 'u_ahmed', date: today, weightKg: 76.6, kind: 'official' })
-  await weightService.add({ userId: 'u_ahmed', date: today, weightKg: 76.5, kind: 'official' })
-  check('correcting it does not post again', (await updateService.all(200)).length, postsBefore + 1)
+  check('choosing to share posts once', afterFirstWeighIn.length, postsBefore + 1)
+  ok('and the weigh-in now reads as shared',
+    await weightService.isShared('u_ahmed', privateWeighIn.slotDate))
+
+  await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.6 })
+  await weightService.weighIn({ userId: 'u_ahmed', weightKg: 76.5 })
+  check('correcting it afterwards does not post again',
+    (await updateService.all(200)).length, postsBefore + 1)
+  await weightService.shareWeighIn('u_ahmed', privateWeighIn.slotDate)
+  check('and sharing the same week twice does not either',
+    (await updateService.all(200)).length, postsBefore + 1)
 
   const weighInPost = afterFirstWeighIn[0]
-  ok('the weigh-in post names no weight in its text',
-    !/\d+(\.\d+)?\s*kg/i.test(weighInPost.text), weighInPost.text)
+  // A shared weigh-in says how the week moved, which is the thing being
+  // shared. It does not put the number on the scale into the sentence.
+  ok('the shared post never states the weight itself',
+    !weighInPost.text.includes('76.7'), weighInPost.text)
+  ok('but it does say how the week went', /this week/.test(weighInPost.text))
   ok('and reads like a person wrote it', weighInPost.text.includes('weekly weigh-in'))
 
   const beforeNutrition = (await updateService.all(200)).length
@@ -1618,6 +1673,151 @@ async function main() {
         (new Date(realSchedule[index].date).getTime() - new Date(slot.date).getTime()) / 86_400_000,
       ) === 7),
     `${realSchedule.length} weekly slots`)
+
+
+  // ---------------------------------------------------------------------
+  // A missed week, and what the app is allowed to say about it. The rule
+  // throughout: never invent a number nobody stood on a scale for.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A missed week is a gap, not a guess —\n')
+
+  const gapped = [
+    { id: 'g1', userId: 'u_x', date: '2026-08-02', weightKg: 78.0, kind: 'official' as const, createdAt: '' },
+    // 9 Aug and 16 Aug were missed entirely.
+    { id: 'g2', userId: 'u_x', date: '2026-08-23', weightKg: 76.8, kind: 'official' as const, createdAt: '' },
+  ]
+  const gapSchedule = weighInSchedule(gapped, SUNDAY, { on: '2026-08-26' })
+  check('the missed weeks still appear as slots',
+    gapSchedule.map((slot) => slot.date).join(' '),
+    '2026-08-23 2026-08-16 2026-08-09 2026-08-02')
+  check('and carry no weight at all',
+    gapSchedule.filter((slot) => slot.entry === undefined).map((slot) => slot.date).join(' '),
+    '2026-08-16 2026-08-09')
+  check('nothing is interpolated into them',
+    gapSchedule.filter((slot) => slot.entry === undefined).every((slot) => slot.changeKg === undefined),
+    true)
+
+  const afterGap = weeklyWeighIn(gapped, SUNDAY, '2026-08-26')
+  check('the change is measured against the last real reading',
+    afterGap.changeKg, -1.2)
+  check('and the app knows how long ago that was', afterGap.weeksSincePrevious, 3)
+  check('a late entry belongs to the week it was due',
+    slotFor(SUNDAY, '2026-08-26'), '2026-08-23')
+
+  // ---------------------------------------------------------------------
+  // What a week's movement means depends entirely on what the person is for.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— The scale means different things to different people —\n')
+
+  check('losing weight: down is progress', weeklyChangeSentiment('lose_weight', -0.8), 'progress')
+  check('losing weight: up is away from it', weeklyChangeSentiment('lose_weight', 0.6), 'away')
+  check('building muscle: up is progress', weeklyChangeSentiment('build_muscle', 0.6), 'progress')
+  check('building muscle: down is away from it', weeklyChangeSentiment('build_muscle', -0.8), 'away')
+  check('gaining weight: up is progress', weeklyChangeSentiment('gain_weight', 0.6), 'progress')
+  check('maintaining: down is neither', weeklyChangeSentiment('maintain', -0.8), 'neutral')
+  check('maintaining: up is neither', weeklyChangeSentiment('maintain', 0.6), 'neutral')
+  check('general fitness: the scale is not the point',
+    weeklyChangeSentiment('general_fitness', -1.4), 'neutral')
+  check('no movement is neutral whatever the goal',
+    weeklyChangeSentiment('lose_weight', 0), 'neutral')
+  check('and no reading at all is neutral too',
+    weeklyChangeSentiment('lose_weight', undefined), 'neutral')
+  ok('a maintainer is never told the week went the right or wrong way',
+    !/toward your goal|away from your goal/i.test(weeklyChangeNote('maintain', -0.8)),
+    weeklyChangeNote('maintain', -0.8))
+  ok('but someone cutting is told exactly that',
+    /toward your goal/i.test(weeklyChangeNote('lose_weight', -0.8)))
+  ok('and someone bulking hears it for the opposite direction',
+    /toward your goal/i.test(weeklyChangeNote('build_muscle', 0.6)))
+
+  // ---------------------------------------------------------------------
+  // Daily activity: one record per person per day, updated rather than
+  // duplicated, and every figure read from the service that owns it.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Daily activity updates, it does not accumulate rows —\n')
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+
+  await stepsService.set({ userId: 'u_ahmed', date: today, steps: 6543 })
+  const stepRows = await db.steps.where('[userId+date]').equals(['u_ahmed', today]).count()
+  await stepsService.set({ userId: 'u_ahmed', date: today, steps: 7100 })
+  check("today's steps read back as the newest figure",
+    await stepsService.forDay('u_ahmed', today), 7100)
+  check('and saving again did not create a second row',
+    await db.steps.where('[userId+date]').equals(['u_ahmed', today]).count(), stepRows)
+
+  const waterStart = await nutritionService.waterForDay('u_ahmed', today)
+  await nutritionService.addWater('u_ahmed', today, 250)
+  await nutritionService.addWater('u_ahmed', today, 500)
+  check('quick adds accumulate through the day',
+    await nutritionService.waterForDay('u_ahmed', today), waterStart + 750)
+  await nutritionService.setWaterTotal('u_ahmed', today, 1500)
+  check('setting an amount replaces the day rather than adding to it',
+    await nutritionService.waterForDay('u_ahmed', today), 1500)
+  check('and collapses it to a single row',
+    await db.water.where('[userId+date]').equals(['u_ahmed', today]).count(), 1)
+
+  const activityDay = await progressService.dailySnapshot('u_ahmed', today)
+  const nutritionDay = await nutritionService.dayNutrition('u_ahmed', today)
+  check('Activity reads calories from the nutrition service',
+    activityDay!.nutrition.kcal, nutritionDay.totals.kcal)
+  check('and protein from the same place',
+    activityDay!.nutrition.proteinG, nutritionDay.totals.proteinG)
+  check('and water from the same place', activityDay!.waterMl, nutritionDay.waterMl)
+  check('and steps from the steps service',
+    activityDay!.steps, await stepsService.forDay('u_ahmed', today))
+
+  const tired = FEELING_OPTIONS.find((option) => option.key === 'tired')!
+  await checkinService.save({
+    userId: 'u_ahmed', date: today,
+    energy: tired.energy, mood: tired.mood, soreness: tired.soreness,
+  })
+  check('a one-tap feeling becomes a real check-in',
+    feelingFor(await checkinService.forDay('u_ahmed', today))?.key, 'tired')
+  const checkInRows = await db.checkins.where('[userId+date]').equals(['u_ahmed', today]).count()
+  const strong = FEELING_OPTIONS.find((option) => option.key === 'strong')!
+  await checkinService.save({
+    userId: 'u_ahmed', date: today,
+    energy: strong.energy, mood: strong.mood, soreness: strong.soreness,
+  })
+  check('changing your mind updates the same record',
+    await db.checkins.where('[userId+date]').equals(['u_ahmed', today]).count(), checkInRows)
+  check('and the new feeling is what reads back',
+    feelingFor(await checkinService.forDay('u_ahmed', today))?.key, 'strong')
+  ok('every feeling maps to a distinct check-in',
+    new Set(FEELING_OPTIONS.map((o) => `${o.mood}:${o.energy}`)).size === FEELING_OPTIONS.length)
+
+  // ---------------------------------------------------------------------
+  // A brand new account. Nothing logged is nothing shown; no zero is dressed
+  // up as an achievement and no number is filled in on the person's behalf.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A new account shows nothing, not zero-shaped fiction —\n')
+
+  const newcomer = await userService.create({
+    name: 'Fresh Start', handle: 'fresh', avatarColor: '#777', birthDate: '1995-05-05',
+    sex: 'male', heightCm: 178, startWeightKg: 80, targetWeightKg: 75, goal: 'lose_weight',
+    activityLevel: 'moderate', stepGoal: 8000, waterGoalL: 2.5, workoutsPerWeekGoal: 4,
+    weighInDay: 3, workoutApps: ['home_workout'], units: 'metric',
+  })
+  check('no weigh-in yet', (await weightService.thisWeek(newcomer.id, today)).done, false)
+  check('and no history to show', (await weightService.listWeekly(newcomer.id)).length, 0)
+  check('0 steps', await stepsService.forDay(newcomer.id, today), 0)
+  check('0 water', await nutritionService.waterForDay(newcomer.id, today), 0)
+  check('no nutrition logged',
+    (await nutritionService.dayNutrition(newcomer.id, today)).totals.kcal, 0)
+  const freshDay = await progressService.dailySnapshot(newcomer.id, today)
+  check('no workout logged yet', freshDay!.completedSessions.length, 0)
+  check('no check-in', freshDay!.checkIn, undefined)
+  check('and the weight falls back to the profile rather than being invented',
+    freshDay!.weightKg, 80)
+  check('their weigh-in day is their own, not the group default',
+    (await weightService.slotDate(newcomer.id, today)),
+    currentWeighInDate(3, today))
+  authService.signOut()
 
 
   // ---------------------------------------------------------------------
@@ -2213,7 +2413,10 @@ async function main() {
   ok('sharing posts it', await weightService.isShared('u_ahmed', weighDate))
   await weightService.shareWeighIn('u_ahmed', weighDate)
 
-  const weighKey = 'weigh-in:u_ahmed:' + weighDate
+  // Keyed by the weigh-in cycle rather than the day it was typed, matching
+  // weightService.shareWeighIn.
+  const weighKey =
+    'weigh-in:u_ahmed:' + slotFor(((await db.users.get('u_ahmed'))!.weighInDay ?? 0), weighDate)
   check(
     'sharing twice still posts once',
     (await db.updates.toArray()).filter((u) => u.dedupeKey === weighKey).length,
@@ -2614,6 +2817,180 @@ async function main() {
     'and one he has not does not',
     rings.find((r) => r.user.id === 'u_samir')?.seen === false,
   )
+  ok(
+    'a person\u2019s own stories read oldest first',
+    rings.every((r) => r.stories.every((s, i) => i === 0 || r.stories[i - 1].createdAt <= s.createdAt)),
+  )
+
+  console.log('\n— Making a story —\n')
+
+  const sessionBeforeStories = storageService.getSessionUserId()
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const seededStoryIds = (await db.stories.toArray()).map((story) => story.id)
+  const storyMediaBefore = await db.media.count()
+
+  const storyWritten = await storyService.create({ userId: 'u_ahmed', text: '  Early one.  ' })
+  check('a story is trimmed', storyWritten.text, 'Early one.')
+  check('words alone make a text story', storyWritten.type, 'text')
+  check('it belongs to whoever wrote it', storyWritten.userId, 'u_ahmed')
+  check(
+    'and it lasts exactly a day',
+    new Date(storyWritten.expiresAt).getTime() - new Date(storyWritten.createdAt).getTime(),
+    24 * 60 * 60 * 1000,
+  )
+  ok('it is live now', (await storyService.live()).some((s) => s.id === storyWritten.id))
+  ok(
+    'and gone tomorrow',
+    !(await storyService.live(new Date(Date.now() + 25 * 60 * 60 * 1000))).some(
+      (s) => s.id === storyWritten.id,
+    ),
+  )
+
+  const ahmedRing = (await storyService.rings('u_ahmed')).find((r) => r.user.id === 'u_ahmed')
+  ok('it shows up in his own ring', ahmedRing?.stories.some((s) => s.id === storyWritten.id))
+  check('and he still comes first in the rail', (await storyService.rings('u_ahmed'))[0]?.user.id, 'u_ahmed')
+
+  let refusedEmptyStory = false
+  try {
+    await storyService.create({ userId: 'u_ahmed', text: '   ' })
+  } catch {
+    refusedEmptyStory = true
+  }
+  ok('a story with nothing in it is refused', refusedEmptyStory)
+
+  const photoStory = await storyService.create({
+    userId: 'u_ahmed',
+    text: 'Out before work',
+    media: {
+      kind: 'image',
+      ref: 'blob:test/story-photo',
+      mimeType: 'image/jpeg',
+      width: 1080,
+      height: 1920,
+    },
+  })
+  check('a story carrying a picture is a photo story', photoStory.type, 'photo')
+  const storyAsset = await mediaService.get(photoStory.mediaId!)
+  check('the asset holds a pointer', storyAsset?.ref, 'blob:test/story-photo')
+  ok('a session-scoped reference is marked temporary', storyAsset?.temporary === true)
+  ok(
+    'and no story row holds binary',
+    (await db.stories.toArray()).every((s) => !(s.text ?? '').startsWith('data:')),
+  )
+
+  let refusedStoryBinary = false
+  try {
+    await storyService.create({
+      userId: 'u_ahmed',
+      text: 'embedded',
+      media: { kind: 'image', ref: 'data:image/png;base64,AAAA', mimeType: 'image/png' },
+    })
+  } catch {
+    refusedStoryBinary = true
+  }
+  ok('an embedded image is refused outright', refusedStoryBinary)
+  ok(
+    'and no story was written for it',
+    !(await db.stories.toArray()).some((s) => s.text === 'embedded'),
+  )
+
+  console.log('\n— Seen, and by whom —\n')
+
+  check('your own story is never a view', await storyService.markSeen(storyWritten.id, 'u_ahmed'), false)
+  check('and records nothing', (await db.storyViews.where('storyId').equals(storyWritten.id).count()), 0)
+  ok(
+    'so it never reads as seen in your own rail',
+    (await storyService.rings('u_ahmed')).find((r) => r.user.id === 'u_ahmed')?.seen === false,
+  )
+
+  await authService.signIn('nadia', DEMO_PASSWORD)
+  check('watching somebody else\u2019s story counts', await storyService.markSeen(storyWritten.id, 'u_nadia'), true)
+  check('watching it twice does not', await storyService.markSeen(storyWritten.id, 'u_nadia'), false)
+  check(
+    'so the view is recorded once',
+    await db.storyViews.where('storyId').equals(storyWritten.id).count(),
+    1,
+  )
+
+  let refusedForeignView = false
+  try {
+    await storyService.markSeen(storyWritten.id, 'u_samir')
+  } catch (error) {
+    refusedForeignView = error instanceof Error && error.name === 'OwnershipError'
+  }
+  ok('nobody is marked as having watched on your behalf', refusedForeignView)
+
+  let refusedForeignViewers = false
+  try {
+    await storyService.viewersOf(storyWritten.id)
+  } catch (error) {
+    refusedForeignViewers = error instanceof Error && error.name === 'OwnershipError'
+  }
+  ok('and only the author may see who watched', refusedForeignViewers)
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const watchers = await storyService.viewersOf(storyWritten.id)
+  check('the author sees one viewer', watchers.length, 1)
+  check('and it is who watched', watchers[0]?.id, 'u_nadia')
+  /*
+   * A ring is seen only when every live story in it is. Ahmed still has a
+   * seeded story Nadia has not opened, so watching one of two must not flip
+   * the ring — that is the difference between "seen" and "seen something".
+   */
+  ok(
+    'his ring stays unseen while an earlier story is unwatched',
+    (await storyService.rings('u_nadia')).find((r) => r.user.id === 'u_ahmed')?.seen === false,
+  )
+
+  await authService.signIn('nadia', DEMO_PASSWORD)
+  const ahmedsLive = (await storyService.live()).filter((s) => s.userId === 'u_ahmed')
+  for (const item of ahmedsLive) await storyService.markSeen(item.id, 'u_nadia')
+  ok(
+    'and reads as seen once she has watched all of them',
+    (await storyService.rings('u_nadia')).find((r) => r.user.id === 'u_ahmed')?.seen === true,
+  )
+
+  // Put the seeded story's audience back the way it was found.
+  const borrowedViews = (await db.storyViews.toArray()).filter(
+    (view) => view.userId === 'u_nadia' && seededStoryIds.includes(view.storyId),
+  )
+  await db.storyViews.bulkDelete(borrowedViews.map((view) => view.id))
+
+  console.log('\n— Deleting a story —\n')
+
+  await authService.signIn('nadia', DEMO_PASSWORD)
+  let refusedForeignStoryDelete = false
+  try {
+    await storyService.remove(storyWritten.id)
+  } catch (error) {
+    refusedForeignStoryDelete = error instanceof Error && error.name === 'OwnershipError'
+  }
+  ok('nobody can delete somebody else\u2019s story', refusedForeignStoryDelete)
+  ok('so it is still there', Boolean(await db.stories.get(storyWritten.id)))
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const droppedStoryAsset = photoStory.mediaId!
+  await storyService.remove(storyWritten.id)
+  await storyService.remove(photoStory.id)
+  check('deleting takes the story', await db.stories.get(storyWritten.id), undefined)
+  check(
+    'and the views that only existed because of it',
+    await db.storyViews.where('storyId').equals(storyWritten.id).count(),
+    0,
+  )
+  check('and the reference nothing points at', await mediaService.get(droppedStoryAsset), undefined)
+  check('with no stray media left behind', await db.media.count(), storyMediaBefore)
+  check(
+    'and nothing the seed put there was disturbed',
+    (await db.stories.bulkGet(seededStoryIds)).filter(Boolean).length,
+    seededStoryIds.length,
+  )
+  ok(
+    'the seeded photo story still points at its picture',
+    Boolean(await mediaService.get((await db.stories.get('st_1'))!.mediaId!)),
+  )
+
+  storageService.setSessionUserId(sessionBeforeStories)
 
   console.log('\n— Notifications —\n')
   const notes = await notificationService.listFor('u_ahmed')
@@ -3046,6 +3423,169 @@ async function main() {
   await postService.toggleReaction(reactedPost.id, 'u_ahmed', '\u{1F44F}')
   check('the demo is left as the seed had it',
     (await db.posts.get(reactedPost.id))!.reactionCount, startReactions)
+
+  console.log('\n— Writing a post —\n')
+
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const seededPostIds = (await db.posts.toArray()).map((post) => post.id)
+  const postFeedBefore = await postService.feed('u_ahmed')
+  const mediaBefore = await db.media.count()
+
+  const written = await postService.create({ userId: 'u_ahmed', text: '  Back at it.  ' })
+  check('a post is trimmed', written.text, 'Back at it.')
+  check('a plain post is a status', written.type, 'status')
+  check('and goes to the group by default', written.visibility, DEFAULT_VISIBILITY)
+  check('with both counts starting at zero', written.reactionCount + written.commentCount, 0)
+
+  const feedAfter = await postService.feed('u_ahmed')
+  check('it appears in the feed straight away', feedAfter.length, postFeedBefore.length + 1)
+  check('at the top, because the feed reads newest first', feedAfter[0].id, written.id)
+  ok('and the whole feed is still in order',
+    feedAfter.every((post, i) => i === 0 || feedAfter[i - 1].createdAt >= post.createdAt))
+  check('it belongs to whoever wrote it', feedAfter[0].author.id, 'u_ahmed')
+  check('reading the feed again does not duplicate it',
+    (await postService.feed('u_ahmed')).filter((post) => post.id === written.id).length, 1)
+  check('and nothing the seed put there was disturbed',
+    (await db.posts.bulkGet(seededPostIds)).filter(Boolean).length, seededPostIds.length)
+
+  let refusedEmpty = false
+  try {
+    await postService.create({ userId: 'u_ahmed', text: '   ' })
+  } catch {
+    refusedEmpty = true
+  }
+  ok('a post with nothing in it is refused', refusedEmpty)
+
+  console.log('\n— A picture is a reference, never bytes —\n')
+
+  const withPhoto = await postService.create({
+    userId: 'u_ahmed',
+    text: 'Morning walk.',
+    media: {
+      kind: 'image',
+      // The shape object storage will use. Nothing above the service changes
+      // when this stops being a session-scoped URL.
+      ref: 'blob:test/post-photo',
+      mimeType: 'image/jpeg',
+      width: 1200,
+      height: 900,
+    },
+  })
+  check('a post carrying a picture is a photo post', withPhoto.type, 'photo')
+  check('and references exactly one asset', withPhoto.mediaIds.length, 1)
+  const postAsset = await mediaService.get(withPhoto.mediaIds[0])
+  check('the asset holds a pointer', postAsset?.ref, 'blob:test/post-photo')
+  ok('a session-scoped reference is marked temporary', postAsset?.temporary === true)
+  ok('no row in media is embedded binary',
+    (await db.media.toArray()).every((row) => !row.ref.startsWith('data:')))
+  ok('and no post smuggles one either',
+    (await db.posts.toArray()).every((post) => !post.text.startsWith('data:')))
+
+  let refusedBinary = false
+  try {
+    await postService.create({
+      userId: 'u_ahmed',
+      text: 'embedded',
+      media: { kind: 'image', ref: 'data:image/png;base64,AAAA', mimeType: 'image/png' },
+    })
+  } catch {
+    refusedBinary = true
+  }
+  ok('an embedded image is refused outright', refusedBinary)
+  ok('and no post was written for it',
+    !(await db.posts.toArray()).some((post) => post.text === 'embedded'))
+
+  console.log('\n— Sharing a record from a post —\n')
+
+  const postShare = await postService.shareOptions('u_ahmed', today)
+  ok('the composer offers the workout Ahmed logged', postShare.has('workout'))
+  ok('and the weigh-in', postShare.has('weigh_in'))
+  ok('but never the group challenge — a post is one person\u2019s',
+    !(postShare as Set<string>).has('challenge'))
+
+  const sharedTarget = await postService.shareTarget('u_ahmed', 'workout', today)
+  ok('the latest workout resolves to something real',
+    Boolean(sharedTarget && (await db.sessions.get(sharedTarget))))
+  const sharedPost = await postService.create({
+    userId: 'u_ahmed',
+    text: 'Got it done.',
+    sharedType: 'workout',
+    sharedDataId: sharedTarget,
+  })
+  check('a shared workout is a workout post', sharedPost.type, 'workout')
+  check('and points at the record rather than copying it', sharedPost.sharedDataId, sharedTarget)
+
+  console.log('\n— Who can see it —\n')
+
+  const onlyMe = await postService.create({
+    userId: 'u_ahmed',
+    text: 'Just for me.',
+    visibility: 'private',
+  })
+  ok('a private post is visible to its author',
+    (await postService.feed('u_ahmed')).some((post) => post.id === onlyMe.id))
+  ok('and to nobody else',
+    !(await postService.feed('u_nadia')).some((post) => post.id === onlyMe.id))
+  ok('canView agrees', canView(onlyMe, 'u_ahmed') && !canView(onlyMe, 'u_samir'))
+
+  console.log('\n— Editing and deleting your own post —\n')
+
+  await postService.update(written.id, { text: '  Back at it, properly.  ', visibility: 'private' })
+  const editedPost = (await db.posts.get(written.id))!
+  check('an edit replaces the words', editedPost.text, 'Back at it, properly.')
+  check('and the audience', editedPost.visibility, 'private')
+  ok('and says it was edited', Boolean(editedPost.updatedAt))
+  check('while keeping the post where it sits in the feed', editedPost.createdAt, written.createdAt)
+
+  let refusedEmptyEdit = false
+  try {
+    await postService.update(written.id, { text: '   ' })
+  } catch {
+    refusedEmptyEdit = true
+  }
+  ok('an edit cannot empty a post', refusedEmptyEdit)
+
+  const droppedAssetId = withPhoto.mediaIds[0]
+  await postService.update(withPhoto.id, { media: null })
+  check('removing the picture keeps the words',
+    (await db.posts.get(withPhoto.id))!.text, 'Morning walk.')
+  check('and drops the reference', (await db.posts.get(withPhoto.id))!.mediaIds.length, 0)
+  check('so it is a status again', (await db.posts.get(withPhoto.id))!.type, 'status')
+  check('and the asset nothing points at is gone', await mediaService.get(droppedAssetId), undefined)
+
+  // Only the two picture-derived kinds follow the picture: a post that
+  // announced something keeps saying so, which is what stops an edit quietly
+  // relabelling one of the seeded posts.
+  const announced = await postService.create({ userId: 'u_ahmed', text: 'Quote of the week.' })
+  await db.posts.update(announced.id, { type: 'motivation' })
+  await postService.update(announced.id, { media: null })
+  check('an announced post keeps its kind through an edit',
+    (await db.posts.get(announced.id))!.type, 'motivation')
+  await postService.remove(announced.id)
+
+  await refusedAs('Nadia cannot post as Ahmed', () =>
+    postService.create({ userId: 'u_ahmed', text: 'not mine' }))
+  await refusedAs('Nadia cannot edit Ahmed\u2019s post', () =>
+    postService.update(written.id, { text: 'rewritten' }))
+  await refusedAs('Nadia cannot delete Ahmed\u2019s post', () =>
+    postService.remove(written.id))
+  check('so the words are still his', (await db.posts.get(written.id))!.text, 'Back at it, properly.')
+
+  await postService.toggleReaction(sharedPost.id, 'u_ahmed', '\u{1F525}')
+  await postService.comment(sharedPost.id, 'u_ahmed', 'Nice one')
+  check('a post counts what is attached to it',
+    (await db.posts.get(sharedPost.id))!.commentCount, 1)
+  await postService.remove(sharedPost.id)
+  check('deleting takes the post', await db.posts.get(sharedPost.id), undefined)
+  check('its reactions', (await postService.reactionsFor(sharedPost.id)).length, 0)
+  check('and its comments', (await postService.commentsFor(sharedPost.id)).length, 0)
+  ok('but never the workout it only referenced',
+    Boolean(sharedTarget && (await db.sessions.get(sharedTarget))))
+
+  // Leave the feed exactly as the seed built it.
+  for (const id of [written.id, withPhoto.id, onlyMe.id]) await postService.remove(id)
+  check('the feed is back to what the seed had', (await postService.feed('u_ahmed')).length, postFeedBefore.length)
+  check('with no stray reference left behind', await db.media.count(), mediaBefore)
 
   console.log('\n— The share menu offers only what exists —\n')
   const offered = await chatService.shareable('u_ahmed', today)

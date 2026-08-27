@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Heart, MessageCircle } from 'lucide-react'
+import { Heart, Lock, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { Button } from '@/components/ui/Button'
+import { Sheet } from '@/components/ui/Sheet'
 import { SharedCard } from '@/components/chat/SharedCard'
 import { MediaFrame } from './MediaFrame'
 import { CommentsSheet } from './CommentsSheet'
+import { PostComposer } from './PostComposer'
 import type { FeedPost } from '@/services/postService'
 import { postService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
@@ -13,6 +16,15 @@ import { useToast } from '@/context/ToastContext'
 import { timeAgo } from '@/utils/date'
 import { firstName } from '@/utils/format'
 import styles from './PostCard.module.css'
+
+/**
+ * How much of a caption shows before it is folded.
+ *
+ * A character count rather than a measured height: it costs no layout pass,
+ * it is the same on every screen width, and being approximately right about
+ * "this is long" is all the decision needs.
+ */
+const FOLD_AT = 220
 
 /** A short label for what kind of post this is, when it is worth saying. */
 const KIND_LABEL: Partial<Record<FeedPost['type'], string>> = {
@@ -58,12 +70,17 @@ const REACTION_WORD: Partial<Record<FeedPost['type'], string>> = {
  * workout looks identical wherever it appears and stays current.
  */
 export function PostCard({ post }: { post: FeedPost }) {
-  const { user } = useAuth()
-  const { guard } = useToast()
+  const { user, isOwner } = useAuth()
+  const { show, guard } = useToast()
   const [commentsOpen, setCommentsOpen] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const kind = KIND_LABEL[post.type]
-  const isMine = user?.id === post.userId
+  const isMine = isOwner(post.userId)
   const reaction = post.reactionCount > 0 ? REACTION_WORD[post.type] : undefined
+  const folded = post.text.length > FOLD_AT && !expanded
 
   const reactions = useLiveQuery(() => postService.reactionsFor(post.id), [post.id])
   const mineReacted = Boolean(reactions?.some((r) => r.userId === user?.id))
@@ -73,6 +90,13 @@ export function PostCard({ post }: { post: FeedPost }) {
   const toggle = () => {
     if (!user) return
     void guard(() => postService.toggleReaction(post.id, user.id, '🔥'))
+  }
+
+  const remove = async () => {
+    const done = await guard(() => postService.remove(post.id))
+    if (done === undefined) return
+    // Nothing to close afterwards — the feed query drops the card itself.
+    show('Post deleted.', 'success')
   }
 
   return (
@@ -89,9 +113,74 @@ export function PostCard({ post }: { post: FeedPost }) {
           <p className={styles.name}>{firstName(post.author.name)}</p>
           <p className={styles.when}>
             {timeAgo(post.createdAt)}
+            {post.updatedAt ? <span className={styles.edited}>edited</span> : null}
+            {/*
+              Only the author ever sees a private post, so the badge is for
+              them: it is the difference between "nobody replied" and "nobody
+              could see it".
+            */}
+            {post.visibility === 'private' ? (
+              <span className={styles.private}>
+                <Lock size={11} strokeWidth={2.6} />
+                Only you
+              </span>
+            ) : null}
             {kind ? <span className={styles.kind}>{kind}</span> : null}
           </p>
         </div>
+
+        {/*
+          Editing and deleting, and only on your own post. The guard in the
+          service is what actually enforces that; this is what stops the
+          affordance appearing where it cannot work.
+        */}
+        {isMine ? (
+          <div className={styles.owner}>
+            <button
+              className={styles.menuButton}
+              onClick={() => setMenuOpen((open) => !open)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label="Post options"
+            >
+              <MoreHorizontal size={18} strokeWidth={2.2} />
+            </button>
+            {menuOpen ? (
+              <>
+                <button
+                  className={styles.menuScrim}
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close post options"
+                  tabIndex={-1}
+                />
+                <div className={styles.menu} role="menu">
+                  <button
+                    role="menuitem"
+                    className={styles.menuItem}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setEditing(true)
+                    }}
+                  >
+                    <Pencil size={15} strokeWidth={2.1} />
+                    Edit post
+                  </button>
+                  <button
+                    role="menuitem"
+                    className={`${styles.menuItem} ${styles.menuDanger}`}
+                    onClick={() => {
+                      setMenuOpen(false)
+                      setConfirmDelete(true)
+                    }}
+                  >
+                    <Trash2 size={15} strokeWidth={2.1} />
+                    Delete post
+                  </button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        ) : null}
       </header>
 
       {/* Full-bleed, above the words — the card's subject when there is one. */}
@@ -104,7 +193,14 @@ export function PostCard({ post }: { post: FeedPost }) {
       ) : null}
 
       <div className={styles.body}>
-        {post.text ? <p className={styles.text}>{post.text}</p> : null}
+        {post.text ? (
+          <p className={folded ? `${styles.text} ${styles.folded}` : styles.text}>{post.text}</p>
+        ) : null}
+        {post.text.length > FOLD_AT ? (
+          <button className={styles.more} onClick={() => setExpanded((open) => !open)}>
+            {expanded ? 'See less' : 'See more'}
+          </button>
+        ) : null}
 
         {post.sharedType ? (
           <div className={styles.shared}>
@@ -155,6 +251,42 @@ export function PostCard({ post }: { post: FeedPost }) {
       */}
       {commentsOpen ? (
         <CommentsSheet post={post} open onClose={() => setCommentsOpen(false)} />
+      ) : null}
+
+      {/*
+        The same composer that wrote it, opened on what it already says — and
+        mounted only while it is open, for the same reason the thread is.
+      */}
+      {editing ? (
+        <Sheet open onClose={() => setEditing(false)} title="Edit post">
+          <PostComposer
+            post={post}
+            onDone={() => setEditing(false)}
+            onCancel={() => setEditing(false)}
+          />
+        </Sheet>
+      ) : null}
+
+      {confirmDelete ? (
+        <Sheet open onClose={() => setConfirmDelete(false)} title="Delete this post?">
+          <p className={styles.confirmText}>
+            It goes for everyone, along with its reactions and comments. This cannot be undone.
+          </p>
+          <div className={styles.confirmRow}>
+            <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
+              Keep it
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setConfirmDelete(false)
+                void remove()
+              }}
+            >
+              Delete
+            </Button>
+          </div>
+        </Sheet>
       ) : null}
     </article>
   )

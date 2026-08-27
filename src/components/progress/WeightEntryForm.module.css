@@ -27,3 +27,57 @@
 .confirmRow > * {
   flex: 1;
 }
+
+/* --- After saving: the result, then the one question about sharing ------- */
+
+.after {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.afterValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.afterDate {
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.afterChange {
+  font-size: 1rem;
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+.afterChange.progress {
+  color: var(--success);
+}
+
+.afterChange.away {
+  color: var(--ink-2);
+}
+
+.afterChange.neutral {
+  color: var(--ink-2);
+}
+
+.afterNote {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+}
+
+.shareAsk {
+  margin-top: var(--s-3);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--ink);
+}

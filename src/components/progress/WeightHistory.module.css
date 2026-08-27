@@ -69,15 +69,16 @@
   font-variant-numeric: tabular-nums;
 }
 
-.down {
+/* Named for what the week meant, not for which way the number went. */
+.progress {
   color: var(--success);
 }
 
-.up {
+.away {
   color: var(--ink-2);
 }
 
-.flat {
+.neutral {
   color: var(--ink-3);
 }
 

@@ -27,6 +27,12 @@ import styles from './Activity.module.css'
  * and having them here meant Activity answered two questions badly instead of
  * one well.
  *
+ * Two halves, in the order the day is actually lived: everything about today
+ * first, then the week. The weekly weigh-in sits in the second half rather
+ * than among the daily cards — it is not a thing to do today, it is a thing to
+ * do this week, and having it between the check-in and the week summary made
+ * the page read as one undifferentiated list of chores.
+ *
  * Nutrition is a child of this screen rather than a sibling of it — the
  * calories card links into /activity/nutrition, the Activity tab stays lit,
  * and back comes here.
@@ -61,6 +67,8 @@ export function Activity() {
       */}
       <PageHeader title="My activity" />
 
+      {/* --- Today -------------------------------------------------------- */}
+
       <Section title="Today">
         <TodayStrip snapshot={snapshot} />
       </Section>
@@ -86,7 +94,7 @@ export function Activity() {
         </Link>
       </Section>
 
-      <Section title="Daily habits">
+      <Section title="Habits & check-in">
         <TodayCard
           snapshot={snapshot}
           streak={me.streak}
@@ -94,21 +102,20 @@ export function Activity() {
           changeKg={me.progress.changeKg}
           summaryOnly
         />
+        <CheckInPrompt checkIn={snapshot.checkIn} onOpenFull={() => open('checkin')} />
       </Section>
 
-      <CheckInPrompt checkIn={snapshot.checkIn} onOpenFull={() => open('checkin')} />
+      {/* --- This week ---------------------------------------------------- */}
 
-      <WeeklyWeighIn />
-
-      {week ? (
-        <Section
-          title="This week"
-          action={
-            <Link to="/review" className={styles.sectionLink}>
-              Full review
-            </Link>
-          }
-        >
+      <Section
+        title="This week"
+        action={
+          <Link to="/review" className={styles.sectionLink}>
+            Full review
+          </Link>
+        }
+      >
+        {week ? (
           <dl className={styles.week}>
             <p className={styles.weekRange}>{formatRange(startOfWeek(today), endOfWeek(today))}</p>
             <div className={styles.weekGrid}>
@@ -143,8 +150,10 @@ export function Activity() {
               </div>
             </div>
           </dl>
-        </Section>
-      ) : null}
+        ) : null}
+
+        <WeeklyWeighIn />
+      </Section>
 
       <p className={styles.footnote}>
         Calories and energy figures are estimates from your profile, not measurements.

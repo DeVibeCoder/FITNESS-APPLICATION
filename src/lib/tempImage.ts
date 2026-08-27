@@ -23,6 +23,20 @@ export class TempImage {
     return this.url
   }
 
+  /**
+   * Hands the URL to something that will outlive this holder.
+   *
+   * A picked photo is a preview right up until the moment it is posted, and
+   * then it has to survive the composer closing. Handing ownership over is the
+   * honest way to say that: this holder stops being responsible for the URL,
+   * so releasing it afterwards revokes nothing and the feed keeps its picture.
+   */
+  detach(): string | null {
+    const url = this.url
+    this.url = null
+    return url
+  }
+
   /** Safe to call repeatedly; revoking twice is not an error but is pointless. */
   release(): void {
     if (this.url === null) return

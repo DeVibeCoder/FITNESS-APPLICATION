@@ -1,6 +1,9 @@
-import { db } from '@/lib/db'
-import type { ID, MediaAsset, Story, User } from '@/models'
+import { db, DataError } from '@/lib/db'
+import { now, uid } from '@/lib/id'
+import type { ID, MediaAsset, Story, StoryView, User } from '@/models'
 import { mediaService } from './mediaService'
+import type { MediaInput } from './mediaService'
+import { assertOwner, assertOwnerOf } from './ownership'
 import { userService } from './userService'
 
 /**
@@ -11,11 +14,19 @@ import { userService } from './userService'
  * because something failed to run — which is the only way to make "gone after
  * 24 hours" actually true.
  *
- * Phase 1 provides the model, the expiry rule and the rail. The viewer and the
- * creation flow are Phase 3.
+ * Stories are group-only. There is no `visibility` field and deliberately no
+ * public story: the rail is built from `listMembers`, so an account still
+ * waiting on approval neither appears in it nor sees anybody in it.
  */
 
 export const STORY_LIFETIME_MS = 24 * 60 * 60 * 1000
+
+/** A story is a photo, a few words, or both. Nothing else is offered. */
+export interface NewStory {
+  userId: ID
+  text?: string
+  media?: MediaInput
+}
 
 export interface StoryRing {
   user: User
@@ -74,6 +85,119 @@ export const storyService = {
       if (a.user.id === viewerId) return -1
       if (b.user.id === viewerId) return 1
       return Number(a.seen) - Number(b.seen)
+    })
+  },
+
+  // --- Writing -------------------------------------------------------------
+
+  /**
+   * Posts a story.
+   *
+   * `expiresAt` is written here and never recomputed, so "gone after 24 hours"
+   * is a property of the row rather than of whatever is reading it. The
+   * picture goes through `mediaService`, which is the single place the
+   * reference-never-bytes rule is enforced; if the story itself fails to land
+   * the asset row goes with it.
+   */
+  async create(input: NewStory): Promise<Story> {
+    // You post as yourself. The same rule a server would apply.
+    assertOwner(input.userId)
+
+    const text = input.text?.trim() ?? ''
+    if (!text && !input.media) {
+      throw new DataError('A story needs a photo or a few words.')
+    }
+
+    const asset = input.media ? await mediaService.register(input.media) : undefined
+    const createdAt = new Date()
+    const story: Story = {
+      id: uid('st'),
+      userId: input.userId,
+      // What it is follows from what it carries, exactly as a post's type does.
+      type: asset ? 'photo' : 'text',
+      text: text || undefined,
+      mediaId: asset?.id,
+      createdAt: createdAt.toISOString(),
+      expiresAt: this.expiryFrom(createdAt),
+    }
+
+    try {
+      await db.stories.add(story)
+    } catch (error) {
+      // Never leave a reference behind pointing at a story that never landed.
+      if (asset) await db.media.delete(asset.id)
+      throw error
+    }
+    return story
+  },
+
+  /**
+   * Deletes your own story, and the views that only existed because of it.
+   *
+   * A story is gone the moment its author says so — there is no soft delete,
+   * because unlike a chat message nothing else quotes a story or holds a place
+   * in a conversation for it.
+   */
+  async remove(storyId: ID): Promise<void> {
+    const story = await db.stories.get(storyId)
+    // Only the author. Enforced here rather than in the viewer, because the
+    // viewer is not what a server would trust.
+    assertOwnerOf(story)
+    if (!story) return
+
+    const viewKeys = await db.storyViews.where('storyId').equals(storyId).primaryKeys()
+    await db.storyViews.bulkDelete(viewKeys)
+    await db.stories.delete(storyId)
+    if (story.mediaId) await mediaService.releaseUnused([story.mediaId], { storyId })
+  },
+
+  // --- Views ---------------------------------------------------------------
+
+  /**
+   * Records that someone watched a story.
+   *
+   * Your own story is never a view: a rail that marked itself seen the moment
+   * you opened it would make "seen by" meaningless, and looking at your own
+   * post is not an audience. Writing twice is a no-op, so re-opening a story
+   * cannot inflate the count.
+   */
+  async markSeen(storyId: ID, viewerId: ID): Promise<boolean> {
+    // You watch as yourself; nobody is marked as having watched on your behalf.
+    assertOwner(viewerId)
+    const story = await db.stories.get(storyId)
+    if (!story || story.userId === viewerId) return false
+
+    const existing = await db.storyViews
+      .where('[storyId+userId]')
+      .equals([storyId, viewerId])
+      .first()
+    if (existing) return false
+
+    const view: StoryView = { id: uid('sv'), storyId, userId: viewerId, viewedAt: now() }
+    await db.storyViews.add(view)
+    return true
+  },
+
+  /**
+   * Who watched one of your stories.
+   *
+   * The author's own view of their own audience, and nothing more: names, in
+   * the order they watched. No timestamps per person, because "Nadia watched
+   * this at 02:14" is not information anybody needs and is not ours to hand
+   * out.
+   */
+  async viewersOf(storyId: ID): Promise<User[]> {
+    const story = await db.stories.get(storyId)
+    assertOwnerOf(story)
+    if (!story) return []
+
+    const views = (await db.storyViews.where('storyId').equals(storyId).toArray()).sort((a, b) =>
+      a.viewedAt < b.viewedAt ? -1 : 1,
+    )
+    const members = new Map((await userService.listMembers()).map((user) => [user.id, user]))
+    return views.flatMap((view) => {
+      const user = members.get(view.userId)
+      return user ? [user] : []
     })
   },
 

@@ -64,11 +64,16 @@
   color: var(--ink-3);
 }
 
-.down {
+/*
+ * Meaning, not sign. `toward` is a week that went the way this person's goal
+ * points; `away` is one that did not. A goal with no direction on the scale
+ * gets neither class and stays the default ink.
+ */
+.toward {
   color: var(--success);
 }
 
-.up {
+.away {
   color: var(--ink);
 }
 

@@ -1,6 +1,5 @@
 import type { BodyMeasurement, DateKey, WeightEntry } from '@/models'
 import { clamp } from './format'
-import { startOfWeek, endOfWeek, addDays, daysBetween } from './date'
 
 export interface WeightProgress {
   startKg: number
@@ -39,10 +38,9 @@ export function weightProgress(
 }
 
 /**
- * Newest first. Two entries can share a date — an official weigh-in in the
- * morning and a daily one that evening — so `createdAt` breaks the tie. Without
- * it the "current weight" would depend on insertion order, which is not a
- * decision the user made.
+ * Newest first. Two rows can share a date in an older database, so `createdAt`
+ * breaks the tie. Without it the "current weight" would depend on insertion
+ * order, which is not a decision the user made.
  */
 function newestFirst(a: WeightEntry, b: WeightEntry): number {
   if (a.date !== b.date) return a.date < b.date ? 1 : -1
@@ -90,51 +88,7 @@ export function movingAverage(values: number[], window = 3): number[] {
  */
 export const goalProgress = weightProgress
 
-// --- Official weigh-ins ----------------------------------------------------
-
-export interface WeighInComparison {
-  /** Weeks since the first official weigh-in, 1-based. */
-  weekNumber: number
-  thisWeek?: WeightEntry
-  lastWeek?: WeightEntry
-  changeKg?: number
-}
-
-/**
- * The weekly official weigh-in is what the group compares. Daily entries are
- * deliberately excluded so a bad morning on the scale never reads as a setback.
- */
-export function weighInComparison(
-  entries: WeightEntry[],
-  dateInWeek: DateKey,
-): WeighInComparison {
-  const official = entries
-    .filter((entry) => entry.kind === 'official')
-    .sort((a, b) => (a.date < b.date ? -1 : 1))
-
-  const from = startOfWeek(dateInWeek)
-  const to = endOfWeek(dateInWeek)
-  const previousFrom = addDays(from, -7)
-
-  const inRange = (start: DateKey, end: DateKey) =>
-    official.filter((entry) => entry.date >= start && entry.date <= end).at(-1)
-
-  const thisWeek = inRange(from, to)
-  const lastWeek = inRange(previousFrom, addDays(from, -1))
-  const weekNumber = official.length
-    ? Math.floor(daysBetween(startOfWeek(official[0].date), from) / 7) + 1
-    : 1
-
-  return {
-    weekNumber: Math.max(1, weekNumber),
-    thisWeek,
-    lastWeek,
-    changeKg:
-      thisWeek && lastWeek
-        ? Math.round((thisWeek.weightKg - lastWeek.weightKg) * 10) / 10
-        : undefined,
-  }
-}
+// --- Weekly weigh-ins ------------------------------------------------------
 
 /** Change between consecutive entries, newest first — for the history list. */
 export function withDeltas(
@@ -142,9 +96,7 @@ export function withDeltas(
 ): { entry: WeightEntry; changeKg?: number }[] {
   const ordered = [...entries].sort((a, b) => (a.date < b.date ? 1 : -1))
   return ordered.map((entry, index) => {
-    // Compare like with like: an official weigh-in against the previous
-    // official one, a daily against the previous daily.
-    const previous = ordered.slice(index + 1).find((other) => other.kind === entry.kind)
+    const previous = ordered[index + 1]
     return {
       entry,
       changeKg: previous

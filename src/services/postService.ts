@@ -1,7 +1,19 @@
-import { db } from '@/lib/db'
+import { db, DataError } from '@/lib/db'
 import { now, uid } from '@/lib/id'
-import type { Comment, ID, MediaAsset, Post, User, Visibility } from '@/models'
+import type {
+  Comment,
+  DateKey,
+  ID,
+  MediaAsset,
+  Post,
+  PostType,
+  SharedType,
+  User,
+  Visibility,
+} from '@/models'
+import { chatService } from './chatService'
 import { mediaService } from './mediaService'
+import type { MediaInput } from './mediaService'
 import { assertOwner, assertOwnerOf } from './ownership'
 
 /**
@@ -19,6 +31,28 @@ import { assertOwner, assertOwnerOf } from './ownership'
 export interface FeedPost extends Post {
   author: User
   media: MediaAsset[]
+}
+
+/**
+ * The records a post can carry.
+ *
+ * A subset of `SharedType` on purpose: every one of these has a matching
+ * `PostType`, so what the card announces and what it points at are the same
+ * fact rather than two that can drift apart.
+ */
+export const POST_SHARES = ['workout', 'weigh_in', 'steps', 'achievement'] as const
+export type PostShare = (typeof POST_SHARES)[number]
+
+/** A picture, as the composer hands it over. See `MediaInput`. */
+export type PostMediaInput = MediaInput
+
+export interface NewPost {
+  userId: ID
+  text: string
+  visibility?: Visibility
+  media?: PostMediaInput
+  sharedType?: PostShare
+  sharedDataId?: ID
 }
 
 /**
@@ -51,6 +85,168 @@ export const postService = {
 
   count(): Promise<number> {
     return db.posts.count()
+  },
+
+  // --- Writing -------------------------------------------------------------
+
+  /**
+   * Writes a post.
+   *
+   * Media is registered through `mediaService` rather than written here, so the
+   * "reference, never bytes" rule has exactly one enforcement point. If the
+   * post itself fails to land the asset row is removed again — an orphaned
+   * reference to a post that does not exist is worse than no reference.
+   *
+   * `type` is derived rather than asked for: what a post *is* follows from what
+   * it carries, and a caller that could disagree with its own contents is a
+   * caller that eventually will.
+   */
+  async create(input: NewPost): Promise<Post> {
+    // You post as yourself. The same rule a server would apply.
+    assertOwner(input.userId)
+
+    const text = input.text.trim()
+    const share = input.sharedType && input.sharedDataId ? input.sharedType : undefined
+    if (!text && !input.media && !share) {
+      throw new DataError('A post needs a few words, a photo or something to share.')
+    }
+
+    const asset = input.media ? await mediaService.register(input.media) : undefined
+    const mediaIds = asset ? [asset.id] : []
+    const post: Post = {
+      id: uid('p'),
+      userId: input.userId,
+      type: postTypeFor({ mediaIds, sharedType: share }),
+      text,
+      createdAt: now(),
+      visibility: input.visibility ?? DEFAULT_VISIBILITY,
+      mediaIds,
+      sharedType: share,
+      sharedDataId: share ? input.sharedDataId : undefined,
+      reactionCount: 0,
+      commentCount: 0,
+    }
+
+    try {
+      await db.posts.add(post)
+    } catch (error) {
+      // Never leave a reference behind pointing at a post that never landed.
+      if (asset) await db.media.delete(asset.id)
+      throw error
+    }
+    return post
+  },
+
+  /**
+   * Edits your own post.
+   *
+   * `media: null` removes the picture, a value replaces it, and leaving the key
+   * out leaves it alone — three states the composer genuinely has. Whatever the
+   * post stops referencing is released afterwards, so removing a photo does not
+   * leave its row behind forever.
+   */
+  async update(
+    postId: ID,
+    changes: { text?: string; visibility?: Visibility; media?: PostMediaInput | null },
+  ): Promise<void> {
+    const post = await db.posts.get(postId)
+    // Only the author. Editing someone else's words is not an oversight for
+    // the UI to catch — it is the thing this guard exists for.
+    assertOwnerOf(post)
+    if (!post) return
+
+    const text = changes.text === undefined ? post.text : changes.text.trim()
+    const keepsMedia =
+      changes.media === undefined ? post.mediaIds.length > 0 : Boolean(changes.media)
+    if (!text && !keepsMedia && !post.sharedType) {
+      throw new DataError('A post needs a few words, a photo or something to share.')
+    }
+
+    const patch: Partial<Post> = { text, updatedAt: now() }
+    if (changes.visibility) patch.visibility = changes.visibility
+
+    let released: ID[] = []
+    if (changes.media !== undefined) {
+      released = post.mediaIds
+      const asset = changes.media ? await mediaService.register(changes.media) : undefined
+      patch.mediaIds = asset ? [asset.id] : []
+
+      /*
+       * Only the two picture-derived kinds follow the picture. A post that
+       * announced a workout, a weigh-in or a piece of motivation keeps saying
+       * so — removing its photo changes what it shows, not what it was.
+       */
+      const derived = postTypeFor({ mediaIds: patch.mediaIds, sharedType: post.sharedType })
+      patch.type = post.type === 'photo' || post.type === 'status' ? derived : post.type
+    }
+
+    await db.posts.update(postId, patch)
+    if (released.length > 0) await mediaService.releaseUnused(released, { postId })
+  },
+
+  /**
+   * Deletes your own post, and everything that only existed because of it.
+   *
+   * Reactions and comments go with it rather than being left pointing at
+   * nothing — a comment on a post that no longer exists cannot be read, cannot
+   * be deleted by its author, and still counts in every query that scans the
+   * table.
+   */
+  async remove(postId: ID): Promise<void> {
+    const post = await db.posts.get(postId)
+    assertOwnerOf(post)
+    if (!post) return
+
+    const [reactionKeys, commentKeys] = await Promise.all([
+      db.postReactions.where('postId').equals(postId).primaryKeys(),
+      db.comments.where('postId').equals(postId).primaryKeys(),
+    ])
+    await db.postReactions.bulkDelete(reactionKeys)
+    await db.comments.bulkDelete(commentKeys)
+    await db.posts.delete(postId)
+    await mediaService.releaseUnused(post.mediaIds, { postId })
+  },
+
+  // --- Sharing a record ----------------------------------------------------
+
+  /**
+   * What this person actually has to attach, in the same terms the chat's
+   * share menu uses — deliberately the same call, so the two menus can never
+   * disagree about what exists. Only the kinds a post can *be* are offered;
+   * the weekly challenge belongs to the group rather than to one person's
+   * progress.
+   */
+  async shareOptions(userId: ID, date: DateKey): Promise<Set<PostShare>> {
+    const available = await chatService.shareable(userId, date)
+    return new Set(POST_SHARES.filter((kind) => available.has(kind)))
+  },
+
+  /**
+   * The id of the record a share points at, resolved at post time. The post
+   * stores the id and never a copy, so correcting the workout later corrects
+   * the card that announced it.
+   */
+  async shareTarget(userId: ID, kind: PostShare, date: DateKey): Promise<ID | undefined> {
+    switch (kind) {
+      case 'workout': {
+        const sessions = await db.sessions
+          .where('userId')
+          .equals(userId)
+          .filter((session) => session.status === 'completed')
+          .sortBy('date')
+        return sessions.at(-1)?.id
+      }
+      case 'weigh_in': {
+        const weights = await db.weights.where('userId').equals(userId).sortBy('date')
+        return weights.filter((entry) => entry.kind === 'official').at(-1)?.id
+      }
+      case 'steps':
+        return (await db.steps.where('[userId+date]').equals([userId, date]).first())?.id
+      case 'achievement': {
+        const unlocked = await db.achievements.where('userId').equals(userId).toArray()
+        return unlocked.sort((a, b) => (a.unlockedAt < b.unlockedAt ? 1 : -1))[0]?.achievementKey
+      }
+    }
   },
 
   // --- Reactions -----------------------------------------------------------
@@ -155,3 +351,23 @@ export const postService = {
 
 /** The default for anything posted into this app. */
 export const DEFAULT_VISIBILITY: Visibility = 'group'
+
+/**
+ * What a post is follows from what it carries.
+ *
+ * Kept beside the writer rather than asked of the caller, so a photo post can
+ * never claim to be a status and a shared workout can never lose its label.
+ */
+function postTypeFor(input: { mediaIds: ID[]; sharedType?: SharedType }): PostType {
+  switch (input.sharedType) {
+    case 'workout':
+      return 'workout'
+    case 'weigh_in':
+      return 'weigh_in'
+    case 'steps':
+      return 'steps'
+    case 'achievement':
+      return 'achievement'
+  }
+  return input.mediaIds.length > 0 ? 'photo' : 'status'
+}

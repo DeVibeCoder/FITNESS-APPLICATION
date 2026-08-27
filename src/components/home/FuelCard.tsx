@@ -72,9 +72,15 @@ export function FuelCard({ snapshot }: { snapshot: DailySnapshot }) {
           </div>
 
           <p className={styles.note}>
-            <span className={over ? styles.warn : styles.strong}>
-              <span className="tnum">{num(difference)}</span> kcal {over ? 'over' : 'left'}
-            </span>
+            {eaten === 0 ? (
+              // Nothing eaten yet is a fact, not a budget. "2,100 kcal left"
+              // against an empty log reads like progress nobody has made.
+              <span className={styles.strong}>No nutrition logged</span>
+            ) : (
+              <span className={over ? styles.warn : styles.strong}>
+                <span className="tnum">{num(difference)}</span> kcal {over ? 'over' : 'left'}
+              </span>
+            )}
             <span className={styles.estimate}> · estimated daily target</span>
           </p>
         </div>

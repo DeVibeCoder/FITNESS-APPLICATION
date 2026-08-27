@@ -11,8 +11,8 @@ import { addDays, fromDateKey, todayKey } from './date'
  * passed. Nothing here is a fixed date, and nothing is hard-coded: change the
  * weigh-in day in the profile and every slot below moves with it.
  *
- * Daily readings still exist as rows and are deliberately ignored here. A
- * salty dinner should not be able to change what the week says.
+ * Legacy `daily` rows, from before weighing became weekly, are deliberately
+ * ignored here. A salty dinner should not be able to change what the week says.
  */
 
 export interface WeighInSlot {
@@ -78,19 +78,9 @@ export function weighInSchedule(
   const on = options.on ?? todayKey()
   const current = currentWeighInDate(weighInDay, on)
 
-  const officials = entries
-    .filter((entry) => entry.kind === 'official')
-    .sort((a, b) => (a.date < b.date ? -1 : 1))
-
   // One entry per slot. A correction logged later in the same week replaces
   // the earlier one rather than creating a second row for that week.
-  const bySlot = new Map<DateKey, WeightEntry>()
-  for (const entry of officials) {
-    const slot = slotFor(weighInDay, entry.date)
-    // Only slots that have actually come around; a future-dated entry would
-    // otherwise invent a schedule that has not happened.
-    if (slot <= current) bySlot.set(slot, entry)
-  }
+  const bySlot = slotMap(entries, weighInDay, current)
 
   const earliest = [...bySlot.keys()].sort()[0]
   const weeksBack = earliest
@@ -130,4 +120,91 @@ export function weighInSchedule(
       upcoming: date > current,
     }
   })
+}
+
+// --- This week -------------------------------------------------------------
+
+/**
+ * One official reading per seven-day cycle, keyed by the cycle's date.
+ *
+ * Shared by the schedule and by `weeklyWeighIn` so both agree on which week a
+ * reading belongs to. Future-dated rows are dropped: a schedule must not
+ * contain a week that has not happened.
+ */
+function slotMap(
+  entries: WeightEntry[],
+  weighInDay: Weekday,
+  current: DateKey,
+): Map<DateKey, WeightEntry> {
+  const bySlot = new Map<DateKey, WeightEntry>()
+  const officials = entries
+    .filter((entry) => entry.kind === 'official')
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.createdAt < b.createdAt ? -1 : 1))
+  for (const entry of officials) {
+    const slot = slotFor(weighInDay, entry.date)
+    if (slot <= current) bySlot.set(slot, entry)
+  }
+  return bySlot
+}
+
+/** This week's weigh-in: whether it has happened, and how the week moved. */
+export interface WeeklyWeighIn {
+  /** The date the current seven-day cycle started — where this week's reading belongs. */
+  slotDate: DateKey
+  /** The next scheduled weigh-in, always seven days after `slotDate`. */
+  nextDate: DateKey
+  /** This week's reading, once it exists. */
+  entry?: WeightEntry
+  /**
+   * The last reading before this week — not necessarily last week's. Someone
+   * who skips a week should be told how far they have come since they last
+   * stood on the scale rather than shown a dash.
+   */
+  previous?: WeightEntry
+  /** `entry` − `previous`, to 0.1 kg. Undefined until there are two readings. */
+  changeKg?: number
+  /** How many weeks back `previous` was. 1 for a normal week. */
+  weeksSincePrevious?: number
+  /** True once this week has a reading. This is the whole status question. */
+  done: boolean
+}
+
+/**
+ * The status the app shows everywhere: is this week's weigh-in done, what did
+ * it say, and how did it move.
+ *
+ * Anchored to the user's own weigh-in day rather than to the calendar week, so
+ * someone who weighs in on a Wednesday gets Wednesday-to-Wednesday and not a
+ * change that resets every Sunday underneath them.
+ */
+export function weeklyWeighIn(
+  entries: WeightEntry[],
+  weighInDay: Weekday,
+  on: DateKey = todayKey(),
+): WeeklyWeighIn {
+  const slotDate = currentWeighInDate(weighInDay, on)
+  const bySlot = slotMap(entries, weighInDay, slotDate)
+
+  const entry = bySlot.get(slotDate)
+  const earlier = [...bySlot.entries()]
+    .filter(([slot]) => slot < slotDate)
+    .sort(([a], [b]) => (a < b ? -1 : 1))
+  const previousSlot = earlier.at(-1)
+
+  return {
+    slotDate,
+    nextDate: addDays(slotDate, 7),
+    entry,
+    previous: previousSlot?.[1],
+    changeKg:
+      entry && previousSlot
+        ? Math.round((entry.weightKg - previousSlot[1].weightKg) * 10) / 10
+        : undefined,
+    weeksSincePrevious: previousSlot
+      ? Math.round(
+          (fromDateKey(slotDate).getTime() - fromDateKey(previousSlot[0]).getTime()) / 604_800_000,
+        )
+      : undefined,
+    done: Boolean(entry),
+  }
 }

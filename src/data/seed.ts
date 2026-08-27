@@ -36,15 +36,19 @@ import { authService } from '@/services/authService'
 import { challengeService } from '@/services/challengeService'
 import { DEMO_PASSWORD } from './demo'
 import { addDays, daysBetween, startOfWeek, todayKey } from '@/utils/date'
+import { currentWeighInDate } from '@/utils/weighIn'
 
 /** Bump to reseed on next load (development convenience). */
-export const SEED_VERSION = 10
+export const SEED_VERSION = 11
 
 // --- Date helpers ----------------------------------------------------------
 // Everything is expressed as an offset from today so the demo never goes stale.
 
 const TODAY = todayKey()
 const day = (offset: number) => addDays(TODAY, offset)
+
+/** The day everyone in the demo group weighs in — Sunday. See each profile. */
+const WEIGH_IN_DAY = 0 as const
 
 function at(offset: number, hour: number, minute = 0): string {
   const [y, m, d] = day(offset).split('-').map(Number)
@@ -203,16 +207,6 @@ const OFFICIAL_WEIGHTS: Record<string, number[]> = {
   // it — with a flat fortnight in the middle, because real gaining stalls.
   u_samir: [73.2, 73.5, 73.9, 74.2, 74.4, 74.4, 74.5, 74.9, 75.3, 75.6, 76.0],
 }
-
-/** Ahmed also weighs in most mornings, which is what makes his chart readable. */
-const AHMED_DAILY_WEIGHTS: [number, number][] = [
-  [-6, 77.5],
-  [-5, 77.4],
-  [-4, 77.2],
-  [-3, 77.1],
-  [-2, 77.0],
-  [-1, 76.9],
-]
 
 // --- Sessions --------------------------------------------------------------
 
@@ -452,29 +446,31 @@ function buildSessions(
   return sessions
 }
 
+/**
+ * Ten weeks of weekly weigh-ins, landing on the group's actual weigh-in day.
+ *
+ * Anchored to `currentWeighInDate` rather than to today, so the history reads
+ * as the schedule it is — every row seven days apart, on the day everyone
+ * chose — instead of a run of arbitrary dates that happen to be a week apart.
+ * There are no daily readings: weighing in this app is weekly, and seeding a
+ * kind of record the product no longer writes would leave a shape nothing in
+ * the UI can explain.
+ */
 function buildWeights(): WeightEntry[] {
   const entries: WeightEntry[] = []
   for (const [userId, weights] of Object.entries(OFFICIAL_WEIGHTS)) {
+    const anchor = currentWeighInDate(WEIGH_IN_DAY, TODAY)
     weights.forEach((weightKg, index) => {
-      const offset = -7 * (weights.length - 1 - index)
+      const date = addDays(anchor, -7 * (weights.length - 1 - index))
+      const offset = daysBetween(TODAY, date)
       entries.push({
         id: `w_${userId}_${index}`,
         userId,
-        date: day(offset),
+        date,
         weightKg,
         kind: 'official',
         createdAt: offset === 0 ? agoMinutes(125) : at(offset, 7, 30),
       })
-    })
-  }
-  for (const [offset, weightKg] of AHMED_DAILY_WEIGHTS) {
-    entries.push({
-      id: `w_u_ahmed_daily_${offset}`,
-      userId: 'u_ahmed',
-      date: day(offset),
-      weightKg,
-      kind: 'daily',
-      createdAt: at(offset, 7, 25),
     })
   }
   return entries

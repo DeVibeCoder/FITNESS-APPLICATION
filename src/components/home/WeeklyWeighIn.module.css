@@ -134,3 +134,10 @@
   flex-direction: column;
   gap: var(--s-3);
 }
+
+/* A word, not a figure — an empty history should not shout at the same size. */
+.facts dd.factWord {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-2);
+}

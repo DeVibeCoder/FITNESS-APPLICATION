@@ -96,3 +96,38 @@ export function remainingToGoal(
   if (user.targetWeightKg === user.startWeightKg) return 0
   return Math.max(0, Math.abs(user.targetWeightKg - currentKg))
 }
+
+/**
+ * What a week's movement on the scale *means* for this person.
+ *
+ * The same −0.8 kg is a good week for someone cutting and a bad one for
+ * someone bulking, so no screen is allowed to colour a number green on its own
+ * sign. Goals with no direction on the scale — maintain, general fitness —
+ * always read neutral: telling somebody who is holding steady that up is bad
+ * and down is good would be inventing a target they did not set.
+ */
+export type ChangeSentiment = 'progress' | 'away' | 'neutral'
+
+export function weeklyChangeSentiment(
+  goal: FitnessGoal,
+  changeKg: number | undefined,
+): ChangeSentiment {
+  if (changeKg === undefined || Math.abs(changeKg) < 0.05) return 'neutral'
+  const { direction } = goalProfile(goal)
+  if (direction === 'steady') return 'neutral'
+  return (direction === 'up') === changeKg > 0 ? 'progress' : 'away'
+}
+
+/**
+ * The line beside a weekly change. Says what moved and, where the goal gives
+ * it one, what that is worth — without ever congratulating a maintainer for
+ * drifting.
+ */
+export function weeklyChangeNote(goal: FitnessGoal, changeKg: number | undefined): string {
+  if (changeKg === undefined) return 'First weigh-in — next week has something to compare to.'
+  const sentiment = weeklyChangeSentiment(goal, changeKg)
+  if (sentiment === 'progress') return 'Moving toward your goal.'
+  if (sentiment === 'away') return 'Away from your goal this week. One week is not a trend.'
+  if (Math.abs(changeKg) < 0.05) return 'Level with last week.'
+  return 'Steady is the goal — this is within normal weekly movement.'
+}

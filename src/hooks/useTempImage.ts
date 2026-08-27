@@ -7,15 +7,19 @@ import { TempImage } from '@/lib/tempImage'
  */
 export function useTempImage(): {
   url: string | null
-  set: (file: Blob) => void
+  /** Returns the new URL, so a caller can use it before the state lands. */
+  set: (file: Blob) => string
   release: () => void
+  detach: () => string | null
 } {
   const holder = useRef<TempImage>(null)
   holder.current ??= new TempImage()
   const [url, setUrl] = useState<string | null>(null)
 
   const set = useCallback((file: Blob) => {
-    setUrl(holder.current!.set(file))
+    const url = holder.current!.set(file)
+    setUrl(url)
+    return url
   }, [])
 
   const release = useCallback(() => {
@@ -23,10 +27,20 @@ export function useTempImage(): {
     setUrl(null)
   }, [])
 
+  /**
+   * Gives the URL away, so unmounting no longer revokes it. Used when the
+   * picked image has been attached to something that outlives this component.
+   */
+  const detach = useCallback(() => {
+    const handed = holder.current!.detach()
+    setUrl(null)
+    return handed
+  }, [])
+
   useEffect(() => {
     const current = holder.current!
     return () => current.release()
   }, [])
 
-  return { url, set, release }
+  return { url, set, release, detach }
 }

@@ -123,7 +123,12 @@ export interface WeightEntry {
   userId: ID
   date: DateKey
   weightKg: number
-  /** The weekly 'official' weigh-in is what the group compares; daily is optional. */
+  /**
+   * Always 'official' — the weekly weigh-in, which is the only kind of weight
+   * this app records. `daily` remains in the union because databases created
+   * before weighing became weekly can still hold those rows; nothing writes
+   * them and every read filters them out.
+   */
   kind: 'official' | 'daily'
   note?: string
   createdAt: Timestamp

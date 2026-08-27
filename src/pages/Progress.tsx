@@ -16,10 +16,12 @@ import { useAuth } from '@/context/AuthContext'
 import { useLogSheet } from '@/context/LogSheetContext'
 import { progressService, weightService } from '@/services'
 import { buildInsights } from '@/utils/insights'
-import { changeOver, weighInComparison } from '@/utils/progress'
+import { changeOver } from '@/utils/progress'
+import { weeklyWeighIn } from '@/utils/weighIn'
 import { todayKey } from '@/utils/date'
 import { num, signed } from '@/utils/format'
-import { goalProfile } from '@/utils/goals'
+import { goalProfile, weeklyChangeSentiment } from '@/utils/goals'
+import type { FitnessGoal } from '@/models'
 import { EMPTY } from '@/data/messages'
 import styles from './Progress.module.css'
 
@@ -53,8 +55,10 @@ export function Progress() {
     () => (user ? progressService.weeklySummary(user.id, today) : undefined),
     [user?.id, today],
   )
+  // Weekly weigh-ins only. There is no daily weight in this app, and a leftover
+  // `daily` row from an older database is not a week the person recorded.
   const weights = useLiveQuery(
-    () => (user ? weightService.listForUser(user.id) : undefined),
+    () => (user ? weightService.listWeekly(user.id) : undefined),
     [user?.id],
   )
 
@@ -83,7 +87,7 @@ export function Progress() {
 
   const weeklyChange = weights ? changeOver(weights, 7, today) : null
   const monthlyChange = weights ? changeOver(weights, 30, today) : null
-  const comparison = weighInComparison(weights ?? [], today)
+  const status = weeklyWeighIn(weights ?? [], user.weighInDay, today)
   const usesTarget = goalProfile(user.goal).usesTargetWeight
 
   return (
@@ -141,13 +145,13 @@ export function Progress() {
             ) : null}
             <div>
               <dt>Weekly change</dt>
-              <dd className={`tnum ${changeClass(weeklyChange)}`}>
+              <dd className={`tnum ${changeClass(user.goal, weeklyChange)}`}>
                 {weeklyChange === null ? '—' : `${signed(weeklyChange)} kg`}
               </dd>
             </div>
             <div>
               <dt>Since you started</dt>
-              <dd className={`tnum ${changeClass(me.progress.changeKg)}`}>
+              <dd className={`tnum ${changeClass(user.goal, me.progress.changeKg)}`}>
                 {signed(me.progress.changeKg)} kg
               </dd>
             </div>
@@ -167,7 +171,7 @@ export function Progress() {
           </button>
         }
       >
-        <WeighInCard comparison={comparison} />
+        <WeighInCard status={status} goal={user.goal} />
       </Section>
 
       {week ? (
@@ -183,19 +187,19 @@ export function Progress() {
             <dl className={styles.changes}>
               <div>
                 <dt>This week</dt>
-                <dd className={changeClass(weeklyChange)}>
+                <dd className={changeClass(user.goal, weeklyChange)}>
                   {weeklyChange === null ? '—' : `${signed(weeklyChange)} kg`}
                 </dd>
               </div>
               <div>
                 <dt>This month</dt>
-                <dd className={changeClass(monthlyChange)}>
+                <dd className={changeClass(user.goal, monthlyChange)}>
                   {monthlyChange === null ? '—' : `${signed(monthlyChange)} kg`}
                 </dd>
               </div>
               <div>
                 <dt>Total</dt>
-                <dd className={changeClass(me.progress.changeKg)}>
+                <dd className={changeClass(user.goal, me.progress.changeKg)}>
                   {signed(me.progress.changeKg)} kg
                 </dd>
               </div>
@@ -229,7 +233,7 @@ export function Progress() {
       </Section>
 
       <Section title="Weekly weigh-ins">
-        <WeightHistory entries={weights ?? []} weighInDay={user.weighInDay} />
+        <WeightHistory entries={weights ?? []} weighInDay={user.weighInDay} goal={user.goal} />
       </Section>
 
       <p className={styles.note}>
@@ -240,9 +244,14 @@ export function Progress() {
   )
 }
 
-function changeClass(value: number | null): string {
-  if (value === null) return styles.flat
-  if (value < -0.05) return styles.down
-  if (value > 0.05) return styles.up
+/**
+ * Colour by meaning, never by sign. −1.2 kg is a good month for someone
+ * cutting and a bad one for someone bulking, and for someone maintaining it is
+ * neither, so the goal decides.
+ */
+function changeClass(goal: FitnessGoal, value: number | null): string {
+  const sentiment = weeklyChangeSentiment(goal, value ?? undefined)
+  if (sentiment === 'progress') return styles.toward
+  if (sentiment === 'away') return styles.away
   return styles.flat
 }
