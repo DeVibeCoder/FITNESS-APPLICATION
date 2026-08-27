@@ -14,8 +14,23 @@ import { timeAgo } from '@/utils/date'
 import { firstName } from '@/utils/format'
 import styles from './StoryViewer.module.css'
 
-/** How far a finger travels before a tap becomes a swipe. */
+/** How far a finger travels before the gesture commits to an axis. */
+const LOCK_AT = 12
+/** How far a sideways drag has to go to actually change person. */
 const SWIPE_MIN = 45
+/** How far a vertical drag has to go to put the story away. */
+const DISMISS_AT = 110
+/**
+ * How much of a sideways drag the card actually travels.
+ *
+ * Resistance, on purpose: changing person is commit-or-snap-back, not a scrub
+ * through a filmstrip, and a card that lags the finger says so without a word.
+ * Thresholds are compared against the damped distance, so `SWIPE_MIN * DAMP`
+ * is still `SWIPE_MIN` pixels of real finger travel.
+ */
+const DAMP = 0.55
+/** Long enough to see the card leave, short enough not to feel like waiting. */
+const EXIT_MS = 220
 
 /**
  * The story viewer.
@@ -40,11 +55,23 @@ const SWIPE_MIN = 45
  * it, a full-screen overlay is invisible to the browser's idea of "where am
  * I", and Back does the only thing it can — leave. See `useHistoryDismiss`.
  *
- * Gestures are split by axis, and the split is the point. Vertical moves
- * through one person's stories; horizontal moves between people. Somebody five
- * stories deep in Ahmed's day can leave for Nadia with one swipe rather than
- * tapping past four things they did not want — which is the difference between
- * navigation and a queue.
+ * Gestures are split three ways, and the split is the point.
+ *
+ *   tap      — this person's stories, forward on the right, back on the left
+ *   sideways — the next person or the previous one, skipping whatever is left
+ *              of this one's day
+ *   vertical — put the whole thing away, in either direction
+ *
+ * Somebody five stories deep in Ahmed's day can leave for Nadia with one swipe
+ * rather than tapping past four things they did not want, and can get out of
+ * the viewer entirely with a flick in the direction their thumb was already
+ * going. Vertical is deliberately not story navigation: on a full-screen
+ * viewer, up and down are how people put things down, and taking that gesture
+ * for something else is how a viewer starts feeling like a trap.
+ *
+ * The axis locks once, after `LOCK_AT` pixels, and never changes for the rest
+ * of the drag — so a diagonal resolves to exactly one thing rather than
+ * flickering between two.
  */
 export function StoryViewer({
   rings,
@@ -71,6 +98,14 @@ export function StoryViewer({
   const held = useRef(false)
   /** Where a drag started, so a swipe can be told from a tap. */
   const swipeFrom = useRef<{ x: number; y: number } | null>(null)
+  /** Locked after LOCK_AT pixels; a drag is one axis or the other, never both. */
+  const axis = useRef<'x' | 'y' | null>(null)
+  /** Live finger offset, so the card can follow it. */
+  const [drag, setDrag] = useState({ x: 0, y: 0 })
+  /** Set while the card animates away, and cleared by whatever it became. */
+  const [exit, setExit] = useState<'up' | 'down' | 'left' | 'right' | null>(null)
+  /** Which side the incoming person should slide in from. */
+  const [entering, setEntering] = useState<'left' | 'right' | null>(null)
 
   const live = useMemo(
     () =>
@@ -190,51 +225,132 @@ export function StoryViewer({
 
   if (!user || !ring || !story) return null
 
-  const startHold = (event: React.PointerEvent) => {
+  const clearHoldTimer = () => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = null
+  }
+
+  const onPointerDown = (event: React.PointerEvent) => {
+    // A drag that starts while the last one is still leaving would fight it.
+    if (exit) return
     held.current = false
+    axis.current = null
     swipeFrom.current = { x: event.clientX, y: event.clientY }
+    setDrag({ x: 0, y: 0 })
+    /*
+     * Capture the pointer, so a finger that wanders off the card still
+     * reports where it went and still reports letting go. Without this a drag
+     * that leaves the element simply stops sending events and the card is
+     * left stranded halfway through a gesture nobody can finish.
+     */
+    event.currentTarget.setPointerCapture?.(event.pointerId)
     holdTimer.current = window.setTimeout(() => {
       held.current = true
       setPaused(true)
     }, 220)
   }
 
-  const endHold = () => {
-    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
-    holdTimer.current = null
-    swipeFrom.current = null
-    if (held.current) setPaused(false)
-  }
-
   /**
-   * A swipe, if it was one, resolved by whichever axis actually moved.
+   * The finger, followed.
    *
-   * Up and down walk through this person's stories; left and right change
-   * person. The threshold keeps a slightly untidy tap from counting as either,
-   * and the dominant axis decides, so a diagonal never does both.
+   * The axis locks once and stays locked, so a drag that starts downward stays
+   * a dismissal even if it wanders sideways on the way. Sideways movement is
+   * damped: it is a commit-or-snap-back gesture rather than a scrub, and
+   * resistance is what says so.
    */
-  const endSwipe = (event: React.PointerEvent) => {
+  const onPointerMove = (event: React.PointerEvent) => {
     const from = swipeFrom.current
-    endHold()
-    if (!from || held.current) return
+    if (!from || exit) return
 
     const dx = event.clientX - from.x
     const dy = event.clientY - from.y
-    const horizontal = Math.abs(dx) > Math.abs(dy)
-    const travel = horizontal ? Math.abs(dx) : Math.abs(dy)
-    // Below this it was a tap with a shaky finger, not a gesture.
-    if (travel < SWIPE_MIN) return
 
-    // A swipe is navigation, so the tap underneath it must not also fire.
-    held.current = true
-    if (horizontal) {
-      toPerson(dx < 0 ? 1 : -1)
-    } else if (dy < 0) {
-      // Up: further into this person's day.
-      next()
-    } else {
-      previous()
+    if (!axis.current) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < LOCK_AT) return
+      axis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      // It is a drag, not a hold — but the story still stops advancing while
+      // a finger is on it, which is the whole reason the timer pauses here.
+      clearHoldTimer()
+      held.current = true
+      setPaused(true)
     }
+
+    setDrag(axis.current === 'y' ? { x: 0, y: dy } : { x: dx * DAMP, y: 0 })
+  }
+
+  /**
+   * What the drag turned out to mean.
+   *
+   * Past the threshold it commits and the card animates out in the direction
+   * it was already going; short of it, the card springs back and nothing
+   * happens. Either way the timer resumes, and it resumes only after the
+   * decision — so a story can never advance underneath a gesture that was
+   * about to replace it.
+   */
+  const onPointerUp = () => {
+    const dragged = axis.current
+    const { x, y } = drag
+    clearHoldTimer()
+    swipeFrom.current = null
+    axis.current = null
+
+    if (!dragged) {
+      // A hold that never moved: let go and carry on.
+      if (held.current) setPaused(false)
+      return
+    }
+
+    if (dragged === 'y' && Math.abs(y) >= DISMISS_AT) {
+      leave(y < 0 ? 'up' : 'down')
+      return
+    }
+
+    if (dragged === 'x' && Math.abs(x) >= SWIPE_MIN * DAMP) {
+      const forward = x < 0
+      // Nowhere to go: snap back rather than pretending something happened.
+      if (!hasPerson(forward ? 1 : -1)) {
+        setDrag({ x: 0, y: 0 })
+        setPaused(false)
+        return
+      }
+      leave(forward ? 'left' : 'right')
+      return
+    }
+
+    // Short of the threshold. Back where it started.
+    setDrag({ x: 0, y: 0 })
+    setPaused(false)
+  }
+
+  /** Whether there is a person that way to move to. */
+  const hasPerson = (step: 1 | -1) => {
+    const target = ringIndex + step
+    return target >= 0 && target < live.length
+  }
+
+  /**
+   * Animates the card out, then does the thing the gesture asked for.
+   *
+   * The card is still mounted while it leaves, so the timer stays paused for
+   * the whole flight — otherwise the progress bar could finish mid-animation
+   * and advance a story that is already on its way off the screen.
+   */
+  const leave = (direction: 'up' | 'down' | 'left' | 'right') => {
+    setPaused(true)
+    setDrag({ x: 0, y: 0 })
+    setExit(direction)
+    window.setTimeout(() => {
+      if (direction === 'up' || direction === 'down') {
+        onClose()
+        return
+      }
+      const forward = direction === 'left'
+      // The new person slides in from the side the old one left towards.
+      setEntering(forward ? 'right' : 'left')
+      toPerson(forward ? 1 : -1)
+      setExit(null)
+      setPaused(false)
+    }, EXIT_MS)
   }
 
   /** A tap navigates; the tap that ends a hold does not. */
@@ -254,8 +370,24 @@ export function StoryViewer({
     show('Story deleted.', 'success')
   }
 
+  /*
+   * The ground fades as the story is pulled away, so the gesture reads as
+   * "putting this down" and stays visibly reversible until it is let go.
+   */
+  const dragging = drag.x !== 0 || drag.y !== 0
+  const pulled = Math.abs(drag.y)
+  const dragTransform = `translate3d(${drag.x}px, ${drag.y}px, 0) scale(${
+    1 - Math.min(pulled / 1400, 0.1)
+  })`
+
   return createPortal(
-    <div className={styles.root} role="dialog" aria-modal="true" aria-label="Stories">
+    <div
+      className={styles.root}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Stories"
+      style={pulled > 0 ? { opacity: Math.max(0.4, 1 - pulled / 420) } : undefined}
+    >
       {/*
         Desktop only. On a phone the tap zones are the navigation and these
         would be two more things covering the picture.
@@ -316,15 +448,29 @@ export function StoryViewer({
 
         {/*
           Remounted per story, so the entry transition replays rather than the
-          picture swapping in place.
+          picture swapping in place. While a finger is down the transform is
+          driven inline and the transition is off, so the card tracks the
+          finger exactly; on release the class takes over and animates.
         */}
         <div
           key={story.id}
-          className={styles.card}
-          onPointerDown={startHold}
-          onPointerUp={endSwipe}
-          onPointerCancel={endHold}
-          onPointerLeave={endHold}
+          className={[
+            styles.card,
+            dragging ? styles.dragging : '',
+            exit ? styles[`exit${exit[0].toUpperCase()}${exit.slice(1)}`] : '',
+            entering ? styles[`enter${entering[0].toUpperCase()}${entering.slice(1)}`] : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          style={dragging ? { transform: dragTransform } : undefined}
+          onAnimationEnd={(event) => {
+            // Only the card's own arrival, not a progress bar's tick.
+            if (event.target === event.currentTarget) setEntering(null)
+          }}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
         >
           <StoryFrame
             story={story}

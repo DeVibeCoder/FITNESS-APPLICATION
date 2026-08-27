@@ -16,6 +16,8 @@
      scroll chaining to the feed underneath. */
   overscroll-behavior: contain;
   animation: fade var(--med) var(--ease-out);
+  /* The ground fades as the story is pulled away; see StoryViewer.tsx. */
+  transition: opacity var(--fast) linear;
 }
 
 @keyframes fade {
@@ -47,17 +49,86 @@
   /*
    * The viewer handles its own gestures, so the browser handles none of them.
    * This is what stops a downward flick pulling the page to refresh or
-   * scrolling something behind the story — see StoryViewer.tsx, where a
-   * vertical swipe is caught and deliberately does nothing.
+   * scrolling something behind the story while it is being dragged.
    */
   touch-action: none;
   animation: enter var(--med) var(--ease-out);
+  /*
+   * Everything the card does when nobody is touching it: springing back from
+   * a short drag, and flying out after a committed one. While a finger is
+   * down the transition is off (see `.dragging`) so the card tracks the
+   * finger exactly rather than lagging a frame behind it.
+   */
+  transition:
+    transform 240ms var(--ease-out),
+    opacity 240ms var(--ease-out);
+}
+
+/* A card under a finger follows it exactly, with nothing smoothing it. */
+.dragging {
+  transition: none;
+  animation: none;
 }
 
 @keyframes enter {
   from {
     opacity: 0;
     transform: scale(0.985);
+  }
+}
+
+/* --- Leaving ---------------------------------------------------------------
+ *
+ * Committed gestures finish the movement the finger started, in the same
+ * direction, rather than cutting to the result. Vertical throws the story off
+ * the screen and closes; horizontal slides it aside and the next person
+ * arrives from the opposite edge.
+ */
+.exitUp {
+  transform: translate3d(0, -100%, 0) scale(0.9);
+  opacity: 0;
+  animation: none;
+}
+
+.exitDown {
+  transform: translate3d(0, 100%, 0) scale(0.9);
+  opacity: 0;
+  animation: none;
+}
+
+.exitLeft {
+  transform: translate3d(-100%, 0, 0);
+  opacity: 0;
+  animation: none;
+}
+
+.exitRight {
+  transform: translate3d(100%, 0, 0);
+  opacity: 0;
+  animation: none;
+}
+
+/* --- Arriving -------------------------------------------------------------- */
+
+.enterLeft {
+  animation: slideFromLeft var(--med) var(--ease-out);
+}
+
+.enterRight {
+  animation: slideFromRight var(--med) var(--ease-out);
+}
+
+@keyframes slideFromLeft {
+  from {
+    opacity: 0.4;
+    transform: translate3d(-24%, 0, 0);
+  }
+}
+
+@keyframes slideFromRight {
+  from {
+    opacity: 0.4;
+    transform: translate3d(24%, 0, 0);
   }
 }
 
@@ -124,6 +195,14 @@
   .root,
   .card {
     animation: none;
+  }
+
+  /*
+   * The card still has to leave, or a committed gesture would appear to do
+   * nothing — it just goes straight there instead of travelling.
+   */
+  .card {
+    transition-duration: 1ms;
   }
 
   .barLive {
