@@ -5,8 +5,11 @@
  */
 .root {
   /* Kept here rather than in tokens: it belongs to this one transition, and
-     StoryViewer.tsx has to agree with it exactly — see SLIDE_MS. */
-  --slide: 360ms;
+     StoryViewer.tsx has to agree with it exactly — see TURN_MS. */
+  --turn: 380ms;
+  /* Decelerating, with no overshoot. A cube face that bounces is a cube face
+     that was never attached to anything. */
+  --turn-ease: cubic-bezier(0.22, 0.68, 0.24, 1);
 
   position: fixed;
   inset: 0;
@@ -46,20 +49,26 @@
 }
 
 /*
- * Where the cards live.
+ * The cube.
  *
- * Two of them are on screen during a person change, so they stack rather than
- * sharing the layout. The perspective is what makes the pair read as a deck
- * being turned: the card going out leans away from the viewer and the one
- * coming in leans back towards it, which is depth rather than two flat panels
- * sliding past each other.
+ * `perspective` is what makes this an object rather than a diagram of one, and
+ * its value is the difference between a convincing turn and a slide with a
+ * slight lean. It has to be near the width of the face: at several times the
+ * width the projection is almost orthographic and the rotation barely reads.
+ * 130vw on a phone puts the eye a comfortable distance from a full-width face;
+ * the desktop stage is a fixed size, so it gets a fixed distance to match.
+ *
+ * `preserve-3d` lets the browser sort the two faces by their real positions in
+ * space rather than by document order, which is what keeps the seam correct
+ * through the whole quarter turn.
  */
 .deck {
   position: relative;
   flex: 1;
   min-height: 0;
-  perspective: 1600px;
+  perspective: 130vw;
   perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
 }
 
 .card {
@@ -68,35 +77,58 @@
   overflow: hidden;
   transform-origin: center center;
   backface-visibility: hidden;
+  /* Promoted for the whole gesture: a face that repaints mid-turn stutters. */
+  will-change: transform;
   /*
    * The viewer handles its own gestures, so the browser handles none of them.
    * This is what stops a downward flick pulling the page to refresh or
    * scrolling something behind the story while it is being dragged.
    */
   touch-action: none;
-  animation: enter var(--med) var(--ease-out);
   /*
-   * Everything the card does when nobody is touching it: springing back from
-   * a short drag, and flying out after a committed one. While a finger is
-   * down the transition is off (see `.dragging`) so the card tracks the
-   * finger exactly rather than lagging a frame behind it.
+   * Everything a face does once nobody is touching it: completing a turn,
+   * rotating back from an abandoned one, springing back from a short pull, or
+   * flying out after a committed one. While a finger is down the transition is
+   * off (see `.dragging`) so the face tracks the finger exactly rather than
+   * lagging a frame behind it.
    */
   transition:
-    transform 240ms var(--ease-out),
-    opacity 240ms var(--ease-out);
+    transform var(--turn) var(--turn-ease),
+    opacity var(--turn) var(--turn-ease);
 }
 
-/* A card under a finger follows it exactly, with nothing smoothing it. */
+/*
+ * The face turned away from the light.
+ *
+ * Shading is doing as much work as the rotation. Two equally bright faces
+ * crossing leave the eye unsure which one it is being handed; one darkening
+ * as it goes and one brightening as it arrives cannot be misread. Opacity is
+ * driven from the same progress number as the transform, so the light and the
+ * movement can never disagree.
+ */
+.shade {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background: #000;
+  pointer-events: none;
+}
+
+/*
+ * A face under a finger follows it exactly, with nothing smoothing it.
+ *
+ * Note there is no entry animation on a face at all. Moving between one
+ * person's own stories is an instant swap, the way every story product does
+ * it — a fade there would be a second animation landing on top of the cube's
+ * as it finished, and the two together read as a stutter rather than polish.
+ */
 .dragging {
   transition: none;
-  animation: none;
 }
 
-@keyframes enter {
-  from {
-    opacity: 0;
-    transform: scale(0.985);
-  }
+/* The shade tracks the transform, so it needs the same treatment. */
+.dragging .shade {
+  transition: none;
 }
 
 /* --- Dismissing ------------------------------------------------------------
@@ -108,89 +140,23 @@
 .exitUp {
   transform: translate3d(0, -100%, 0) scale(0.9);
   opacity: 0;
-  animation: none;
 }
 
 .exitDown {
   transform: translate3d(0, 100%, 0) scale(0.9);
   opacity: 0;
-  animation: none;
 }
 
-/* --- Turning to another person ---------------------------------------------
+/*
+ * There are no keyframes for the turn, on purpose.
  *
- * Two cards, one movement. The outgoing card travels a full width, tips away
- * from the viewer and dims; the incoming one comes the same distance from the
- * opposite edge, tipped the other way, and settles square and bright. They run
- * for the same duration on the same curve, so the pair moves as one object
- * rather than as two slides that happen to overlap.
- *
- * The dimming matters as much as the movement: without it the two cards read
- * as equally present and the eye does not know which one it is being handed.
+ * Both faces are positioned from a single progress number that the finger
+ * drives directly, and the transition above is what carries that number the
+ * rest of the way once the finger lifts. A keyframed animation would have to
+ * start from zero every time, which is exactly the thing that makes a
+ * transition feel triggered by a gesture rather than attached to it.
+ * See `faceTransform` in StoryViewer.tsx.
  */
-.slideOutLeft {
-  z-index: 1;
-  animation: turnOutLeft var(--slide) var(--ease-out) forwards;
-}
-
-.slideOutRight {
-  z-index: 1;
-  animation: turnOutRight var(--slide) var(--ease-out) forwards;
-}
-
-.slideInLeft {
-  z-index: 2;
-  animation: turnInLeft var(--slide) var(--ease-out);
-}
-
-.slideInRight {
-  z-index: 2;
-  animation: turnInRight var(--slide) var(--ease-out);
-}
-
-@keyframes turnOutLeft {
-  from {
-    transform: none;
-    opacity: 1;
-  }
-  to {
-    transform: translate3d(-100%, 0, 0) scale(0.82) rotateY(22deg);
-    opacity: 0.15;
-  }
-}
-
-@keyframes turnOutRight {
-  from {
-    transform: none;
-    opacity: 1;
-  }
-  to {
-    transform: translate3d(100%, 0, 0) scale(0.82) rotateY(-22deg);
-    opacity: 0.15;
-  }
-}
-
-@keyframes turnInLeft {
-  from {
-    transform: translate3d(-100%, 0, 0) scale(0.82) rotateY(22deg);
-    opacity: 0.15;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
-
-@keyframes turnInRight {
-  from {
-    transform: translate3d(100%, 0, 0) scale(0.82) rotateY(-22deg);
-    opacity: 0.15;
-  }
-  to {
-    transform: none;
-    opacity: 1;
-  }
-}
 
 /* --- Progress ------------------------------------------------------------- */
 
@@ -252,30 +218,14 @@
  * and only slowed — removing it would strand the viewer on the first story.
  */
 @media (prefers-reduced-motion: reduce) {
-  .root,
-  .card {
-    animation: none;
-  }
-
   /*
-   * The card still has to leave, or a committed gesture would appear to do
-   * nothing — it just goes straight there instead of travelling. Turning to
-   * another person keeps its animation for the same reason, only shortened:
-   * removing it entirely would make the change invisible.
+   * The turn and the dismissal are both shortened rather than removed. They
+   * are not decoration: a committed gesture that produced no visible movement
+   * would read as the app having ignored it.
    */
-  .card {
-    transition-duration: 1ms;
-  }
-
   .root {
-    --slide: 90ms;
-  }
-
-  .slideOutLeft,
-  .slideOutRight,
-  .slideInLeft,
-  .slideInRight {
-    animation-duration: var(--slide);
+    --turn: 90ms;
+    animation: none;
   }
 
   .barLive {
@@ -475,6 +425,11 @@
 
   .step {
     display: grid;
+  }
+
+  .deck {
+    /* A fixed stage wants a fixed eye distance; 130vw would be far too far. */
+    perspective: 620px;
   }
 
   .stage {
