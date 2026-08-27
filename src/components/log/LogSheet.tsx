@@ -27,17 +27,23 @@ const MENU: {
   label: string
   hint: string
   icon: typeof Scale
-  primary?: boolean
   /** Which half of the sheet it belongs to. */
   group: 'share' | 'log'
   /** Built in a later phase; the sheet says so rather than pretending. */
   soon?: boolean
 }[] = [
-  // Sharing comes first now: this is a social app that also logs, not a
-  // logger that also shares.
-  { mode: 'post', label: 'Post', hint: 'Say something to the group', icon: PenLine, group: 'share', primary: true },
+  /*
+   * Sharing comes first: this is a social app that also logs, not a logger
+   * that also shares.
+   *
+   * Nothing here is emphasised any more. Post used to carry a `primary` style,
+   * which on an accent-tinted row read as *selected* — people opened the sheet
+   * and believed they had already chosen Post. A menu of things you have not
+   * picked yet should look like a menu of things you have not picked yet.
+   */
+  { mode: 'post', label: 'Post', hint: 'Say something to the group', icon: PenLine, group: 'share' },
   { mode: 'story', label: 'Story', hint: 'Gone in 24 hours', icon: Camera, group: 'share' },
-  { mode: 'motivation', label: 'Motivation', hint: 'A quote or a video', icon: Quote, group: 'share', soon: true },
+  { mode: 'motivation', label: 'Motivation', hint: 'A quote worth passing on', icon: Quote, group: 'share' },
   { mode: 'workout', label: 'Workout', hint: 'From Home Workout or another app', icon: Dumbbell, group: 'log' },
   { mode: 'weight', label: 'Weight', hint: "This week's weigh-in", icon: Scale, group: 'log' },
   { mode: 'steps', label: 'Steps', hint: "Today's count", icon: Footprints, group: 'log' },
@@ -50,7 +56,7 @@ const TITLES: Record<Mode, string> = {
   menu: 'Create',
   post: 'New post',
   story: 'New story',
-  motivation: 'Share motivation',
+  motivation: 'Share some motivation',
   workout: "Log today's workout",
   weight: 'Weekly weigh-in',
   steps: 'Log steps',
@@ -100,7 +106,10 @@ export function LogSheet({
         <PostComposer initialText={draft?.text} onDone={close} onCancel={close} />
       ) : null}
       {mode === 'story' ? <StoryComposer onDone={close} onCancel={close} /> : null}
-      {mode === 'motivation' ? <ComingSoon mode={mode} /> : null}
+      {/* The same composer, writing the same row — see NewPost.motivation. */}
+      {mode === 'motivation' ? (
+        <PostComposer kind="motivation" onDone={close} onCancel={close} />
+      ) : null}
       {mode === 'workout' ? <LogWorkoutForm onDone={close} /> : null}
       {mode === 'weight' ? <WeightEntryForm onDone={close} /> : null}
       {mode === 'steps' ? <StepsForm onDone={close} /> : null}
@@ -124,14 +133,9 @@ function Menu({ onPick }: { onPick: (mode: Mode) => void }) {
           <p className="eyebrow">{GROUP_LABEL[group]}</p>
           <ul className={styles.menu}>
             {MENU.filter((item) => item.group === group).map(
-              ({ mode, label, hint, icon: Icon, primary, soon }) => (
+              ({ mode, label, hint, icon: Icon, soon }) => (
                 <li key={mode}>
-                  <button
-                    className={[styles.menuItem, primary ? styles.menuItemPrimary : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => onPick(mode)}
-                  >
+                  <button className={styles.menuItem} onClick={() => onPick(mode)}>
                     <span className={styles.menuIcon}>
                       <Icon size={19} strokeWidth={1.9} />
                     </span>
@@ -148,29 +152,6 @@ function Menu({ onPick }: { onPick: (mode: Mode) => void }) {
         </section>
       ))}
     </>
-  )
-}
-
-/**
- * The one creation flow that does not exist yet.
- *
- * Saying so plainly beats a form that looks real and silently does nothing.
- * Everything else in this sheet — posts, stories, workouts, weigh-ins, steps,
- * water, meals and check-ins — works.
- */
-function ComingSoon({ mode }: { mode: 'motivation' }) {
-  const copy = {
-    motivation: {
-      title: 'Sharing motivation is being built',
-      body: 'Adding a video to the weekly rotation already works from the Motivation screen.',
-    },
-  }[mode]
-
-  return (
-    <div className={styles.soonPanel}>
-      <p className={styles.soonTitle}>{copy.title}</p>
-      <p className={styles.soonBody}>{copy.body}</p>
-    </div>
   )
 }
 

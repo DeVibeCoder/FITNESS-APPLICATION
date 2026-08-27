@@ -89,6 +89,8 @@ export function PostCard({ post }: { post: FeedPost }) {
   const longCaption =
     post.text.length > FOLD_AT || post.text.split('\n').length > FOLD_AT_LINES
   const folded = longCaption && !expanded
+  // Motivation is somebody passing something on, so it is set as a quote.
+  const isMotivation = post.type === 'motivation'
 
   const reactions = useLiveQuery(() => postService.reactionsFor(post.id), [post.id])
   const mineReacted = Boolean(reactions?.some((r) => r.userId === user?.id))
@@ -193,7 +195,17 @@ export function PostCard({ post }: { post: FeedPost }) {
 
       <div className={styles.body}>
         {post.text ? (
-          <p className={folded ? `${styles.text} ${styles.folded}` : styles.text}>{post.text}</p>
+          <p
+            className={[
+              styles.text,
+              folded ? styles.folded : '',
+              isMotivation ? styles.quote : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+          >
+            {post.text}
+          </p>
         ) : null}
         {longCaption ? (
           <button className={styles.more} onClick={() => setExpanded((open) => !open)}>

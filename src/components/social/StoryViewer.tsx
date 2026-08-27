@@ -14,6 +14,9 @@ import { timeAgo } from '@/utils/date'
 import { firstName } from '@/utils/format'
 import styles from './StoryViewer.module.css'
 
+/** How far a finger travels before a tap becomes a swipe. */
+const SWIPE_MIN = 45
+
 /**
  * The story viewer.
  *
@@ -36,6 +39,12 @@ import styles from './StoryViewer.module.css'
  * rather than leaving the app. That is the whole reason for the entry: without
  * it, a full-screen overlay is invisible to the browser's idea of "where am
  * I", and Back does the only thing it can — leave. See `useHistoryDismiss`.
+ *
+ * Gestures are split by axis, and the split is the point. Vertical moves
+ * through one person's stories; horizontal moves between people. Somebody five
+ * stories deep in Ahmed's day can leave for Nadia with one swipe rather than
+ * tapping past four things they did not want — which is the difference between
+ * navigation and a queue.
  */
 export function StoryViewer({
   rings,
@@ -120,6 +129,25 @@ export function StoryViewer({
     // At the very beginning, going back stays put rather than closing.
   }, [live, ringIndex, storyIndex])
 
+  /**
+   * Jump to another person, rather than walking there.
+   *
+   * Always lands on their first story: arriving mid-way through somebody's day
+   * because of where you happened to be in yours makes no sense to the person
+   * doing the swiping.
+   */
+  const toPerson = useCallback(
+    (step: 1 | -1) => {
+      const target = ringIndex + step
+      if (target < 0 || target >= live.length) return
+      setPaused(false)
+      setShowViewers(false)
+      setRingIndex(target)
+      setStoryIndex(0)
+    },
+    [live.length, ringIndex],
+  )
+
   /*
    * Watching somebody's story marks it seen. Your own never counts — the
    * service enforces that too, so the rule holds whoever calls it.
@@ -179,12 +207,11 @@ export function StoryViewer({
   }
 
   /**
-   * A swipe, if it was one.
+   * A swipe, if it was one, resolved by whichever axis actually moved.
    *
-   * Horizontal moves between stories. Vertical is caught and deliberately
-   * ignored — the point is that a stray downward flick, which on a phone is
-   * the gesture that dismisses things, does nothing here rather than something
-   * surprising. Back is the way out, and the close button is the other one.
+   * Up and down walk through this person's stories; left and right change
+   * person. The threshold keeps a slightly untidy tap from counting as either,
+   * and the dominant axis decides, so a diagonal never does both.
    */
   const endSwipe = (event: React.PointerEvent) => {
     const from = swipeFrom.current
@@ -193,12 +220,21 @@ export function StoryViewer({
 
     const dx = event.clientX - from.x
     const dy = event.clientY - from.y
-    if (Math.abs(dx) < 48 || Math.abs(dx) <= Math.abs(dy)) return
+    const horizontal = Math.abs(dx) > Math.abs(dy)
+    const travel = horizontal ? Math.abs(dx) : Math.abs(dy)
+    // Below this it was a tap with a shaky finger, not a gesture.
+    if (travel < SWIPE_MIN) return
 
     // A swipe is navigation, so the tap underneath it must not also fire.
     held.current = true
-    if (dx < 0) next()
-    else previous()
+    if (horizontal) {
+      toPerson(dx < 0 ? 1 : -1)
+    } else if (dy < 0) {
+      // Up: further into this person's day.
+      next()
+    } else {
+      previous()
+    }
   }
 
   /** A tap navigates; the tap that ends a hold does not. */
@@ -224,7 +260,11 @@ export function StoryViewer({
         Desktop only. On a phone the tap zones are the navigation and these
         would be two more things covering the picture.
       */}
-      <button className={`${styles.step} ${styles.stepBack}`} onClick={previous} aria-label="Previous story">
+      <button
+        className={`${styles.step} ${styles.stepBack}`}
+        onClick={() => toPerson(-1)}
+        aria-label="Previous person"
+      >
         <ChevronLeft size={22} strokeWidth={2.2} />
       </button>
 
@@ -338,7 +378,11 @@ export function StoryViewer({
         ) : null}
       </div>
 
-      <button className={`${styles.step} ${styles.stepNext}`} onClick={next} aria-label="Next story">
+      <button
+        className={`${styles.step} ${styles.stepNext}`}
+        onClick={() => toPerson(1)}
+        aria-label="Next person"
+      >
         <ChevronRight size={22} strokeWidth={2.2} />
       </button>
     </div>,

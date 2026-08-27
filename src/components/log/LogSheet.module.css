@@ -47,24 +47,10 @@
 }
 
 /*
- * Logging a workout is the reason this sheet exists — everything else is a
- * number you can also fix later. It gets the accent border and a tinted icon
- * so the eye lands on it first without needing a different shape.
+ * Nothing in this menu is emphasised. An accent-tinted row in a list of
+ * choices reads as the one already chosen, which is exactly how people came
+ * to believe the sheet opened with Post selected.
  */
-.menuItemPrimary {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.menuItemPrimary .menuIcon {
-  background: var(--accent);
-  color: var(--accent-ink);
-}
-
-.menuItemPrimary .menuLabel {
-  color: var(--accent-strong);
-}
-
 .menuIcon {
   display: grid;
   place-items: center;
@@ -147,26 +133,6 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.soonPanel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
-  padding: var(--s-4);
-  border-radius: var(--r);
-  background: var(--accent-soft);
-}
-
-.soonTitle {
-  font-size: var(--t-h3);
-  font-weight: 680;
-}
-
-.soonBody {
-  font-size: var(--t-small);
-  color: var(--ink-2);
-  line-height: 1.55;
 }
 
 /* --- The five feelings, shared with the Activity prompt ------------------- */

@@ -56,6 +56,15 @@ export interface NewPost {
   media?: PostMediaInput
   sharedType?: PostShare
   sharedDataId?: ID
+  /**
+   * Marks this as a piece of motivation rather than an ordinary post.
+   *
+   * A flag rather than a separate table, because motivation *is* a post: it
+   * is written by a member, shown in the same feed, reacted to and commented
+   * on identically, and owned by the same rules. Only the label and the way
+   * the card reads differ, and neither is a reason for a second system.
+   */
+  motivation?: boolean
 }
 
 /**
@@ -119,7 +128,12 @@ export const postService = {
     const post: Post = {
       id: uid('p'),
       userId: input.userId,
-      type: postTypeFor({ mediaIds, mediaKind: asset?.kind, sharedType: share }),
+      type: postTypeFor({
+        mediaIds,
+        mediaKind: asset?.kind,
+        sharedType: share,
+        motivation: input.motivation,
+      }),
       text,
       createdAt: now(),
       visibility: input.visibility ?? DEFAULT_VISIBILITY,
@@ -330,7 +344,11 @@ function postTypeFor(input: {
   mediaIds: ID[]
   mediaKind?: MediaAsset['kind']
   sharedType?: SharedType
+  motivation?: boolean
 }): PostType {
+  // Motivation is what it is whether or not it carries a picture — the label
+  // describes the intent, not the attachment.
+  if (input.motivation) return 'motivation'
   switch (input.sharedType) {
     case 'workout':
       return 'workout'

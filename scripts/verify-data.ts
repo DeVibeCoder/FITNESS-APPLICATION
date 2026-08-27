@@ -3633,6 +3633,44 @@ async function main() {
     (await db.posts.toArray()).some((post) => post.sharedType === 'workout'),
   )
 
+  console.log('\n— Motivation is a post, not a second system —\n')
+
+  const motivation = await postService.create({
+    userId: 'u_ahmed',
+    text: '  You don\u2019t have to be extreme, just consistent.  ',
+    motivation: true,
+  })
+  check('motivation is its own kind of post', motivation.type, 'motivation')
+  check('and is trimmed like any other', motivation.text, 'You don\u2019t have to be extreme, just consistent.')
+  check('it goes to the group by default', motivation.visibility, DEFAULT_VISIBILITY)
+  ok(
+    'it lands in the same feed as everything else',
+    (await postService.feed('u_ahmed')).some((post) => post.id === motivation.id),
+  )
+
+  const illustrated = await postService.create({
+    userId: 'u_ahmed',
+    text: 'Worth remembering.',
+    motivation: true,
+    media: { kind: 'image', ref: 'blob:test/motivation', mimeType: 'image/jpeg' },
+  })
+  ok('a picture does not stop it being motivation', illustrated.type === 'motivation')
+
+  // The same rows, so the same reactions, comments and ownership rules.
+  await postService.toggleReaction(motivation.id, 'u_ahmed', '\u{1F525}')
+  check('it can be reacted to', (await db.posts.get(motivation.id))!.reactionCount, 1)
+  await postService.comment(motivation.id, 'u_ahmed', 'Needed that')
+  check('and commented on', (await db.posts.get(motivation.id))!.commentCount, 1)
+  await refusedAs('Nadia cannot delete Ahmed\u2019s motivation', () =>
+    postService.remove(motivation.id))
+
+  await postService.remove(motivation.id)
+  await postService.remove(illustrated.id)
+  check('deleting it takes its comments too',
+    (await postService.commentsFor(motivation.id)).length, 0)
+  ok('the seeded motivation post is untouched',
+    (await db.posts.get('p_5'))?.type === 'motivation')
+
   console.log('\n— Who can see it —\n')
 
   const onlyMe = await postService.create({

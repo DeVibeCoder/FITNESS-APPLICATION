@@ -2,6 +2,7 @@ import { useId, useRef, useState } from 'react'
 import { Camera, Images, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { OptionGroup } from '@/components/ui/Field'
+import { CameraCapture } from './CameraCapture'
 import { MediaFrame } from './MediaFrame'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -49,6 +50,7 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
 export function PostComposer({
   post,
   initialText,
+  kind = 'post',
   onDone,
   onCancel,
 }: {
@@ -56,6 +58,12 @@ export function PostComposer({
   post?: FeedPost
   /** Words a Share action prepared. The person edits them from here. */
   initialText?: string
+  /**
+   * Motivation is the same composer with different words on it. It writes the
+   * same row through the same service — see `NewPost.motivation` for why that
+   * is a flag rather than a second feature.
+   */
+  kind?: 'post' | 'motivation'
   onDone: () => void
   onCancel: () => void
 }) {
@@ -70,7 +78,7 @@ export function PostComposer({
   /** The media the post already had, until the person removes it. */
   const [keptMedia, setKeptMedia] = useState<MediaAsset | undefined>(post?.media[0])
   const [picked, setPicked] = useState<PickedMedia | null>(null)
-  const cameraInput = useRef<HTMLInputElement>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const libraryInput = useRef<HTMLInputElement>(null)
   const textId = useId()
 
@@ -161,7 +169,13 @@ export function PostComposer({
     }
 
     const created = await guard(() =>
-      postService.create({ userId: user.id, text, visibility, media }),
+      postService.create({
+        userId: user.id,
+        text,
+        visibility,
+        media,
+        motivation: kind === 'motivation',
+      }),
     )
     setSaving(false)
     // The draft survives a failed write — losing what somebody typed is worse
@@ -171,7 +185,14 @@ export function PostComposer({
     if (media) preview.detach()
     setText('')
     setPicked(null)
-    show(visibility === 'private' ? 'Saved, just for you.' : 'Posted to the group.', 'success')
+    show(
+      visibility === 'private'
+        ? 'Saved, just for you.'
+        : kind === 'motivation'
+          ? 'Shared with the group.'
+          : 'Posted to the group.',
+      'success',
+    )
     onDone()
   }
 
@@ -200,7 +221,11 @@ export function PostComposer({
     <>
       <div className={styles.field}>
         <label className={styles.label} htmlFor={textId}>
-          {editing ? 'Your post' : "What's going on?"}
+          {editing
+            ? 'Your post'
+            : kind === 'motivation'
+              ? 'The quote, or what it made you think'
+              : "What's going on?"}
         </label>
         <textarea
           id={textId}
@@ -208,7 +233,11 @@ export function PostComposer({
           value={text}
           rows={4}
           maxLength={MAX_LENGTH}
-          placeholder="Say something to the group…"
+          placeholder={
+            kind === 'motivation'
+              ? '"You don\u2019t have to be extreme, just consistent."'
+              : 'Say something to the group…'
+          }
           onChange={(event) => setText(event.target.value)}
         />
         {remaining <= 100 ? (
@@ -226,18 +255,10 @@ export function PostComposer({
       ) : null}
 
       {/*
-        Two ways in, both accepting photos and video. `capture` asks for the
-        camera; anything that cannot honour it opens the picker instead, which
-        is the fallback working rather than a feature failing.
+        Two ways in, and genuinely two different things: the app's own camera
+        through getUserMedia, or the file picker. See CameraCapture for why the
+        `capture` attribute was never actually the camera.
       */}
-      <input
-        ref={cameraInput}
-        type="file"
-        accept="image/*,video/*"
-        capture="environment"
-        className={styles.file}
-        onChange={onFile}
-      />
       <input
         ref={libraryInput}
         type="file"
@@ -247,19 +268,33 @@ export function PostComposer({
       />
 
       <div className={styles.capture}>
-        <button className={styles.captureButton} onClick={() => cameraInput.current?.click()}>
+        <button className={styles.captureButton} onClick={() => setCameraOpen(true)}>
           <span className={styles.captureIcon}>
             <Camera size={18} strokeWidth={2} />
           </span>
-          Camera
+          Take photo or video
         </button>
         <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
           <span className={styles.captureIcon}>
             <Images size={18} strokeWidth={2} />
           </span>
-          Photos &amp; videos
+          Choose from device
         </button>
       </div>
+
+      {cameraOpen ? (
+        <CameraCapture
+          onCapture={(file) => {
+            setCameraOpen(false)
+            void pick(file)
+          }}
+          onClose={() => setCameraOpen(false)}
+          onChooseInstead={() => {
+            setCameraOpen(false)
+            libraryInput.current?.click()
+          }}
+        />
+      ) : null}
       {previewAsset?.temporary ? (
         <p className={styles.note}>
           Media is referenced, never copied into the app — it stays on this device and will not
@@ -279,7 +314,13 @@ export function PostComposer({
       />
 
       <Button size="lg" block onClick={submit} disabled={!canPost || saving}>
-        {saving ? 'Posting…' : editing ? 'Save changes' : 'Post'}
+        {saving
+          ? 'Sharing…'
+          : editing
+            ? 'Save changes'
+            : kind === 'motivation'
+              ? 'Share motivation'
+              : 'Post'}
       </Button>
 
       {confirmDiscard ? (

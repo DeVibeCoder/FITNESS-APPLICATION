@@ -1,6 +1,7 @@
 import { useId, useRef, useState } from 'react'
 import { Camera, Images, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CameraCapture } from './CameraCapture'
 import { StoryFrame, STORY_BACKGROUNDS, DEFAULT_STORY_BACKGROUND } from './StoryFrame'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -27,11 +28,11 @@ const MAX_LENGTH = 140
  * drawn by the same `StoryFrame` the viewer uses, then the two ways to fill
  * it, then the words. This is a thing you look at, not a record you fill in.
  *
- * Two capture paths, because a phone has two. `capture="environment"` asks the
- * browser for the camera directly; a device or browser that cannot honour it
- * simply opens the file picker instead, which is why the fallback needs no
- * detection and no permission prompt of our own. Both accept photos and video,
- * so recording a clip is the same gesture as taking a picture.
+ * Two ways in, and they are genuinely different things. "Take photo or video"
+ * opens the app's own camera through `getUserMedia`; "Photos & videos" opens
+ * the file picker. The old `capture` attribute on a file input was neither —
+ * it is a hint the picker may offer a camera, and on most devices it simply
+ * opened the gallery under a button labelled Camera.
  *
  * A clip over a minute is refused before anything is written, and the reason
  * is stated in the composer rather than in a toast that scrolls away. There is
@@ -50,7 +51,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
   const [background, setBackground] = useState<StoryBackground>(DEFAULT_STORY_BACKGROUND)
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const cameraInput = useRef<HTMLInputElement>(null)
+  const [cameraOpen, setCameraOpen] = useState(false)
   const libraryInput = useRef<HTMLInputElement>(null)
   const textId = useId()
 
@@ -169,19 +170,6 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         </p>
       ) : null}
 
-      {/*
-        `capture` asks for the camera; a desktop browser that cannot honour it
-        opens the file picker instead, which is the fallback working rather
-        than a feature failing. Both take photos and video.
-      */}
-      <input
-        ref={cameraInput}
-        type="file"
-        accept="image/*,video/*"
-        capture="environment"
-        className={styles.file}
-        onChange={onFile}
-      />
       <input
         ref={libraryInput}
         type="file"
@@ -191,19 +179,34 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       />
 
       <div className={styles.capture}>
-        <button className={styles.captureButton} onClick={() => cameraInput.current?.click()}>
+        <button className={styles.captureButton} onClick={() => setCameraOpen(true)}>
           <span className={styles.captureIcon}>
             <Camera size={20} strokeWidth={2} />
           </span>
-          Camera
+          Take photo or video
         </button>
         <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
           <span className={styles.captureIcon}>
             <Images size={20} strokeWidth={2} />
           </span>
-          Photos &amp; videos
+          Choose from device
         </button>
       </div>
+
+      {cameraOpen ? (
+        <CameraCapture
+          maxVideoSec={STORY_VIDEO_MAX_SEC}
+          onCapture={(file) => {
+            setCameraOpen(false)
+            void pick(file)
+          }}
+          onClose={() => setCameraOpen(false)}
+          onChooseInstead={() => {
+            setCameraOpen(false)
+            libraryInput.current?.click()
+          }}
+        />
+      ) : null}
 
       {/*
         Only when there is no media. A picture is its own background, and

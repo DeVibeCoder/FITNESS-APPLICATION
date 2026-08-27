@@ -112,6 +112,22 @@
 }
 
 /*
+ * Motivation, set as a quotation.
+ *
+ * A rule down the side and slightly larger, softer type — enough to say "this
+ * is something somebody passed on" without becoming a different kind of card.
+ * The KIND label in the header already names it; this only has to make the
+ * words read differently from an ordinary caption.
+ */
+.quote {
+  padding-left: 0.875rem;
+  border-left: 3px solid var(--accent);
+  font-size: 1.0625rem;
+  font-style: italic;
+  color: var(--ink);
+}
+
+/*
  * A long caption folds instead of pushing the next post off the screen. Four
  * lines is enough to know whether you want the rest — which is the only job
  * the fold has.

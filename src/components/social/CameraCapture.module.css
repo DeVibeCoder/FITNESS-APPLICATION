@@ -1,0 +1,233 @@
+/*
+ * Full screen and above everything, including the bottom navigation. A camera
+ * with a tab bar across it is not a viewfinder.
+ */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #000;
+  overscroll-behavior: contain;
+  animation: fade var(--med) var(--ease-out);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * The viewfinder fills the screen and crops rather than letterboxing — a
+ * camera preview with black bars reads as broken, and the capture itself is
+ * taken from the full sensor frame regardless of what the preview shows.
+ */
+.preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The front camera shows you a mirror, the way every phone does. */
+.mirrored {
+  transform: scaleX(-1);
+}
+
+.top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: calc(env(safe-area-inset-top) + var(--s-3)) var(--s-4) var(--s-3);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
+}
+
+.controls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-5) var(--s-6) calc(env(safe-area-inset-bottom) + var(--s-6));
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  transition: background var(--fast) var(--ease);
+}
+
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* Keeps the shutter centred when a side control is absent. */
+.iconSpacer {
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+/*
+ * The shutter. Big, round, white, in the middle — the one control on the
+ * screen that never needs a label because every camera has had it for a
+ * century.
+ */
+.shutter {
+  display: grid;
+  place-items: center;
+  width: 74px;
+  height: 74px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: #fff;
+  color: #17110c;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
+  transition: transform var(--fast) var(--ease);
+}
+
+.shutter:active {
+  transform: scale(0.93);
+}
+
+.shutter:disabled {
+  opacity: 0.45;
+}
+
+.record {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.record:disabled {
+  opacity: 0.45;
+}
+
+/* Recording is the one state worth shouting about, so it goes red. */
+.recordOn {
+  background: var(--danger);
+  color: #fff;
+  transform: scale(1.04);
+}
+
+.recording {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.3125rem 0.75rem;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(8px);
+  color: #fff;
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.limit {
+  font-weight: 600;
+  opacity: 0.72;
+}
+
+/*
+ * When there is no camera to show. Says what happened and offers the way
+ * round it, rather than leaving somebody looking at a black rectangle.
+ */
+.problem {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-4);
+  padding: var(--s-8) var(--s-5);
+  text-align: center;
+  background: rgba(8, 5, 3, 0.9);
+}
+
+.problemText {
+  max-width: 24rem;
+  color: #fff;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    animation: none;
+  }
+
+  .dot {
+    animation: none;
+  }
+}
+
+/*
+ * Desktop: a webcam preview is not a phone viewfinder. The stage is capped so
+ * the picture sits in the middle of the window rather than being blown up to
+ * fill a 27-inch monitor.
+ */
+@media (min-width: 64rem) {
+  .root {
+    padding: var(--s-8);
+    background: rgba(8, 5, 3, 0.94);
+  }
+
+  .preview {
+    inset: var(--s-8);
+    width: auto;
+    height: auto;
+    max-width: min(60rem, 100%);
+    margin-inline: auto;
+    border-radius: var(--r-xl);
+    object-fit: contain;
+    background: #000;
+  }
+
+  .top,
+  .controls {
+    background: none;
+  }
+}

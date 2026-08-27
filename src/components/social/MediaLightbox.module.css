@@ -8,10 +8,12 @@
   z-index: var(--z-sheet);
   display: grid;
   place-items: center;
-  padding: env(safe-area-inset-top) var(--s-3) env(safe-area-inset-bottom);
-  background: rgba(8, 5, 3, 0.94);
+  padding: calc(env(safe-area-inset-top) + var(--s-3)) var(--s-3)
+    calc(env(safe-area-inset-bottom) + var(--s-3));
+  background: rgba(8, 5, 3, 0.95);
   overscroll-behavior: contain;
   animation: fade var(--med) var(--ease-out);
+  transition: opacity var(--fast) linear;
 }
 
 @keyframes fade {
@@ -28,23 +30,47 @@
 }
 
 /*
- * The picture, contained. `fill` on the frame means it takes this box rather
- * than imposing a ratio, and `contain` on the media means the whole frame is
- * inside it whatever shape it is — which is the entire point of this view.
+ * Wraps the media only so the dismiss drag has something to move. It takes the
+ * media's size rather than imposing one — `place-items: center` on the root
+ * does the centring, and nothing here has a shape of its own.
  */
-.stage {
+.holder {
   position: relative;
-  width: 100%;
-  height: 100%;
+  display: flex;
   max-width: 100%;
-  animation: rise var(--med) var(--ease-out);
+  max-height: 100%;
+  touch-action: none;
 }
 
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: scale(0.97);
-  }
+/*
+ * The whole fix for the empty bands above and below a picture.
+ *
+ * The media sizes itself to its own aspect ratio, capped by the viewport. No
+ * stage, no `object-fit`, no ratio imposed from outside — a portrait photo is
+ * tall, a landscape one is wide, and the dark ground is whatever is left over.
+ * A fixed box with a contained picture inside it letterboxes twice, which is
+ * exactly what this replaces.
+ */
+.media {
+  display: block;
+  max-width: 100%;
+  /* Fills the padded root without needing to know what the insets came to. */
+  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6));
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: var(--r-sm);
+}
+
+/*
+ * Seed artwork is drawn by CSS and has no size of its own, so it is given a
+ * sensible one rather than collapsing to nothing.
+ */
+.art {
+  display: block;
+  width: min(90vw, 46rem);
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r);
 }
 
 .close {
@@ -54,39 +80,38 @@
   z-index: 2;
   display: grid;
   place-items: center;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.16);
   backdrop-filter: blur(8px);
   color: #fff;
   transition: background var(--fast) var(--ease);
 }
 
 .close:hover {
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.26);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .root,
-  .stage {
+  .root {
     animation: none;
   }
 }
 
 /*
- * Desktop: a centred stage with real space around it rather than a picture
- * pinned to the window edges. The cap is on both axes so a very wide or very
- * tall frame still sits inside a comfortable reading area.
+ * Desktop: room around the picture rather than one pinned to the window edges.
+ * Still no imposed shape — only a smaller ceiling.
  */
 @media (min-width: 64rem) {
   .root {
     padding: var(--s-8);
   }
 
-  .stage {
-    width: min(72rem, 88vw);
-    height: min(84vh, 52rem);
+  .media {
+    max-height: calc(100vh - var(--s-8) * 2);
+    max-width: min(72rem, 88vw);
+    border-radius: var(--r);
   }
 
   .close {
