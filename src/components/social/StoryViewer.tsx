@@ -31,6 +31,8 @@ const DISMISS_AT = 110
 const DAMP = 0.55
 /** Long enough to see the card leave, short enough not to feel like waiting. */
 const EXIT_MS = 220
+/** The person-to-person cross-slide. Slower, because two cards are moving. */
+const SLIDE_MS = 360
 
 /**
  * The story viewer.
@@ -102,10 +104,26 @@ export function StoryViewer({
   const axis = useRef<'x' | 'y' | null>(null)
   /** Live finger offset, so the card can follow it. */
   const [drag, setDrag] = useState({ x: 0, y: 0 })
-  /** Set while the card animates away, and cleared by whatever it became. */
-  const [exit, setExit] = useState<'up' | 'down' | 'left' | 'right' | null>(null)
+  /**
+   * Set while the card is being thrown off the screen. Vertical only —
+   * changing person is a two-card move and uses `leaving` instead.
+   */
+  const [exit, setExit] = useState<'up' | 'down' | null>(null)
   /** Which side the incoming person should slide in from. */
   const [entering, setEntering] = useState<'left' | 'right' | null>(null)
+  /**
+   * The card on its way out, kept on screen while the next one arrives.
+   *
+   * Without it the outgoing story unmounts the instant the person changes and
+   * the transition is a card leaving into nothing, then a card appearing from
+   * nothing. Holding it for the length of the slide is what makes the two
+   * halves one movement.
+   */
+  const [leaving, setLeaving] = useState<{
+    ring: StoryRing
+    story: StoryRing['stories'][number]
+    direction: 'left' | 'right'
+  } | null>(null)
 
   const live = useMemo(
     () =>
@@ -329,28 +347,51 @@ export function StoryViewer({
   }
 
   /**
-   * Animates the card out, then does the thing the gesture asked for.
+   * Finishes the movement the gesture started.
    *
-   * The card is still mounted while it leaves, so the timer stays paused for
-   * the whole flight — otherwise the progress bar could finish mid-animation
-   * and advance a story that is already on its way off the screen.
+   * Vertical is one card leaving: it flies off and the viewer closes behind
+   * it, so there is nothing to arrive.
+   *
+   * Horizontal is two cards moving as one. The person changes immediately —
+   * so the new story is already mounted and already loading — while the old
+   * card is held on screen a moment longer and pushed out alongside it. Both
+   * travel the same distance at the same time, one going and one coming, with
+   * a little depth between them so the pair reads as a deck being turned
+   * rather than two unrelated slides.
+   *
+   * The timer stays paused for the whole flight either way. A progress bar
+   * finishing mid-animation would advance a story that is already halfway off
+   * the screen.
    */
   const leave = (direction: 'up' | 'down' | 'left' | 'right') => {
     setPaused(true)
     setDrag({ x: 0, y: 0 })
-    setExit(direction)
-    window.setTimeout(() => {
-      if (direction === 'up' || direction === 'down') {
-        onClose()
-        return
-      }
-      const forward = direction === 'left'
-      // The new person slides in from the side the old one left towards.
-      setEntering(forward ? 'right' : 'left')
-      toPerson(forward ? 1 : -1)
-      setExit(null)
+
+    if (direction === 'up' || direction === 'down') {
+      setExit(direction)
+      window.setTimeout(onClose, EXIT_MS)
+      return
+    }
+
+    const forward = direction === 'left'
+    // Nowhere to go: snap back rather than pretending something happened.
+    if (!hasPerson(forward ? 1 : -1)) {
       setPaused(false)
-    }, EXIT_MS)
+      return
+    }
+
+    setLeaving({ ring, story, direction })
+    // The new person comes from the side the old one is heading towards.
+    setEntering(forward ? 'right' : 'left')
+    toPerson(forward ? 1 : -1)
+    // `toPerson` resumes the timer; the slide is not over yet.
+    setPaused(true)
+
+    window.setTimeout(() => {
+      setLeaving(null)
+      setEntering(null)
+      setPaused(false)
+    }, SLIDE_MS)
   }
 
   /** A tap navigates; the tap that ends a hold does not. */
@@ -394,7 +435,7 @@ export function StoryViewer({
       */}
       <button
         className={`${styles.step} ${styles.stepBack}`}
-        onClick={() => toPerson(-1)}
+        onClick={() => leave('right')}
         aria-label="Previous person"
       >
         <ChevronLeft size={22} strokeWidth={2.2} />
@@ -447,39 +488,62 @@ export function StoryViewer({
         </header>
 
         {/*
-          Remounted per story, so the entry transition replays rather than the
-          picture swapping in place. While a finger is down the transform is
-          driven inline and the transition is off, so the card tracks the
-          finger exactly; on release the class takes over and animates.
+          Two cards can be in flight at once, so they share a deck rather than
+          taking turns in the layout. Both are absolutely placed and stacked;
+          only the live one takes gestures.
         */}
-        <div
-          key={story.id}
-          className={[
-            styles.card,
-            dragging ? styles.dragging : '',
-            exit ? styles[`exit${exit[0].toUpperCase()}${exit.slice(1)}`] : '',
-            entering ? styles[`enter${entering[0].toUpperCase()}${entering.slice(1)}`] : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-          style={dragging ? { transform: dragTransform } : undefined}
-          onAnimationEnd={(event) => {
-            // Only the card's own arrival, not a progress bar's tick.
-            if (event.target === event.currentTarget) setEntering(null)
-          }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-        >
-          <StoryFrame
-            story={story}
-            media={story.mediaId ? ring.media.get(story.mediaId) : undefined}
-            author={ring.user}
-          />
+        <div className={styles.deck}>
+          {/*
+            The person being left behind, held for the length of the slide so
+            the move reads as one gesture instead of two.
+          */}
+          {leaving ? (
+            <div
+              key={`leaving-${leaving.story.id}`}
+              className={`${styles.card} ${
+                leaving.direction === 'left' ? styles.slideOutLeft : styles.slideOutRight
+              }`}
+              aria-hidden="true"
+            >
+              <StoryFrame
+                story={leaving.story}
+                media={leaving.story.mediaId ? leaving.ring.media.get(leaving.story.mediaId) : undefined}
+                author={leaving.ring.user}
+              />
+            </div>
+          ) : null}
 
-          <button className={`${styles.zone} ${styles.zoneBack}`} onClick={tap(previous)} aria-label="Previous story" />
-          <button className={`${styles.zone} ${styles.zoneNext}`} onClick={tap(next)} aria-label="Next story" />
+          {/*
+            Remounted per story, so the entry transition replays rather than
+            the picture swapping in place. While a finger is down the transform
+            is driven inline and the transition is off, so the card tracks the
+            finger exactly; on release the class takes over and animates.
+          */}
+          <div
+            key={story.id}
+            className={[
+              styles.card,
+              dragging ? styles.dragging : '',
+              exit ? styles[`exit${exit[0].toUpperCase()}${exit.slice(1)}`] : '',
+              entering ? styles[`slideIn${entering[0].toUpperCase()}${entering.slice(1)}`] : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={dragging ? { transform: dragTransform } : undefined}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
+          >
+            <StoryFrame
+              story={story}
+              media={story.mediaId ? ring.media.get(story.mediaId) : undefined}
+              author={ring.user}
+            />
+
+            <button className={`${styles.zone} ${styles.zoneBack}`} onClick={tap(previous)} aria-label="Previous story" />
+            <button className={`${styles.zone} ${styles.zoneNext}`} onClick={tap(next)} aria-label="Next story" />
+          </div>
         </div>
 
         {/*
@@ -526,7 +590,7 @@ export function StoryViewer({
 
       <button
         className={`${styles.step} ${styles.stepNext}`}
-        onClick={() => toPerson(1)}
+        onClick={() => leave('left')}
         aria-label="Next person"
       >
         <ChevronRight size={22} strokeWidth={2.2} />

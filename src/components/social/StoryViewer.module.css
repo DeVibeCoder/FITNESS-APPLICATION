@@ -4,6 +4,10 @@
  * uses the sheet layer, the same one every other overlay in the app uses.
  */
 .root {
+  /* Kept here rather than in tokens: it belongs to this one transition, and
+     StoryViewer.tsx has to agree with it exactly — see SLIDE_MS. */
+  --slide: 360ms;
+
   position: fixed;
   inset: 0;
   z-index: var(--z-sheet);
@@ -41,11 +45,29 @@
   overflow: hidden;
 }
 
-.card {
+/*
+ * Where the cards live.
+ *
+ * Two of them are on screen during a person change, so they stack rather than
+ * sharing the layout. The perspective is what makes the pair read as a deck
+ * being turned: the card going out leans away from the viewer and the one
+ * coming in leans back towards it, which is depth rather than two flat panels
+ * sliding past each other.
+ */
+.deck {
   position: relative;
   flex: 1;
   min-height: 0;
+  perspective: 1600px;
+  perspective-origin: 50% 50%;
+}
+
+.card {
+  position: absolute;
+  inset: 0;
   overflow: hidden;
+  transform-origin: center center;
+  backface-visibility: hidden;
   /*
    * The viewer handles its own gestures, so the browser handles none of them.
    * This is what stops a downward flick pulling the page to refresh or
@@ -77,12 +99,11 @@
   }
 }
 
-/* --- Leaving ---------------------------------------------------------------
+/* --- Dismissing ------------------------------------------------------------
  *
- * Committed gestures finish the movement the finger started, in the same
- * direction, rather than cutting to the result. Vertical throws the story off
- * the screen and closes; horizontal slides it aside and the next person
- * arrives from the opposite edge.
+ * A committed vertical gesture finishes the throw the finger started and the
+ * viewer closes behind it. There is nothing arriving, so this is one card
+ * leaving on its own.
  */
 .exitUp {
   transform: translate3d(0, -100%, 0) scale(0.9);
@@ -96,39 +117,78 @@
   animation: none;
 }
 
-.exitLeft {
-  transform: translate3d(-100%, 0, 0);
-  opacity: 0;
-  animation: none;
+/* --- Turning to another person ---------------------------------------------
+ *
+ * Two cards, one movement. The outgoing card travels a full width, tips away
+ * from the viewer and dims; the incoming one comes the same distance from the
+ * opposite edge, tipped the other way, and settles square and bright. They run
+ * for the same duration on the same curve, so the pair moves as one object
+ * rather than as two slides that happen to overlap.
+ *
+ * The dimming matters as much as the movement: without it the two cards read
+ * as equally present and the eye does not know which one it is being handed.
+ */
+.slideOutLeft {
+  z-index: 1;
+  animation: turnOutLeft var(--slide) var(--ease-out) forwards;
 }
 
-.exitRight {
-  transform: translate3d(100%, 0, 0);
-  opacity: 0;
-  animation: none;
+.slideOutRight {
+  z-index: 1;
+  animation: turnOutRight var(--slide) var(--ease-out) forwards;
 }
 
-/* --- Arriving -------------------------------------------------------------- */
-
-.enterLeft {
-  animation: slideFromLeft var(--med) var(--ease-out);
+.slideInLeft {
+  z-index: 2;
+  animation: turnInLeft var(--slide) var(--ease-out);
 }
 
-.enterRight {
-  animation: slideFromRight var(--med) var(--ease-out);
+.slideInRight {
+  z-index: 2;
+  animation: turnInRight var(--slide) var(--ease-out);
 }
 
-@keyframes slideFromLeft {
+@keyframes turnOutLeft {
   from {
-    opacity: 0.4;
-    transform: translate3d(-24%, 0, 0);
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(-100%, 0, 0) scale(0.82) rotateY(22deg);
+    opacity: 0.15;
   }
 }
 
-@keyframes slideFromRight {
+@keyframes turnOutRight {
   from {
-    opacity: 0.4;
-    transform: translate3d(24%, 0, 0);
+    transform: none;
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(100%, 0, 0) scale(0.82) rotateY(-22deg);
+    opacity: 0.15;
+  }
+}
+
+@keyframes turnInLeft {
+  from {
+    transform: translate3d(-100%, 0, 0) scale(0.82) rotateY(22deg);
+    opacity: 0.15;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes turnInRight {
+  from {
+    transform: translate3d(100%, 0, 0) scale(0.82) rotateY(-22deg);
+    opacity: 0.15;
+  }
+  to {
+    transform: none;
+    opacity: 1;
   }
 }
 
@@ -199,10 +259,23 @@
 
   /*
    * The card still has to leave, or a committed gesture would appear to do
-   * nothing — it just goes straight there instead of travelling.
+   * nothing — it just goes straight there instead of travelling. Turning to
+   * another person keeps its animation for the same reason, only shortened:
+   * removing it entirely would make the change invisible.
    */
   .card {
     transition-duration: 1ms;
+  }
+
+  .root {
+    --slide: 90ms;
+  }
+
+  .slideOutLeft,
+  .slideOutRight,
+  .slideInLeft,
+  .slideInRight {
+    animation-duration: var(--slide);
   }
 
   .barLive {
