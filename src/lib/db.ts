@@ -17,6 +17,7 @@ import type {
   FoodEntry,
   Goal,
   GroupChallenge,
+  LoggedExercise,
   MotivationVideo,
   PlanDay,
   PlanEnrollment,
@@ -58,6 +59,7 @@ export class CircuitDb extends Dexie {
   workoutExercises!: EntityTable<WorkoutExercise, 'id'>
   sessions!: EntityTable<WorkoutSession, 'id'>
   setResults!: EntityTable<SetResult, 'id'>
+  loggedExercises!: EntityTable<LoggedExercise, 'id'>
   foods!: EntityTable<FoodEntry, 'id'>
   water!: EntityTable<WaterEntry, 'id'>
   steps!: EntityTable<StepEntry, 'id'>
@@ -191,6 +193,18 @@ export class CircuitDb extends Dexie {
      */
     this.version(6).stores({
       challengeParticipants: 'id, challengeId, userId, [challengeId+userId]',
+    })
+
+    /**
+     * v7 — exercises written down by hand.
+     *
+     * One new store and no upgrade function. Every existing session keeps the
+     * summary it already had; only sessions logged from here on carry rows in
+     * this table, and a session with none simply has none. The compound index
+     * is what reads a session's exercises back in the order they were entered.
+     */
+    this.version(7).stores({
+      loggedExercises: 'id, sessionId, [sessionId+order]',
     })
   }
 }

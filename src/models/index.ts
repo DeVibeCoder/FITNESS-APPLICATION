@@ -266,8 +266,16 @@ export interface WorkoutSession {
   sourceName?: string
   /** Plan name as it reads in the external app, e.g. "Full Body Beginner". */
   planName?: string
+  /**
+   * What sort of session it was, for a manually logged one.
+   *
+   * Absent on everything recorded before manual logging existed and on
+   * anything imported from another app, which is why every read treats
+   * `undefined` as "just a workout".
+   */
+  kind?: WorkoutKind
   /** How the record was created. Quick logs never have set-by-set detail. */
-  loggedVia?: 'player' | 'quick_log'
+  loggedVia?: 'player' | 'quick_log' | 'manual'
   /**
    * Pause bookkeeping. Elapsed time is always derived from these plus
    * `startedAt` rather than counted up, so it survives a refresh and cannot
@@ -275,6 +283,51 @@ export interface WorkoutSession {
    */
   pausedSec?: number
   pausedAt?: Timestamp
+}
+
+/**
+ * What kind of session this was, and therefore which fields are worth asking
+ * for.
+ *
+ * A run has a distance and no sets; a lifting session has sets and no
+ * distance; plenty of things are neither. Recording that up front is what
+ * lets the form ask three questions instead of nine — and it is stored rather
+ * than guessed, because "did this count as cardio" is the person's call.
+ */
+export type WorkoutKind = 'strength' | 'cardio' | 'general'
+
+/** The shape of one exercise's numbers. A session may mix both. */
+export type ExerciseKind = 'strength' | 'cardio'
+
+/**
+ * One exercise inside a manually logged session.
+ *
+ * Deliberately not `SetResult`. That row belongs to a *plan's* exercise — it
+ * carries a `workoutExerciseId` pointing at a row in `workoutExercises`, which
+ * only exists for the built-in plans. Somebody typing "Bulgarian split squat"
+ * into the log has no plan and no library entry, and inventing one for every
+ * ad-hoc movement would fill the exercise library with single-use rows.
+ *
+ * So this is its own store, keyed to the session, holding the numbers a person
+ * actually wrote down. Both shapes live on one row with everything optional:
+ * a strength entry fills sets/reps/weight, a cardio entry fills duration and
+ * distance, and neither carries the other's empty fields.
+ */
+export interface LoggedExercise {
+  id: ID
+  sessionId: ID
+  /** Position within the session, 0-based. Reordering rewrites these. */
+  order: number
+  name: string
+  kind: ExerciseKind
+  /** Strength. */
+  sets?: number
+  reps?: number
+  weightKg?: number
+  /** Cardio. */
+  durationSec?: number
+  distanceKm?: number
+  note?: string
 }
 
 export interface SetResult {

@@ -249,3 +249,62 @@
 .detailToggle:hover {
   color: var(--accent);
 }
+
+/* --- Exercises written down by hand --------------------------------------- */
+
+/*
+ * One line each, in the order they were entered. The name takes the room and
+ * the numbers sit against the right edge, so a column of them can be read
+ * downward without tracking across the card.
+ */
+.logged {
+  display: flex;
+  flex-direction: column;
+  padding: 0 var(--card-pad-tight) var(--s-3);
+}
+
+.loggedRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: 0.1875rem;
+}
+
+.loggedName {
+  min-width: 0;
+  font-size: var(--t-small);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.loggedDetail {
+  flex: none;
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Destructive, so it says so in colour as well as in the word. */
+.delete {
+  color: var(--danger);
+}
+
+.confirmText {
+  font-size: var(--t-body);
+  color: var(--ink-2);
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.confirmRow {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.confirmRow > * {
+  flex: 1;
+}

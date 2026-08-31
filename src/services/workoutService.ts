@@ -5,10 +5,12 @@ import type {
   Difficulty,
   Exercise,
   ID,
+  LoggedExercise,
   PlanDay,
   PlanEnrollment,
   SetResult,
   WorkoutExercise,
+  WorkoutKind,
   WorkoutPlan,
   WorkoutSession,
   WorkoutSource,
@@ -83,6 +85,19 @@ function workoutUpdateText(session: Pick<WorkoutSession, 'name' | 'planName' | '
   return session.dayNumber
     ? `completed Day ${session.dayNumber} — ${what} 💪`
     : `completed ${what} 💪`
+}
+
+/**
+ * What to call a session nobody named.
+ *
+ * A blank title is common — people log the numbers and skip the label — and
+ * "Workout" for everything makes a month of history unreadable. The kind is
+ * already known, so it becomes the name.
+ */
+const DEFAULT_NAME: Record<WorkoutKind, string> = {
+  strength: 'Strength training',
+  cardio: 'Cardio',
+  general: 'Workout',
 }
 
 export const workoutService = {
@@ -341,6 +356,117 @@ export const workoutService = {
     }
     await db.sessions.add(session)
 
+    await updateService.postOnce({
+      userId: input.userId,
+      kind: 'workout_completed',
+      dedupeKey: `workout:${session.id}`,
+      text: workoutUpdateText(session),
+      meta: { kcal: session.caloriesKcal, durationSec: session.durationSec },
+    })
+    return session
+  },
+
+  // --- Logging by hand -----------------------------------------------------
+
+  /** The exercises somebody wrote down for a session, in the order they wrote them. */
+  async exercisesFor(sessionId: ID): Promise<LoggedExercise[]> {
+    const rows = await db.loggedExercises.where('sessionId').equals(sessionId).toArray()
+    return rows.sort((a, b) => a.order - b.order)
+  },
+
+  /**
+   * Record a workout somebody is typing in themselves.
+   *
+   * Separate from `logExternal` because they are answering different
+   * questions. That one transcribes another app's summary screen — its plan
+   * name, its day number, its calorie figure. This one is a person writing
+   * down what they did, so it asks for the session and its exercises and
+   * nothing about where it came from.
+   *
+   * The exercises are replaced wholesale rather than diffed. An edit is
+   * somebody re-stating the list, the lists are three or four rows long, and a
+   * diff would be more code than the thing it optimises — done in one
+   * transaction so a save can never leave half a workout behind.
+   *
+   * `exerciseCount` stays on the session because the summary card, the week
+   * stats and the group feed all read it, and none of them should have to
+   * fetch a second table to count to three.
+   */
+  async logManual(input: {
+    sessionId?: ID
+    userId: ID
+    date: DateKey
+    kind: WorkoutKind
+    name: string
+    durationSec: number
+    caloriesKcal?: number
+    difficulty?: Difficulty
+    note?: string
+    exercises: Omit<LoggedExercise, 'id' | 'sessionId' | 'order'>[]
+  }): Promise<WorkoutSession> {
+    assertOwner(input.userId)
+
+    const name = input.name.trim() || DEFAULT_NAME[input.kind]
+    const exercises = input.exercises
+      .filter((exercise) => exercise.name.trim().length > 0)
+      .map((exercise, order) => ({
+        ...exercise,
+        id: uid('lex'),
+        sessionId: input.sessionId ?? '',
+        order,
+        name: exercise.name.trim(),
+        note: exercise.note?.trim() || undefined,
+      }))
+
+    const clean = {
+      kind: input.kind,
+      name,
+      exerciseCount: exercises.length,
+      durationSec: Math.max(0, Math.round(input.durationSec)),
+      caloriesKcal: Math.max(0, Math.round((input.caloriesKcal ?? 0) * 10) / 10),
+      difficulty: input.difficulty,
+      note: input.note?.trim() || undefined,
+      loggedVia: 'manual' as const,
+      // A hand-written log has no external app behind it, and saying it came
+      // from one would be a claim the record cannot support.
+      source: 'other' as WorkoutSource,
+      sourceName: undefined,
+      planName: undefined,
+      dayNumber: undefined,
+    }
+
+    if (input.sessionId) {
+      const existing = await db.sessions.get(input.sessionId)
+      assertOwnerOf(existing)
+      if (!existing) throw new Error('Session not found')
+      const updated: WorkoutSession = { ...existing, ...clean, date: input.date }
+      await db.transaction('rw', db.sessions, db.loggedExercises, async () => {
+        await db.sessions.put(updated)
+        await db.loggedExercises.where('sessionId').equals(updated.id).delete()
+        await db.loggedExercises.bulkAdd(
+          exercises.map((exercise) => ({ ...exercise, sessionId: updated.id })),
+        )
+      })
+      return updated
+    }
+
+    const session: WorkoutSession = {
+      id: uid('ws'),
+      userId: input.userId,
+      date: input.date,
+      startedAt: now(),
+      completedAt: now(),
+      status: 'completed',
+      ...clean,
+    }
+    await db.transaction('rw', db.sessions, db.loggedExercises, async () => {
+      await db.sessions.add(session)
+      await db.loggedExercises.bulkAdd(
+        exercises.map((exercise) => ({ ...exercise, sessionId: session.id })),
+      )
+    })
+
+    // The group hears about it once, exactly as it does for an imported log.
     await updateService.postOnce({
       userId: input.userId,
       kind: 'workout_completed',
@@ -611,10 +737,21 @@ export const workoutService = {
     })
   },
 
+  /**
+   * Delete a session and everything that only existed because of it.
+   *
+   * Both kinds of detail go: the set-by-set results a player recorded, and the
+   * exercises somebody typed in by hand. Nothing else references either, so
+   * there is nothing else to sweep — and deliberately nothing outside this
+   * session is touched.
+   */
   async removeSession(sessionId: ID): Promise<void> {
     assertOwnerOf(await db.sessions.get(sessionId))
-    await db.sessions.delete(sessionId)
-    await db.setResults.where('sessionId').equals(sessionId).delete()
+    await db.transaction('rw', db.sessions, db.setResults, db.loggedExercises, async () => {
+      await db.sessions.delete(sessionId)
+      await db.setResults.where('sessionId').equals(sessionId).delete()
+      await db.loggedExercises.where('sessionId').equals(sessionId).delete()
+    })
   },
 
   /**

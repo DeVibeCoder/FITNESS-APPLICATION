@@ -69,7 +69,16 @@ export function TodayWorkoutCard({
     }),
     { sec: 0, kcal: 0, exercises: 0 },
   )
-  const first = done[0]
+  /*
+   * The most recent session, not the first one of the day.
+   *
+   * The totals below are the whole day added up, but the headline has to name
+   * one of them — and the useful one is what was just logged. Leading with the
+   * earliest meant somebody who recorded an evening run still saw this
+   * morning's session named here, with their own workout folded into "+1
+   * more", which reads as though the log did not take.
+   */
+  const first = done[done.length - 1]
   const feeling = feelingLabel(first.difficulty)
 
   return (

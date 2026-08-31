@@ -4036,6 +4036,96 @@ async function main() {
   ok('no GIF provider is connected', !gifService.available)
   check('so a search has nothing to ask', await gifService.search('squat'), null)
 
+  console.log('\n\u2014 Writing a workout down by hand \u2014\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const manual = await workoutService.logManual({
+    userId: 'u_ahmed',
+    date: today,
+    kind: 'strength',
+    name: 'Push day',
+    durationSec: 45 * 60,
+    difficulty: 'just_right',
+    note: 'Felt strong',
+    exercises: [
+      { name: 'Back squat', kind: 'strength', sets: 3, reps: 12, weightKg: 60 },
+      { name: 'Push-ups', kind: 'strength', sets: 3, reps: 15 },
+      { name: 'Treadmill', kind: 'cardio', durationSec: 600, distanceKm: 1.6 },
+    ],
+  })
+  check('it is a completed session', manual.status, 'completed')
+  check('marked as written by hand', manual.loggedVia, 'manual')
+  check('and carries its kind', manual.kind, 'strength')
+  check('the exercise count comes from the exercises', manual.exerciseCount, 3)
+  check('the name is kept', manual.name, 'Push day')
+  check('and the duration', manual.durationSec, 2700)
+
+  const loggedRows = await workoutService.exercisesFor(manual.id)
+  check('every exercise was stored', loggedRows.length, 3)
+  check('in the order they were entered', loggedRows.map((e) => e.name),
+    ['Back squat', 'Push-ups', 'Treadmill'])
+  check('a strength row keeps sets, reps and weight',
+    [loggedRows[0].sets, loggedRows[0].reps, loggedRows[0].weightKg], [3, 12, 60])
+  ok('and carries no cardio fields',
+    loggedRows[0].durationSec === undefined && loggedRows[0].distanceKm === undefined)
+  check('a cardio row keeps time and distance',
+    [loggedRows[2].durationSec, loggedRows[2].distanceKm], [600, 1.6])
+  ok('and carries no sets or reps',
+    loggedRows[2].sets === undefined && loggedRows[2].reps === undefined)
+
+  ok('it lands on the day it was logged for',
+    (await workoutService.sessionsForDay('u_ahmed', today)).some((s) => s.id === manual.id))
+  ok('so today counts as trained', await workoutService.completedOn('u_ahmed', today))
+  check('the group is told once',
+    await db.updates.filter((u) => u.dedupeKey === `workout:${manual.id}`).count(), 1)
+
+  console.log('\n\u2014 A blank name still produces a readable record \u2014\n')
+  const unnamed = await workoutService.logManual({
+    userId: 'u_ahmed', date: today, kind: 'cardio', name: '   ', durationSec: 1800, exercises: [],
+  })
+  check('the kind becomes the name', unnamed.name, 'Cardio')
+  check('and a session with no exercises is still a session', unnamed.exerciseCount, 0)
+  await workoutService.removeSession(unnamed.id)
+
+  console.log('\n\u2014 Editing replaces the list rather than appending to it \u2014\n')
+  const reLogged = await workoutService.logManual({
+    sessionId: manual.id,
+    userId: 'u_ahmed',
+    date: today,
+    kind: 'cardio',
+    name: 'Evening run',
+    durationSec: 32 * 60,
+    exercises: [{ name: 'Easy 5k', kind: 'cardio', durationSec: 1920, distanceKm: 5 }],
+  })
+  check('the same record is updated', reLogged.id, manual.id)
+  check('the name changed', reLogged.name, 'Evening run')
+  check('and the kind with it', reLogged.kind, 'cardio')
+  check('the old exercises are gone', (await workoutService.exercisesFor(manual.id)).length, 1)
+  check('and the count followed', reLogged.exerciseCount, 1)
+  check('one session, not two', await db.sessions.where('id').equals(manual.id).count(), 1)
+
+  await expectOwnershipRefusal('Nadia cannot log onto Ahmed', () =>
+    workoutService.logManual({
+      userId: 'u_ahmed', date: today, kind: 'general', name: 'Nope', durationSec: 60, exercises: [],
+    }))
+  await expectOwnershipRefusal("nor edit Ahmed's log", () =>
+    workoutService.logManual({
+      sessionId: manual.id, userId: 'u_ahmed', date: today, kind: 'general',
+      name: 'Nope', durationSec: 60, exercises: [],
+    }))
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+
+  console.log('\n\u2014 Deleting takes its exercises and nothing else \u2014\n')
+  const sessionsBefore = await db.sessions.count()
+  const otherExercises = await db.loggedExercises.where('sessionId').notEqual(manual.id).count()
+  await workoutService.removeSession(manual.id)
+  check('the session is gone', await db.sessions.get(manual.id), undefined)
+  check('its exercises with it', (await workoutService.exercisesFor(manual.id)).length, 0)
+  check('exactly one session was removed', await db.sessions.count(), sessionsBefore - 1)
+  check('and nobody else lost an exercise', await db.loggedExercises.count(), otherExercises)
+  ok('the seeded history is untouched', (await db.sessions.count()) > 20)
+  // The update the log posted is history; the seed's own rows are unaffected.
+  await db.updates.filter((u) => u.dedupeKey === `workout:${manual.id}`).delete()
+
   console.log('\n— Nothing was lost in the reorganisation —\n')
   ok('workouts intact', (await db.sessions.count()) > 20)
   ok('weigh-ins intact', (await db.weights.count()) > 20)

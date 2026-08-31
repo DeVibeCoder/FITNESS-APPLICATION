@@ -1,9 +1,12 @@
 import { useState } from 'react'
-import { Pencil } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Check, ChevronDown, SkipForward } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
-import { workoutService } from '@/services'
+import { achievementService, workoutService } from '@/services'
+import { useToast } from '@/context/ToastContext'
+import { summarise } from '@/components/log/exerciseSummary'
 import { db } from '@/lib/db'
 import type { SetResult, WorkoutSession } from '@/models'
 import type { ResolvedExercise } from '@/services/workoutService'
@@ -43,14 +46,44 @@ interface SessionCardProps {
 export function SessionCard({ session, showDate, defaultOpen = false }: SessionCardProps) {
   const [open, setOpen] = useState(defaultOpen)
   const [editing, setEditing] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const { isOwner } = useAuth()
+  const { show, guard } = useToast()
+
+  /*
+   * Deleting takes the session and only what belonged to it — its sets, its
+   * exercises. The ownership guard in the service is what actually enforces
+   * whose it is; this only decides whether to offer the button.
+   */
+  const remove = async () => {
+    setDeleting(true)
+    const done = await guard(async () => {
+      await workoutService.removeSession(session.id)
+      // The streak and the awards are derived from what is left, so they are
+      // re-read rather than adjusted.
+      await achievementService.evaluate(session.userId, { announce: false })
+      return true
+    })
+    setDeleting(false)
+    if (!done) return
+    setConfirmDelete(false)
+    show('Workout deleted.', 'success')
+  }
 
   /** Whether this session actually recorded anything beyond the summary. */
   const setCount = useLiveQuery(
     () => db.setResults.where('sessionId').equals(session.id).count(),
     [session.id],
   )
-  const hasDetail = (setCount ?? 0) > 0
+  /*
+   * The exercises somebody typed in, which are a different kind of detail from
+   * a player's set-by-set results — and the far more common one now. Either
+   * earns the expander; neither is invented for a session that has neither.
+   */
+  const logged = useLiveQuery(() => workoutService.exercisesFor(session.id), [session.id])
+  const hasLogged = (logged?.length ?? 0) > 0
+  const hasDetail = (setCount ?? 0) > 0 || hasLogged
 
   const detail = useLiveQuery(
     () => (open && hasDetail ? workoutService.detail(session.id) : undefined),
@@ -118,18 +151,62 @@ export function SessionCard({ session, showDate, defaultOpen = false }: SessionC
       ) : null}
 
       {/*
-        Quick logs are typed off another app's summary screen, so a mistyped
-        duration is likely and correcting it should be easy. Player sessions
-        are recorded set by set and have nothing sensible to re-enter.
+        The exercises as they were written down. One line each, in the order
+        they were entered, saying only what that kind of exercise has: sets and
+        reps for lifting, time and distance for cardio.
       */}
-      {session.loggedVia === 'quick_log' && isOwner(session.userId) ? (
+      {open && hasLogged ? (
+        <ul className={styles.logged}>
+          {logged!.map((exercise) => (
+            <li key={exercise.id} className={styles.loggedRow}>
+              <span className={styles.loggedName}>{exercise.name}</span>
+              <span className={styles.loggedDetail}>{summarise(exercise)}</span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {/*
+        Anything typed by hand can be corrected or removed by whoever wrote it
+        — a mistyped duration is likely on both routes. Player sessions were
+        recorded set by set and have nothing sensible to re-enter, so they get
+        neither control.
+      */}
+      {(session.loggedVia === 'quick_log' || session.loggedVia === 'manual') &&
+      isOwner(session.userId) ? (
         <div className={styles.editRow}>
           <button className={styles.edit} onClick={() => setEditing(true)}>
             <Pencil size={13} strokeWidth={2.2} />
             Edit this log
           </button>
+          <button
+            className={`${styles.edit} ${styles.delete}`}
+            onClick={() => setConfirmDelete(true)}
+          >
+            <Trash2 size={13} strokeWidth={2.2} />
+            Delete
+          </button>
         </div>
       ) : null}
+
+      <Sheet
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        title="Delete this workout?"
+      >
+        <p className={styles.confirmText}>
+          It comes off your history, your week and your streak. Nothing else is touched, and this
+          cannot be undone.
+        </p>
+        <div className={styles.confirmRow}>
+          <Button variant="secondary" onClick={() => setConfirmDelete(false)}>
+            Keep it
+          </Button>
+          <Button variant="danger" onClick={remove} disabled={deleting}>
+            {deleting ? 'Deleting…' : 'Delete'}
+          </Button>
+        </div>
+      </Sheet>
 
       <Sheet
         open={editing}

@@ -15,12 +15,13 @@ import {
   type WorkoutScan,
 } from '@/services/workoutScanService'
 import { WORKOUT_APPS } from '@/data/workoutApps'
+import { ManualWorkoutForm } from './ManualWorkoutForm'
 import type { Difficulty, WorkoutSession, WorkoutSource } from '@/models'
 import { todayKey } from '@/utils/date'
 import { duration, parseDuration } from '@/utils/format'
 import styles from './LogWorkoutForm.module.css'
 
-type Stage = 'choose' | 'analyzing' | 'failed' | 'form'
+type Stage = 'choose' | 'analyzing' | 'failed' | 'form' | 'manual'
 
 /** Field names as the server reports them, and what to call them out loud. */
 const FIELD_LABEL: Record<string, string> = {
@@ -64,8 +65,15 @@ export function LogWorkoutForm({
   const fileInput = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
 
-  // Editing an existing record has nothing to scan, so it opens on the form.
-  const [stage, setStage] = useState<Stage>(session ? 'form' : 'choose')
+  /*
+   * Editing an existing log has nothing to scan, so it opens on a form — and
+   * on the one that wrote it. A hand-written session goes back to the manual
+   * form, where its exercises are; anything imported goes to the summary form,
+   * which is the shape that record actually has.
+   */
+  const [stage, setStage] = useState<Stage>(
+    session ? (session.loggedVia === 'manual' ? 'manual' : 'form') : 'choose',
+  )
   const [scan, setScan] = useState<WorkoutScan | null>(null)
   const [failure, setFailure] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [slow, setSlow] = useState(false)
@@ -283,33 +291,42 @@ export function LogWorkoutForm({
   if (stage === 'choose') {
     return (
       <>
-        <div className={styles.intro}>
-          <span className={styles.introIcon} aria-hidden="true">
-            <ScanLine size={22} strokeWidth={1.9} />
-          </span>
-          <p className={styles.introText}>
-            Take a screenshot from your workout app and we'll fill in what we can.
-          </p>
-        </div>
+        {/*
+          Two ways in, and writing it down is the first of them.
 
+          The screenshot route reads another app's summary screen, which is the
+          fastest thing in the world when you have one and no use at all when
+          you do not — a run outside, a football match, a session in a gym with
+          no app behind it. Typing was the secondary action here and it is the
+          one most sessions actually need, so it leads now. Neither is removed.
+        */}
         <Button
           size="lg"
           block
-          icon={<ImageUp size={17} strokeWidth={2.2} />}
-          onClick={() => fileInput.current?.click()}
+          icon={<PencilLine size={17} strokeWidth={2.2} />}
+          onClick={() => setStage('manual')}
         >
-          Add workout screenshot
+          Log it myself
         </Button>
 
         <Button
           variant="secondary"
           size="lg"
           block
-          icon={<PencilLine size={16} strokeWidth={2.2} />}
-          onClick={() => setStage('form')}
+          icon={<ImageUp size={16} strokeWidth={2.2} />}
+          onClick={() => fileInput.current?.click()}
         >
-          Enter manually
+          Add from a screenshot
         </Button>
+
+        <div className={styles.intro}>
+          <span className={styles.introIcon} aria-hidden="true">
+            <ScanLine size={22} strokeWidth={1.9} />
+          </span>
+          <p className={styles.introText}>
+            Trained in another app? A screenshot of its summary fills in what we can read.
+          </p>
+        </div>
 
         {hiddenInput}
 
@@ -325,6 +342,16 @@ export function LogWorkoutForm({
           Your screenshot is sent for reading and then discarded. It is never saved — only the
           workout details you confirm are kept.
         </p>
+      </>
+    )
+  }
+
+  // --- Writing it down -------------------------------------------------------
+  if (stage === 'manual') {
+    return (
+      <>
+        {subScreen ? <StageBack onBack={() => setStage('choose')} /> : null}
+        <ManualWorkoutForm session={session} onDone={onDone} />
       </>
     )
   }
