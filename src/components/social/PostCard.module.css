@@ -111,20 +111,82 @@
   overflow-wrap: anywhere;
 }
 
-/*
- * Motivation, set as a quotation.
+/* --- Motivation ------------------------------------------------------------
  *
- * A rule down the side and slightly larger, softer type — enough to say "this
- * is something somebody passed on" without becoming a different kind of card.
- * The KIND label in the header already names it; this only has to make the
- * words read differently from an ordinary caption.
+ * Not a post with a label on it.
+ *
+ * The previous treatment was an italic paragraph with a rule down its left
+ * side, which is a blockquote in an article — and the whole complaint was that
+ * motivation read as another post. This is a plate of its own: the app's
+ * orange, the words at display size, a big quotation mark set into the corner,
+ * and the attribution underneath in small caps. It borrows nothing from the
+ * ordinary caption above it, which is the point.
+ *
+ * All of it is built from the theme's tokens, so it follows light and dark
+ * rather than being a second palette that has to be maintained beside them.
  */
-.quote {
-  padding-left: 0.875rem;
-  border-left: 3px solid var(--accent);
-  font-size: 1.0625rem;
-  font-style: italic;
+.motivationBody {
+  padding-bottom: var(--s-1);
+}
+
+.motivation {
+  position: relative;
+  overflow: hidden;
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  border-radius: var(--card-radius);
+  background:
+    radial-gradient(120% 90% at 8% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+/*
+ * The quotation mark is scenery, not punctuation — it is set far larger than
+ * the text, tucked into the corner and pushed well back, so it reads as the
+ * shape of a quote card rather than as a character somebody typed.
+ */
+.motivationMark {
+  position: absolute;
+  /*
+   * Inside the card, not hanging off it.
+   *
+   * The ink of a quotation mark sits high in its own em box, so any negative
+   * top offset pushed all but its feet past the card's clipped edge and left
+   * two orange smudges in the corner. A small positive offset puts the whole
+   * glyph on the card, where at 16% it reads as a watermark behind the words.
+   */
+  top: 0.02em;
+  left: 0.05em;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 18vw, 6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.motivationText {
+  position: relative;
+  font-family: var(--font-display);
+  /* Big on a wide screen, still comfortable at 320px. */
+  font-size: clamp(1.0625rem, 4.6vw, 1.375rem);
+  font-weight: 640;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
   color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.motivationBy {
+  margin-top: var(--s-3);
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
 }
 
 /*
@@ -335,6 +397,38 @@
 
 .confirmRow > * {
   flex: 1;
+}
+
+/*
+ * Motivation's own action: send the line on to the chat.
+ *
+ * It sits where the "how the group answered" word sits on other posts, because
+ * on this one the useful answer is not a word — it is handing the line to
+ * somebody who needs it today.
+ */
+.pass {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  min-height: 30px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: var(--t-small);
+  font-weight: 750;
+  white-space: nowrap;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.pass:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.pass:active {
+  transform: scale(0.96);
 }
 
 /*

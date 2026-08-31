@@ -1,0 +1,132 @@
+/*
+ * The card is the form.
+ *
+ * Same ground, same type, same quotation mark as the card the group will read
+ * in the feed — so there is nothing to imagine between typing and posting.
+ * Built entirely from the theme's tokens, which is what keeps it the app's
+ * orange in both light and dark rather than a second palette to maintain.
+ */
+.card {
+  position: relative;
+  overflow: hidden;
+  padding: var(--s-5) var(--s-4) var(--s-4);
+  border-radius: var(--card-radius);
+  background:
+    radial-gradient(120% 90% at 8% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
+    var(--accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
+  transition: box-shadow var(--fast) var(--ease);
+}
+
+.card:focus-within {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.mark {
+  position: absolute;
+  /*
+   * Inside the card, not hanging off it.
+   *
+   * The ink of a quotation mark sits high in its own em box, so any negative
+   * top offset pushed all but its feet past the card's clipped edge and left
+   * two orange smudges in the corner. A small positive offset puts the whole
+   * glyph on the card, where at 16% it reads as a watermark behind the words.
+   */
+  top: 0.02em;
+  left: 0.05em;
+  font-family: var(--font-display);
+  font-size: clamp(4rem, 18vw, 6rem);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+/*
+ * A textarea with nothing of a textarea about it. No border, no ground of its
+ * own, and the display face at the size the quote is actually read at — the
+ * words are the card, so the box they are typed into must not be visible.
+ */
+.input {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  resize: none;
+  font-family: var(--font-display);
+  font-size: clamp(1.0625rem, 4.6vw, 1.375rem);
+  font-weight: 640;
+  line-height: 1.32;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.input::placeholder {
+  color: color-mix(in srgb, var(--ink) 38%, transparent);
+}
+
+.by {
+  margin-top: var(--s-3);
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent-strong);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+/*
+ * Borrow a line from the app's own set. It fills the card to be edited or
+ * replaced — nothing is posted until the button below is pressed.
+ */
+.borrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  transition:
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.borrow:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.shuffle {
+  opacity: 0.6;
+}
+
+.counter {
+  margin-left: auto;
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .borrow {
+    transition: none;
+  }
+}

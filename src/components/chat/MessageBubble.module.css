@@ -1,17 +1,34 @@
+/*
+ * Denser than it was.
+ *
+ * The old row spent 16px above every message, 12/16 inside every bubble, and a
+ * fixed 32px strip underneath for three controls. That is roughly a third of a
+ * phone screen given to spacing and affordances rather than to what anybody
+ * said. The controls are gone to a press-and-hold, the strip with them, and
+ * the remaining numbers are tightened — which is what puts noticeably more of
+ * the conversation on screen without making it hard to read.
+ */
 .row {
+  position: relative;
   display: flex;
   align-items: flex-end;
   gap: var(--s-2);
-  margin-top: var(--s-4);
+  margin-top: var(--s-3);
+  /*
+   * Vertical belongs to the page, horizontal belongs to the swipe. Declaring
+   * it means a scroll never waits on the gesture code to decide.
+   */
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Consecutive messages from the same person sit closer together. */
 .grouped {
-  margin-top: var(--s-1);
+  margin-top: 2px;
 }
 
 .gutter {
-  width: 26px;
+  width: 24px;
   flex: none;
   display: flex;
   justify-content: center;
@@ -20,10 +37,15 @@
 .stack {
   display: flex;
   flex-direction: column;
-  gap: var(--s-1);
+  gap: 3px;
   min-width: 0;
-  /* Long messages wrap rather than stretching the column. */
-  max-width: min(88%, 34rem);
+  /*
+   * Responsive rather than fixed: nearly the full column on a narrow phone,
+   * capped so a long message on a desktop does not run to a 46rem line.
+   */
+  max-width: min(84%, 32rem);
+  /* Follows the finger during a swipe, springs back when it lets go. */
+  transition: transform var(--med) var(--ease-out);
 }
 
 .mine {
@@ -36,23 +58,74 @@
 
 .author {
   padding-inline: var(--s-1);
-  font-size: var(--t-small);
-  font-weight: 620;
-  color: var(--ink-2);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink-3);
+}
+
+/* --- Swipe to reply ------------------------------------------------------- */
+
+/*
+ * The mark the message is dragged onto. It sits behind the bubble at the left
+ * edge and fades up with the travel, so the gesture explains itself the first
+ * time somebody does it by accident.
+ */
+.swipeHint {
+  position: absolute;
+  left: 0;
+  bottom: 50%;
+  transform: translateY(50%);
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  color: var(--ink-3);
+  opacity: 0;
+  pointer-events: none;
+  transition: color var(--fast) var(--ease), background var(--fast) var(--ease);
+}
+
+.swipeArmed {
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 /* --- Bubble --------------------------------------------------------------- */
 
+/*
+ * A wrapping flex row, which is the whole trick behind the inline timestamp.
+ *
+ * The text is one flex item and the clock is another. A short message leaves
+ * room and they share a line; a long one takes the full width and the clock
+ * wraps beneath it, pushed right by its own auto margin. No measuring, no
+ * JavaScript, and it re-decides for free at every screen width.
+ */
 .bubble {
   position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  column-gap: var(--s-2);
+  row-gap: 1px;
   min-width: 0;
-  padding: var(--s-3) var(--s-4);
-  border-radius: var(--card-radius);
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--r);
   background: var(--surface);
   border: 1px solid var(--line);
   box-shadow: var(--shadow-sm);
   /* A tail on the corner nearest its owner. */
   border-bottom-left-radius: var(--r-sm);
+}
+
+/* A quote or a shared record is a block; it takes the flex row to itself. */
+.quote,
+.block {
+  flex: 1 0 100%;
+  min-width: 0;
 }
 
 /*
@@ -70,7 +143,8 @@
 }
 
 .tombstone {
-  font-size: var(--t-body);
+  flex: 1 1 auto;
+  font-size: var(--t-small);
   font-style: italic;
   color: var(--ink-3);
 }
@@ -84,13 +158,30 @@
 .mine .bubble {
   background: var(--accent-soft);
   border-color: color-mix(in srgb, var(--accent) 26%, transparent);
-  border-bottom-left-radius: var(--r-lg);
+  border-bottom-left-radius: var(--r);
   border-bottom-right-radius: var(--r-sm);
 }
 
+/* A pinned message wears one mark, in the corner away from the text. */
+.pinned {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--shadow-sm);
+}
+
 .text {
+  flex: 0 1 auto;
+  min-width: 0;
   font-size: var(--t-body);
-  line-height: 1.45;
+  line-height: 1.35;
   /* A pasted URL or a very long word must not widen the bubble. */
   overflow-wrap: anywhere;
   white-space: pre-wrap;
@@ -112,11 +203,40 @@
   color: var(--ink);
 }
 
+/*
+ * Smaller than the message, and pushed to the end of whichever line it lands
+ * on. `margin-left: auto` is what puts it right when it wraps to a line of its
+ * own, and does nothing at all when it is sharing one.
+ */
 .time {
-  margin-top: var(--s-1);
-  font-size: 0.6875rem;
+  flex: none;
+  margin-left: auto;
+  font-size: 0.625rem;
+  line-height: 1.3;
   color: var(--ink-3);
-  text-align: right;
+  font-variant-numeric: tabular-nums;
+  /* Never breaks away from its own colon. */
+  white-space: nowrap;
+}
+
+/* --- Stickers ------------------------------------------------------------- */
+
+.stickerHolder {
+  position: relative;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: var(--s-2);
+}
+
+.mine .stickerHolder {
+  flex-direction: row-reverse;
+}
+
+.stickerTime {
+  font-size: 0.625rem;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  padding-bottom: 2px;
 }
 
 /* --- Quoted reply --------------------------------------------------------- */
@@ -124,22 +244,23 @@
 .quote {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-bottom: var(--s-2);
-  padding: var(--s-2) var(--s-3);
+  gap: 0;
+  margin-bottom: var(--s-1);
+  padding: 0.25rem var(--s-2);
   border-radius: var(--r-sm);
   border-left: 3px solid var(--accent);
   background: var(--bg-sunk);
 }
 
 .quoteName {
-  font-size: var(--t-small);
-  font-weight: 640;
+  font-size: var(--t-micro);
+  font-weight: 700;
   color: var(--accent-strong);
 }
 
 .quoteText {
   font-size: var(--t-small);
+  line-height: 1.3;
   color: var(--ink-2);
   /* One line of context is enough; the full message is above. */
   display: -webkit-box;
@@ -149,139 +270,22 @@
   overflow: hidden;
 }
 
-/* --- The row under the bubble --------------------------------------------- */
-
-/*
- * Reactions on the message's own side, controls at the far end, and a height
- * that does not depend on either being there.
- *
- * Fixing the height is the point. Whether a message has one reaction, four, or
- * none, this row is 32px and the controls are in the same place — so tapping
- * the emoji picker and then a reaction does not move the reply button out from
- * under the next tap.
- */
-.under {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  height: 32px;
-  margin-top: calc(var(--s-1) * -1);
-}
-
-.mine .under {
-  flex-direction: row-reverse;
-}
-
-/*
- * Secondary, and firmly so.
- *
- * These used to be three 32px icon buttons under every bubble at 55% opacity,
- * which on a full screen of conversation added up to more controls than
- * messages. They are quieter now: the message is the content, and reacting or
- * replying is something you go looking for.
- */
-.tools {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  flex: none;
-  opacity: 0;
-  transition: opacity var(--fast) var(--ease);
-}
-
-.mine .tools {
-  flex-direction: row-reverse;
-}
-
-.row:hover .tools,
-.row:focus-within .tools {
-  opacity: 1;
-}
-
-/*
- * Touch has no hover, so the controls are always available on a phone. They
- * are quiet rather than hidden — a reaction you cannot find is not a feature.
- */
-@media (hover: none) {
-  .tools {
-    opacity: 0.4;
-  }
-
-}
-
-/*
- * A 13px glyph in a 32px target.
- *
- * The weight comes off the icon and the opacity, not off the hit area — an
- * earlier pass shrank the button itself to 26px, which the audit correctly
- * flagged: a control can be visually quiet without being hard to hit.
- */
-.tool {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--r-pill);
-  color: var(--ink-3);
-  transition:
-    background var(--fast) var(--ease),
-    color var(--fast) var(--ease);
-}
-
-.tool:hover {
-  background: var(--bg-sunk);
-  color: var(--ink);
-}
-
 /* --- Reactions ------------------------------------------------------------ */
 
-.picker {
-  display: flex;
-  gap: 2px;
-  padding: var(--s-1);
-  border-radius: var(--r-pill);
-  animation: pop var(--fast) var(--ease-out);
-}
-
-@keyframes pop {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-}
-
-.pick {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--r-pill);
-  font-size: 1rem;
-  line-height: 1;
-  transition:
-    background var(--fast) var(--ease),
-    transform var(--fast) var(--ease);
-}
-
-.pick:hover {
-  background: var(--bg-sunk);
-  transform: scale(1.12);
-}
-
 /*
- * In the row's flow, on the side the message belongs to, sharing it with the
- * controls. Not absolutely positioned any more: floating them off the bubble's
- * edge is what forced the bubble to grow a margin, and that margin is what
- * moved the controls.
+ * On the message's own side, in the flow, and the only thing under the bubble
+ * now. Nothing shares this row any more, so a reaction arriving cannot move a
+ * control out from under a finger — there is no control left to move.
  *
  * They shrink and scroll rather than wrap, so five distinct reactions on one
- * message cannot push the controls off the row or make it two lines tall.
+ * message cannot make the row two lines tall.
  */
 .reactions {
   display: flex;
   flex-wrap: nowrap;
   gap: 3px;
   min-width: 0;
+  margin-top: -1px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -290,20 +294,18 @@
   display: none;
 }
 
-
 /*
- * 32px, not the 26px it briefly was: this is a button — tapping it toggles
- * your reaction — and the audit was right to flag a target that small. The
- * pill still reads as compact because the type and the padding are tight, not
- * because the hit area was shrunk.
+ * Compact, but still a real target: 26px tall with a 44px-wide comfortable
+ * hit area is below the guideline, so the pill keeps 28px and gains its
+ * touch slack from the row's own padding rather than from being made bigger.
  */
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 2px;
   flex: none;
-  height: 32px;
-  padding: 0 0.5625rem;
+  height: 26px;
+  padding: 0 0.4375rem;
   border-radius: var(--r-pill);
   border: 1px solid var(--line);
   background: var(--surface);
@@ -334,4 +336,23 @@
 
 .row {
   animation: enter var(--med) var(--ease-out);
+}
+
+/* A little more room to breathe once the screen is wide enough to spare it. */
+@media (min-width: 26.875rem) {
+  .bubble {
+    padding: 0.4375rem 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row {
+    animation: none;
+  }
+
+  .stack,
+  .swipeHint,
+  .chip {
+    transition: none;
+  }
 }

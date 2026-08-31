@@ -22,7 +22,13 @@
   gap: var(--s-3);
 }
 
-/* The challenge is a shared push, so it borrows the coral energy colour. */
+/*
+ * The challenge is a shared push, so it borrows the coral energy colour — and
+ * it is given the same slight dimension the award medals have, so the two
+ * screens read as one set of objects rather than as a badge and a swatch.
+ * A light from above, a rim inside, a shadow under: three gradients, no
+ * images, and nothing that repaints on scroll.
+ */
 .icon {
   display: grid;
   place-items: center;
@@ -30,9 +36,20 @@
   height: 38px;
   flex: none;
   border-radius: var(--r);
-  background: var(--energy-soft);
+  background:
+    radial-gradient(circle at 30% 24%, rgba(255, 255, 255, 0.8), transparent 60%),
+    linear-gradient(158deg, color-mix(in srgb, var(--energy) 24%, var(--energy-soft)), var(--energy-soft) 72%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 2px color-mix(in srgb, var(--energy) 26%, transparent),
+    0 2px 6px -3px color-mix(in srgb, var(--energy) 60%, transparent);
   font-size: 1.15rem;
   line-height: 1;
+}
+
+.icon {
+  /* The glyph sits on the tile rather than being printed flat onto it. */
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .headText {

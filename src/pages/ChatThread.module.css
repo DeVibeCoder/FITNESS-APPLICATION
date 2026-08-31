@@ -65,9 +65,15 @@
   z-index: var(--z-sticky-inner);
   display: flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-2);
   margin-inline: calc(var(--gutter) * -1);
-  padding: var(--s-3) var(--gutter);
+  /*
+   * Half the vertical padding it had. The bar carries a back arrow, a name, a
+   * count and three faces — none of which needs 24px of air around it, and on
+   * a 320px screen every one of those pixels was coming out of the
+   * conversation. It is still sticky, so it is still there at message 400.
+   */
+  padding: var(--s-2) var(--gutter);
   background: color-mix(in srgb, var(--bg) 88%, transparent);
   border-bottom: 1px solid var(--line);
 }
@@ -91,8 +97,8 @@
 .back {
   display: grid;
   place-items: center;
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex: none;
   margin-left: calc(var(--s-2) * -1);
   border-radius: var(--r-pill);
@@ -131,15 +137,24 @@
   min-width: 0;
 }
 
+/*
+ * Name and count on one line rather than stacked, which is what actually took
+ * the height out. Clamped so it stays readable at 320px without wrapping.
+ */
 .title {
   font-family: var(--font-display);
-  font-size: var(--t-h2);
+  font-size: clamp(0.9375rem, 4vw, 1.0625rem);
   font-weight: 720;
   letter-spacing: -0.02em;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sub {
-  font-size: var(--t-small);
+  font-size: var(--t-micro);
+  line-height: 1.2;
   color: var(--ink-3);
 }
 
@@ -155,6 +170,52 @@
 
 .face + .face {
   margin-left: -0.5rem;
+}
+
+/* --- Pinned ---------------------------------------------------------------
+ *
+ * One line under the header, and only when something is actually pinned.
+ * Tapping it goes to the message rather than restating it — a banner that
+ * quotes the whole thing is a second copy that can be read instead of the
+ * conversation it belongs to.
+ */
+.pinnedBar {
+  position: sticky;
+  /* Directly under the header, which is itself sticky under the app bar. */
+  top: calc(var(--header-offset) + 3rem);
+  z-index: calc(var(--z-sticky-inner) - 1);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 34px;
+  margin-top: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: var(--t-small);
+  font-weight: 600;
+  text-align: left;
+}
+
+.pinnedIcon {
+  flex: none;
+}
+
+.pinnedText {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pinnedCount {
+  flex: none;
+  font-size: var(--t-micro);
+  font-weight: 800;
+  opacity: 0.75;
 }
 
 .thread {
@@ -264,14 +325,14 @@
 }
 
 /*
- * The two jump chips are pills, not rows. `.dock > *` stretches its children so
- * the composer and the menu fill the column; these have to opt back out or
- * "Newest" spans the screen and stops reading as a button.
+ * The arrow is a circle, not a row. `.dock > *` stretches its children so the
+ * composer and the menu fill the column; this has to opt back out, and it sits
+ * at the end of the line rather than the middle of it.
  */
-.dock > .newMessage,
-.dock > .jump {
+.dock > .toNewest {
   width: auto;
-  align-self: center;
+  align-self: flex-end;
+  margin-inline: 0;
 }
 
 /*
@@ -555,22 +616,33 @@
   color: var(--accent);
 }
 
-/* --- New-message indicator ------------------------------------------------ */
+/* --- Back to the newest message ------------------------------------------- */
 
-.newMessage {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  align-self: center;
-  min-height: 34px;
-  padding: 0 var(--s-4);
+/*
+ * A small round button at the lower right, and nothing behind it.
+ *
+ * It replaced a pair of centred pills on a frosted panel that ran the width of
+ * the thread — which sat directly over the newest messages, the ones somebody
+ * pressing it is trying to reach. This is one 38px circle on the app's own
+ * surface: no blur, no panel, and it only exists while there is somewhere to
+ * go back down to.
+ */
+.toNewest {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
   border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--accent-ink);
-  font-size: var(--t-small);
-  font-weight: 650;
-  box-shadow: var(--accent-glow);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  box-shadow: var(--shadow);
   animation: rise var(--med) var(--ease-out);
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
 }
 
 @keyframes rise {
@@ -580,28 +652,42 @@
   }
 }
 
-/*
- * Quieter sibling: being scrolled up is not news, so this is a plain surface
- * chip rather than the brand pill. Only "someone said something" gets colour.
- */
-.jump {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--s-2);
-  align-self: center;
-  min-height: 34px;
-  padding: 0 var(--s-4);
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  border: 1px solid var(--line-strong);
-  color: var(--ink-2);
-  font-size: var(--t-small);
-  font-weight: 650;
-  box-shadow: var(--shadow);
-}
-
-.jump:hover {
+.toNewest:hover {
   color: var(--ink);
 }
 
-/* The More chip stays lit while its extra row is open. */
+.toNewest:active {
+  transform: scale(0.92);
+}
+
+/* Something arrived while you were reading back. That much is worth colour. */
+.toNewestNew {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: var(--accent-glow);
+}
+
+.toNewestBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: var(--r-pill);
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.625rem;
+  font-weight: 800;
+  line-height: 17px;
+  text-align: center;
+  box-shadow: 0 0 0 2px var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toNewest {
+    animation: none;
+    transition: none;
+  }
+}

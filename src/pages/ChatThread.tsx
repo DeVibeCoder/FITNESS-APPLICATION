@@ -7,15 +7,20 @@ import {
   Award,
   Dumbbell,
   Footprints,
+  Pin,
   Plus,
   Scale,
   SendHorizontal,
+  Smile,
   Target,
   X,
 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MessageBubble } from '@/components/chat/MessageBubble'
+import { sharedSummary } from '@/components/chat/shareLabels'
+import { MessageActions } from '@/components/chat/MessageActions'
+import { StickerPicker } from '@/components/chat/StickerPicker'
 import { GroupMembersSheet } from '@/components/chat/GroupMembersSheet'
 import { MemberSheet } from '@/components/group/MemberSheet'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
@@ -25,6 +30,7 @@ import { challengeService, chatService , userService } from '@/services'
 import type { ChatMessageView } from '@/services/chatService'
 import { todayKey } from '@/utils/date'
 import { firstName } from '@/utils/format'
+import { STICKER_BY_KEY } from '@/data/stickers'
 import styles from './ChatThread.module.css'
 
 /**
@@ -47,7 +53,15 @@ export function ChatThread() {
   const [replyTo, setReplyTo] = useState<ChatMessageView | null>(null)
   const [sending, setSending] = useState(false)
   const [shareMenu, setShareMenu] = useState(false)
+  const [stickersOpen, setStickersOpen] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
+  /**
+   * The message a press-and-hold opened, and where it was when it did.
+   *
+   * The rectangle is captured at the moment of the press rather than looked up
+   * later: by the time the menu paints, the thread may have moved under it.
+   */
+  const [actions, setActions] = useState<{ message: ChatMessageView; anchor: DOMRect } | null>(null)
   /**
    * One person, opened from the member list.
    *
@@ -93,6 +107,9 @@ export function ChatThread() {
 
   const messages = useLiveQuery(() => chatService.list(), [])
   const users = useLiveQuery(() => userService.listMembers(), [])
+  // Normally empty. One banner, for the one thing the group agreed to keep in
+  // view — a session time, this week's target.
+  const pinned = useLiveQuery(() => chatService.pinned(), [])
   const challenge = useLiveQuery(() => challengeService.forWeek(today), [today])
   /*
    * What this person actually has to share. The menu lists only these, so it
@@ -188,6 +205,19 @@ export function ChatThread() {
       delete document.body.dataset.composing
     }
   }, [keyboardOpen])
+
+  /*
+   * The keyboard changing the viewport is the reflow that actually decides
+   * where the bottom is, and it arrives after the focus handler has run. This
+   * catches it: while the composer has focus, any keyboard movement re-anchors
+   * on the newest message, so nobody has to scroll down after typing starts.
+   */
+  useEffect(() => {
+    if (!keyboardOpen) return
+    if (document.activeElement !== input.current) return
+    const settle = window.setTimeout(() => window.scrollTo({ top: BOTTOM, behavior: 'auto' }), 60)
+    return () => window.clearTimeout(settle)
+  }, [keyboardOpen, keyboard])
 
   // Reaching the bottom is what marks the conversation read — not the route
   // loading. Opening and leaving without scrolling keeps the unread count.
@@ -299,6 +329,27 @@ export function ChatThread() {
       />
       <MemberSheet userId={memberDetail} onClose={() => setMemberDetail(null)} />
 
+      {pinned && pinned.length > 0 ? (
+        <button
+          className={styles.pinnedBar}
+          onClick={() => {
+            const target = document.getElementById(`message-${pinned[0].id}`)
+            target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }}
+        >
+          <Pin size={13} strokeWidth={2.4} className={styles.pinnedIcon} />
+          <span className={styles.pinnedText}>
+            {pinned[0].text ||
+              (pinned[0].stickerId
+                ? `Sticker: ${STICKER_BY_KEY.get(pinned[0].stickerId)?.label ?? 'sticker'}`
+                : sharedSummary(pinned[0].sharedType))}
+          </span>
+          {pinned.length > 1 ? (
+            <span className={styles.pinnedCount}>+{pinned.length - 1}</span>
+          ) : null}
+        </button>
+      ) : null}
+
       <div className={styles.thread}>
         {messages.length === 0 ? (
           <div className={styles.empty}>
@@ -324,7 +375,7 @@ export function ChatThread() {
                   5 * 60_000
 
               return (
-                <div key={message.id}>
+                <div key={message.id} id={`message-${message.id}`}>
                   {firstUnreadId === message.id ? (
                     <div className={styles.divider} id={`divider-${message.id}`}>
                       <span>New messages</span>
@@ -338,6 +389,7 @@ export function ChatThread() {
                       setReplyTo(target)
                       input.current?.focus()
                     }}
+                    onOpenActions={(target, anchor) => setActions({ message: target, anchor })}
                     grouped={grouped && firstUnreadId !== message.id}
                   />
                 </div>
@@ -351,15 +403,32 @@ export function ChatThread() {
         className={[styles.dock, keyboardOpen ? styles.docked : ''].filter(Boolean).join(' ')}
         style={keyboard ? ({ '--keyboard': `${keyboard}px` } as React.CSSProperties) : undefined}
       >
-        {arrived > 0 ? (
-          <button className={styles.newMessage} onClick={jumpToNewest}>
-            <ArrowDown size={14} strokeWidth={2.4} />
-            {arrived} new message{arrived === 1 ? '' : 's'}
-          </button>
-        ) : scrolledUp ? (
-          <button className={styles.jump} onClick={jumpToNewest}>
-            <ArrowDown size={14} strokeWidth={2.4} />
-            Newest
+        {/*
+          One small arrow at the lower right, and nothing behind it.
+
+          It replaced two centred pills sitting on a frosted panel across the
+          middle of the thread — which covered the newest messages, which are
+          exactly the ones somebody scrolling back down is trying to read. A
+          count rides on the arrow when messages arrived while you were up in
+          the history, because that is news; being scrolled up on its own is
+          not, so then it is just the arrow.
+        */}
+        {scrolledUp || arrived > 0 ? (
+          <button
+            className={[styles.toNewest, arrived > 0 ? styles.toNewestNew : '']
+              .filter(Boolean)
+              .join(' ')}
+            onClick={jumpToNewest}
+            aria-label={
+              arrived > 0
+                ? `${arrived} new message${arrived === 1 ? '' : 's'} — go to the newest`
+                : 'Go to the newest message'
+            }
+          >
+            <ArrowDown size={18} strokeWidth={2.6} />
+            {arrived > 0 ? (
+              <span className={styles.toNewestBadge}>{arrived > 9 ? '9+' : arrived}</span>
+            ) : null}
           </button>
         ) : null}
 
@@ -441,12 +510,37 @@ export function ChatThread() {
               <Plus size={18} strokeWidth={2.6} />
             </button>
 
+            {/*
+              Stickers and GIFs. Beside the input rather than inside the share
+              menu: a sticker is a way of saying something, not a record being
+              attached, and it belongs next to the words for the same reason
+              the emoji key does on a phone keyboard.
+            */}
+            <button
+              className={[styles.attach, stickersOpen ? styles.attachOpen : '']
+                .filter(Boolean)
+                .join(' ')}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => setStickersOpen(true)}
+              aria-label="Stickers and GIFs"
+              aria-haspopup="dialog"
+            >
+              <Smile size={18} strokeWidth={2.2} />
+            </button>
+
             <textarea
               ref={input}
               className={styles.input}
               value={draft}
               rows={1}
-              placeholder="Write a message…"
+              /*
+                One word. "Write a message…" wrapped to a second line inside a
+                single-row textarea at 320px once the sticker button joined the
+                row, and the second line was clipped — a placeholder reading
+                "Write a" over a cut-off "message" is worse than the plain
+                noun every chat app uses.
+              */
+              placeholder="Message"
               aria-label="Write a message"
               onChange={(event) => {
                 setDraft(event.target.value)
@@ -455,13 +549,20 @@ export function ChatThread() {
               }}
               onFocus={() => {
                 /*
-                 * The keyboard takes roughly half the screen, so whatever was
-                 * at the bottom is now behind it. Re-anchoring after the
-                 * viewport has settled keeps the newest message in view — the
-                 * delay is the keyboard animation, which fires no event we can
-                 * wait on reliably across browsers.
+                 * Tapping the composer means you are about to say something,
+                 * and what you are about to say goes at the bottom — so this
+                 * goes to the newest message whether or not you were already
+                 * there. It used to re-anchor only if you happened to be at the
+                 * bottom already, which left anybody who had scrolled up to
+                 * read typing blind above a keyboard covering the thread.
+                 *
+                 * Twice: once immediately, and once after the keyboard has
+                 * finished animating. The second is what actually lands, and
+                 * the animation fires no event that can be waited on reliably
+                 * across browsers. `keyboardEffect` below catches the rest.
                  */
-                if (atBottom()) window.setTimeout(jumpToNewest, 320)
+                jumpToNewest()
+                window.setTimeout(jumpToNewest, 320)
               }}
               onKeyDown={(event) => {
                 // Enter sends on a desktop keyboard; Shift+Enter makes a new
@@ -485,6 +586,33 @@ export function ChatThread() {
           </div>
         </div>
       </div>
+
+      {actions ? (
+        <MessageActions
+          message={actions.message}
+          anchor={actions.anchor}
+          onClose={() => setActions(null)}
+          onReply={(target) => {
+            setReplyTo(target)
+            input.current?.focus()
+          }}
+        />
+      ) : null}
+
+      {stickersOpen ? (
+        <StickerPicker
+          onClose={() => setStickersOpen(false)}
+          onSticker={async (stickerId) => {
+            setStickersOpen(false)
+            const sent = await guard(() =>
+              chatService.sendSticker(user.id, stickerId, replyTo?.id),
+            )
+            if (sent === undefined) return
+            setReplyTo(null)
+            requestAnimationFrame(jumpToNewest)
+          }}
+        />
+      ) : null}
     </div>
   )
 }

@@ -30,32 +30,51 @@
 }
 
 /*
- * Wraps the media only so the dismiss drag has something to move. It takes the
- * media's size rather than imposing one — `place-items: center` on the root
- * does the centring, and nothing here has a shape of its own.
+ * Media and caption as one column, which is what the dismiss gesture moves.
+ * It takes its width from the media rather than imposing one — the caption is
+ * capped separately so a one-line caption under a narrow portrait photo does
+ * not stretch the column out to the width of the screen.
  */
-.holder {
+.stage {
   position: relative;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
   max-width: 100%;
   max-height: 100%;
+  min-width: 0;
   touch-action: none;
+}
+
+.holder {
+  display: flex;
+  min-height: 0;
+  max-width: 100%;
 }
 
 /*
  * The whole fix for the empty bands above and below a picture.
  *
- * The media sizes itself to its own aspect ratio, capped by the viewport. No
- * stage, no `object-fit`, no ratio imposed from outside — a portrait photo is
- * tall, a landscape one is wide, and the dark ground is whatever is left over.
- * A fixed box with a contained picture inside it letterboxes twice, which is
- * exactly what this replaces.
+ * The media sizes itself to its own aspect ratio, capped by the space left
+ * over. No stage of a fixed shape, no `object-fit`, no ratio imposed from
+ * outside — a portrait photo is tall, a landscape one is wide, and the dark
+ * ground is whatever remains. A fixed box with a contained picture inside it
+ * letterboxes twice, which is exactly what this replaces.
  */
 .media {
   display: block;
   max-width: 100%;
-  /* Fills the padded root without needing to know what the insets came to. */
-  max-height: calc(100vh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6));
+  /*
+   * Room for the caption under it. `--caption` is set on the stage by the
+   * component — 0 when there is nothing to say, a fixed allowance when there
+   * is — so a long caption can never push the picture off the top. It is set
+   * in JavaScript rather than with `:has()` because it has to be right on
+   * every browser this ships to, not only the recent ones.
+   */
+  max-height: calc(
+    100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6) - var(--caption)
+  );
   width: auto;
   height: auto;
   object-fit: contain;
@@ -71,6 +90,55 @@
   width: min(90vw, 46rem);
   aspect-ratio: 4 / 3;
   border-radius: var(--r);
+}
+
+/* --- Caption -------------------------------------------------------------- */
+
+.caption {
+  width: 100%;
+  max-width: min(100%, 34rem);
+  min-width: 0;
+  /* Its own scroller, so an expanded caption never pushes the media around. */
+  max-height: 30vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  color: rgba(255, 255, 255, 0.92);
+  text-align: left;
+}
+
+.by {
+  font-size: var(--t-small);
+  font-weight: 700;
+}
+
+.when {
+  margin-left: var(--s-2);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.text {
+  margin-top: 2px;
+  font-size: var(--t-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+.folded {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.more {
+  margin-top: 2px;
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--accent-lift);
 }
 
 .close {
@@ -109,7 +177,7 @@
   }
 
   .media {
-    max-height: calc(100vh - var(--s-8) * 2);
+    max-height: calc(100dvh - var(--s-8) * 2 - var(--caption));
     max-width: min(72rem, 88vw);
     border-radius: var(--r);
   }

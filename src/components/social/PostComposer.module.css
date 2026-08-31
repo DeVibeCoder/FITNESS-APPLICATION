@@ -58,47 +58,44 @@
  * nor the library is the "real" one, and a single "Add a photo" button hid
  * half of what the composer can actually do.
  */
+/*
+ * Two small chips, left-aligned under the box.
+ *
+ * They were two 52px full-width cards with a circular icon each, which gave a
+ * text post's optional attachment as much weight as the text. A post is words
+ * first — these are the paperclip, and they read as one.
+ */
 .capture {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--s-2);
 }
 
 .captureButton {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--s-2);
-  min-height: 52px;
-  padding: var(--s-3);
-  border-radius: var(--r);
-  background: var(--surface);
+  gap: 0.375rem;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
   border: 1px solid var(--line);
   font-size: var(--t-small);
   font-weight: 650;
-  color: var(--ink);
+  color: var(--ink-2);
   transition:
     border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
     transform var(--fast) var(--ease);
 }
 
 .captureButton:hover {
   border-color: var(--accent);
+  color: var(--ink);
 }
 
 .captureButton:active {
-  transform: scale(0.98);
-}
-
-.captureIcon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  height: 30px;
-  flex: none;
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
+  transform: scale(0.97);
 }
 
 /*

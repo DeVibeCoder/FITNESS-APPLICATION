@@ -1,15 +1,25 @@
-import { useState } from 'react'
-import { CornerUpLeft, SmilePlus, Trash2 } from 'lucide-react'
+import { useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
+import { CornerUpLeft, Pin } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { SharedCard } from './SharedCard'
+import { StickerBubble } from './StickerBubble'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { chatService, CHAT_REACTIONS } from '@/services/chatService'
+import { chatService } from '@/services/chatService'
 import type { ChatMessageView } from '@/services/chatService'
 import type { User } from '@/models'
 import { formatClock } from '@/utils/date'
 import { firstName } from '@/utils/format'
+import { sharedSummary } from './shareLabels'
 import styles from './MessageBubble.module.css'
+
+/** How far a message has to travel right before the reply is armed. */
+const REPLY_AT = 56
+/** Past this the bubble stops following the finger, so the row cannot run away. */
+const SWIPE_MAX = 84
+/** A press held this long is a press-and-hold, not a tap. */
+const HOLD_MS = 420
 
 /**
  * One message.
@@ -17,12 +27,21 @@ import styles from './MessageBubble.module.css'
  * Yours sit right and tinted, everyone else's left with an avatar — the one
  * convention worth borrowing from every chat app, because people already read
  * it without thinking. Everything else follows this app's own surfaces.
+ *
+ * There are no buttons under it any more. Three icon controls beneath every
+ * bubble meant a screen of conversation carried more controls than messages,
+ * and they were the first thing the eye landed on. The actions moved to where
+ * every phone already puts them: swipe a message to the right to reply to it,
+ * press and hold it for everything else. What is left under the bubble is what
+ * people actually said to it — the reactions — and nothing that moves when one
+ * arrives.
  */
 export function MessageBubble({
   message,
   author,
   users,
   onReply,
+  onOpenActions,
   /** True when the previous message was from the same person, minutes ago. */
   grouped,
 }: {
@@ -30,13 +49,16 @@ export function MessageBubble({
   author: User
   users: Map<string, User>
   onReply: (message: ChatMessageView) => void
+  /** Opens the action menu, anchored on the bubble that was held. */
+  onOpenActions: (message: ChatMessageView, anchor: DOMRect) => void
   grouped: boolean
 }) {
-  const { user, isOwner } = useAuth()
+  const { user } = useAuth()
   const { guard } = useToast()
-  const [picking, setPicking] = useState(false)
+  const [swipe, setSwipe] = useState(0)
   const mine = user?.id === message.userId
   const deleted = Boolean(message.deletedAt)
+  const bubbleRef = useRef<HTMLDivElement>(null)
 
   const counts = new Map<string, number>()
   for (const reaction of message.reactions) {
@@ -46,8 +68,87 @@ export function MessageBubble({
 
   const react = (emoji: string) => {
     if (!user) return
-    setPicking(false)
     void guard(() => chatService.toggleReaction(message.id, user.id, emoji))
+  }
+
+  /*
+   * Two gestures on the same pointer, told apart by what the finger does.
+   *
+   * Held still past HOLD_MS, it is a press-and-hold and the menu opens. Moved
+   * horizontally first, it is a swipe and the hold is called off. Moved
+   * vertically, it is the page scrolling and this gets out of the way — which
+   * is what `touch-action: pan-y` on the row guarantees, so a scroll is never
+   * waiting on a decision made here.
+   */
+  const start = useRef<{ x: number; y: number } | null>(null)
+  const hold = useRef<number | null>(null)
+  const axis = useRef<'none' | 'x' | 'y'>('none')
+
+  const cancelHold = () => {
+    if (hold.current !== null) window.clearTimeout(hold.current)
+    hold.current = null
+  }
+
+  const openMenu = () => {
+    cancelHold()
+    const box = bubbleRef.current?.getBoundingClientRect()
+    if (!box || deleted) return
+    // A press-and-hold that opens a menu should feel like something happened
+    // even before the eye gets there.
+    navigator.vibrate?.(8)
+    onOpenActions(message, box)
+  }
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLLIElement>) => {
+    if (deleted || event.button === 2) return
+    // A reaction chip is its own control. Starting a swipe or a hold on one
+    // would mean a tap sometimes toggles a reaction and sometimes opens a
+    // menu, which is the kind of ambiguity that makes people stop tapping.
+    if ((event.target as HTMLElement).closest('button')) return
+    /*
+     * Captured, so the lift is heard even when the finger has travelled off
+     * the message. Without it a swipe that ends over the next bubble never
+     * gets its pointerup and the row stays dragged open.
+     */
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId)
+    } catch {
+      /* Nothing to capture with. The gesture still works from this element. */
+    }
+    start.current = { x: event.clientX, y: event.clientY }
+    axis.current = 'none'
+    cancelHold()
+    hold.current = window.setTimeout(openMenu, HOLD_MS)
+  }
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLLIElement>) => {
+    const from = start.current
+    if (!from) return
+    const dx = event.clientX - from.x
+    const dy = event.clientY - from.y
+
+    if (axis.current === 'none') {
+      if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+      axis.current = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
+      cancelHold()
+    }
+    if (axis.current !== 'x') return
+
+    // Rightwards only, and it stiffens as it goes so the row cannot be dragged
+    // halfway across the screen.
+    const travel = Math.max(0, dx)
+    setSwipe(travel > SWIPE_MAX ? SWIPE_MAX + (travel - SWIPE_MAX) * 0.18 : travel)
+  }
+
+  const endGesture = () => {
+    cancelHold()
+    if (axis.current === 'x' && swipe >= REPLY_AT) {
+      navigator.vibrate?.(6)
+      onReply(message)
+    }
+    start.current = null
+    axis.current = 'none'
+    setSwipe(0)
   }
 
   return (
@@ -55,135 +156,136 @@ export function MessageBubble({
       className={[styles.row, mine ? styles.mine : '', grouped ? styles.grouped : '']
         .filter(Boolean)
         .join(' ')}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endGesture}
+      onPointerCancel={endGesture}
+      onContextMenu={(event) => {
+        // Right-click on a desktop, and the system menu on a phone that fires
+        // one — both are the same request as a press-and-hold.
+        if (deleted) return
+        event.preventDefault()
+        openMenu()
+      }}
     >
+      {/* The reply mark the message is being dragged onto. */}
+      <span
+        className={[styles.swipeHint, swipe >= REPLY_AT ? styles.swipeArmed : '']
+          .filter(Boolean)
+          .join(' ')}
+        style={{ opacity: Math.min(1, swipe / REPLY_AT) }}
+        aria-hidden="true"
+      >
+        <CornerUpLeft size={15} strokeWidth={2.4} />
+      </span>
+
       <span className={styles.gutter}>
         {!mine && !grouped ? <Avatar user={author} size="xs" /> : null}
       </span>
 
-      <div className={styles.stack}>
+      <div
+        className={styles.stack}
+        style={swipe ? { transform: `translateX(${swipe}px)` } : undefined}
+      >
         {!mine && !grouped ? <p className={styles.author}>{firstName(author.name)}</p> : null}
 
-        <div className={[styles.bubble, deleted ? styles.deleted : ''].filter(Boolean).join(' ')}>
-          {/*
-            A deleted message keeps its place and its timestamp so the thread
-            does not jump, and shows nothing else — no quote, no share card, no
-            text. The row survives; the content does not.
-          */}
-          {deleted ? (
-            <p className={styles.tombstone}>Message deleted</p>
-          ) : (
-            <>
-              {message.replyTo ? (
-                <div className={styles.quote}>
-                  <span className={styles.quoteName}>
-                    {firstName(users.get(message.replyTo.userId)?.name ?? 'Someone')}
-                  </span>
-                  <span
-                    className={[
-                      styles.quoteText,
-                      message.replyTo.deletedAt ? styles.quoteGone : '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')}
-                  >
-                    {message.replyTo.deletedAt
-                      ? 'Message deleted'
-                      : message.replyTo.text || sharedSummary(message.replyTo.sharedType)}
-                  </span>
-                </div>
-              ) : null}
-
-              {message.sharedType ? <SharedCard message={message} author={author} /> : null}
-              {message.text ? (
-                <p className={styles.text}>{withMentions(message.text, users, mine)}</p>
-              ) : null}
-            </>
-          )}
-
-          <p className={styles.time}>{formatClock(message.createdAt)}</p>
-        </div>
-
         {/*
-          One row under the bubble holds both the reactions and the controls,
-          and it is a fixed height whether either is present.
-
-          That is the whole fix for the jump. The reaction pills used to hang
-          off the bubble's lower edge and the bubble grew an 18px margin to
-          make room, so reacting to a message pushed reply/delete/react down by
-          18px — often out from under the finger that was about to press one.
-          Now the pills fill space the row already reserved, the controls sit
-          at the far end of it, and adding or removing a reaction moves
-          nothing.
-
-          A deleted message gets no row at all: there is nothing to react to,
-          nothing to quote, and nothing left to delete.
+          A sticker is not a bubble. It is drawn on the thread itself, at the
+          size of the thing it is, because wrapping a sticker in a surface is
+          what makes stickers look like clip art in a form.
         */}
-        {deleted ? null : (
-          <div className={styles.under}>
-            {counts.size > 0 ? (
-              <div className={styles.reactions}>
-                {[...counts.entries()].map(([emoji, count]) => (
-                  <button
-                    key={emoji}
-                    className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
-                      .filter(Boolean)
-                      .join(' ')}
-                    onClick={() => react(emoji)}
-                    aria-label={`${count} reacted with ${emoji}`}
-                    aria-pressed={myReaction?.emoji === emoji}
-                  >
-                    <span aria-hidden="true">{emoji}</span>
-                    <span className="tnum">{count}</span>
-                  </button>
-                ))}
-              </div>
+        {!deleted && message.stickerId ? (
+          <div ref={bubbleRef} className={styles.stickerHolder}>
+            <StickerBubble stickerId={message.stickerId} />
+            <span className={styles.stickerTime}>{formatClock(message.createdAt)}</span>
+          </div>
+        ) : (
+          <div
+            ref={bubbleRef}
+            className={[styles.bubble, deleted ? styles.deleted : ''].filter(Boolean).join(' ')}
+          >
+            {message.pinnedAt && !deleted ? (
+              <span className={styles.pinned} aria-label="Pinned message">
+                <Pin size={11} strokeWidth={2.6} />
+              </span>
             ) : null}
 
-            <div className={styles.tools}>
-              <button
-                className={styles.tool}
-                onClick={() => setPicking((open) => !open)}
-                aria-label={`React to ${firstName(author.name)}'s message`}
-                aria-expanded={picking}
-              >
-                <SmilePlus size={13} strokeWidth={2} />
-              </button>
-              <button
-                className={styles.tool}
-                onClick={() => onReply(message)}
-                aria-label={`Reply to ${firstName(author.name)}`}
-              >
-                <CornerUpLeft size={13} strokeWidth={2} />
-              </button>
-              {isOwner(message.userId) ? (
-                <button
-                  className={styles.tool}
-                  onClick={() => guard(() => chatService.remove(message.id))}
-                  aria-label="Delete your message"
-                >
-                  <Trash2 size={13} strokeWidth={2} />
-                </button>
-              ) : null}
-            </div>
+            {/*
+              A deleted message keeps its place and its timestamp so the thread
+              does not jump, and shows nothing else — no quote, no share card, no
+              text. The row survives; the content does not.
+            */}
+            {deleted ? (
+              <p className={styles.tombstone}>Message deleted</p>
+            ) : (
+              <>
+                {message.replyTo ? (
+                  <div className={styles.quote}>
+                    <span className={styles.quoteName}>
+                      {firstName(users.get(message.replyTo.userId)?.name ?? 'Someone')}
+                    </span>
+                    <span
+                      className={[
+                        styles.quoteText,
+                        message.replyTo.deletedAt ? styles.quoteGone : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      {message.replyTo.deletedAt
+                        ? 'Message deleted'
+                        : message.replyTo.text || sharedSummary(message.replyTo.sharedType)}
+                    </span>
+                  </div>
+                ) : null}
+
+                {message.sharedType ? (
+                  <div className={styles.block}>
+                    <SharedCard message={message} author={author} />
+                  </div>
+                ) : null}
+              </>
+            )}
+
+            {/*
+              Text and time on one line when the text is short enough to leave
+              room, and on two when it is not.
+
+              That is the whole of it: the bubble is a wrapping flex row, the
+              text is one item and the clock another. A three-word message no
+              longer spends a second line on its own timestamp, and a paragraph
+              wraps the way a paragraph should. Nothing measures anything.
+            */}
+            {!deleted && message.text ? (
+              <span className={styles.text}>{withMentions(message.text, users, mine)}</span>
+            ) : null}
+            <span className={styles.time}>{formatClock(message.createdAt)}</span>
           </div>
         )}
 
-        {picking ? (
-          <div className={`glass ${styles.picker}`} role="group" aria-label="Pick a reaction">
-            {CHAT_REACTIONS.map((emoji) => (
+        {/*
+          Reactions, on the message's own side, and nothing else on the row.
+          They shrink and scroll rather than wrap, so five distinct reactions
+          cannot make the row two lines tall.
+        */}
+        {!deleted && counts.size > 0 ? (
+          <div className={styles.reactions}>
+            {[...counts.entries()].map(([emoji, count]) => (
               <button
                 key={emoji}
-                className={styles.pick}
+                className={[styles.chip, myReaction?.emoji === emoji ? styles.chipMine : '']
+                  .filter(Boolean)
+                  .join(' ')}
                 onClick={() => react(emoji)}
-                aria-label={`React with ${emoji}`}
+                aria-label={`${count} reacted with ${emoji}`}
                 aria-pressed={myReaction?.emoji === emoji}
               >
-                {emoji}
+                <span aria-hidden="true">{emoji}</span>
+                {count > 1 ? <span className="tnum">{count}</span> : null}
               </button>
             ))}
           </div>
         ) : null}
-
       </div>
     </li>
   )
@@ -220,20 +322,3 @@ function withMentions(text: string, users: Map<string, User>, mine: boolean) {
   })
 }
 
-/** What to call a share when it is being quoted rather than shown. */
-function sharedSummary(type?: string): string {
-  switch (type) {
-    case 'workout':
-      return 'Shared a workout'
-    case 'weigh_in':
-      return 'Shared a weigh-in'
-    case 'steps':
-      return 'Shared their steps'
-    case 'achievement':
-      return 'Shared an achievement'
-    case 'challenge':
-      return 'Shared the challenge'
-    default:
-      return 'Message'
-  }
-}

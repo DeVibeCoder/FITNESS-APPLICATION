@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { now, uid } from '@/lib/id'
+import { STICKER_BY_KEY } from '@/data/stickers'
 import type { ChatMessage, ChatReaction, DateKey, ID, SharedType } from '@/models'
 import { assertOwner, assertOwnerOf } from './ownership'
 import { storageService } from './storageService'
@@ -193,13 +194,16 @@ export const chatService = {
     replyToId?: ID
     sharedType?: SharedType
     sharedDataId?: ID
+    /** One of the app's own stickers, by key. Carries no text. */
+    stickerId?: string
   }): Promise<ChatMessage | null> {
     // You post as yourself. The same check a server would run.
     assertOwner(input.userId)
 
     const text = input.text.trim()
-    // A share carries meaning without words; a plain message does not.
-    if (!text && !input.sharedType) return null
+    // A share or a sticker carries meaning without words; a plain message does
+    // not, so an empty box still sends nothing.
+    if (!text && !input.sharedType && !input.stickerId) return null
 
     const message: ChatMessage = {
       id: uid('msg'),
@@ -209,10 +213,45 @@ export const chatService = {
       replyToId: input.replyToId,
       sharedType: input.sharedType,
       sharedDataId: input.sharedDataId,
+      stickerId: input.stickerId,
     }
     await db.messages.add(message)
     await this.notifyMentions(message)
     return message
+  },
+
+  /** Send one of the app's stickers. A key, never an image. */
+  async sendSticker(userId: ID, stickerId: string, replyToId?: ID): Promise<ChatMessage | null> {
+    if (!STICKER_BY_KEY.has(stickerId)) return null
+    return this.send({ userId, text: '', stickerId, replyToId })
+  },
+
+  // --- Pinning -------------------------------------------------------------
+
+  /**
+   * Pin or unpin a message.
+   *
+   * Anybody in the room may pin: this is a group of three deciding together
+   * what the week's target or the session time is, not a moderated forum. The
+   * pin lives on the message, so deleting a message takes its pin with it and
+   * there is no second list to keep in step.
+   */
+  async togglePin(messageId: ID, userId: ID): Promise<boolean> {
+    assertOwner(userId)
+    const message = await db.messages.get(messageId)
+    if (!message || message.deletedAt) return false
+    if (message.pinnedAt) {
+      await db.messages.update(messageId, { pinnedAt: undefined, pinnedBy: undefined })
+      return false
+    }
+    await db.messages.update(messageId, { pinnedAt: now(), pinnedBy: userId })
+    return true
+  },
+
+  /** Pinned messages, newest pin first. Normally none, occasionally one. */
+  async pinned(): Promise<ChatMessage[]> {
+    const rows = await db.messages.filter((m) => Boolean(m.pinnedAt) && !m.deletedAt).toArray()
+    return rows.sort((a, b) => (a.pinnedAt! < b.pinnedAt! ? 1 : -1))
   },
 
   /**
@@ -269,6 +308,11 @@ export const chatService = {
       text: '',
       sharedType: undefined,
       sharedDataId: undefined,
+      stickerId: undefined,
+      // A pin outliving the message it pointed at would leave the banner
+      // quoting something that is no longer there.
+      pinnedAt: undefined,
+      pinnedBy: undefined,
       deletedAt: now(),
     })
     await db.chatReactions.where('messageId').equals(messageId).delete()

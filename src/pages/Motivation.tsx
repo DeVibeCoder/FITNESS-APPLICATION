@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, Plus, Send, Trash2 } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Section } from '@/components/ui/Card'
 import { CardPhoto } from '@/components/ui/CardPhoto'
@@ -11,7 +11,7 @@ import { EmptyState, LoadingScreen } from '@/components/ui/EmptyState'
 import { VideoCard } from '@/components/motivation/VideoCard'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { motivationService } from '@/services'
+import { chatService, motivationService } from '@/services'
 import { parseVideoUrl } from '@/services/motivationService'
 import type { MotivationVideo } from '@/models'
 import styles from './Motivation.module.css'
@@ -37,6 +37,13 @@ export function Motivation() {
   if (!user || videos === undefined) return <LoadingScreen />
 
   const others = videos.filter((video) => video.id !== featured?.id)
+  const dailyLine = motivationService.quoteOfTheDay(user.id)
+
+  /** Sends the day's line to the chat. Text only — nothing else is attached. */
+  const passItOn = async () => {
+    const sent = await guard(() => chatService.send({ userId: user.id, text: `“${dailyLine}”` }))
+    if (sent) show('Sent to the group chat.', 'success')
+  }
 
   return (
     <div className={styles.page}>
@@ -51,11 +58,22 @@ export function Motivation() {
         }
       />
 
+      {/*
+        The day's line, set as a line rather than as a caption on a photograph.
+
+        A dedicated action rather than the generic share: passing something on
+        is what this page is for, and it goes straight to the chat where
+        somebody will actually read it today.
+      */}
       <Card flush className={`onPhoto ${styles.quoteCard}`}>
         <CardPhoto image="motivation" />
         <div className={styles.quoteBody}>
-        <p className="eyebrow">Today's line</p>
-        <p className={styles.quote}>{motivationService.quoteOfTheDay(user.id)}</p>
+          <p className="eyebrow">Today's line</p>
+          <p className={styles.quote}>{dailyLine}</p>
+          <button className={styles.pass} onClick={passItOn}>
+            <Send size={14} strokeWidth={2.3} />
+            Pass it on
+          </button>
         </div>
       </Card>
 

@@ -25,23 +25,43 @@ export function useHistoryDismiss(onDismiss: () => void): void {
     if (typeof window === 'undefined') return
 
     const token = { overlay: true, at: Date.now() }
-    window.history.pushState(token, '')
-    // Set once the entry is ours: it tells the cleanup whether the entry is
-    // still on the stack, or whether Back already took it off.
-    let ours = true
+    /*
+     * Pushed on the next frame rather than immediately.
+     *
+     * React's development mode runs an effect, tears it down and runs it again
+     * to surface exactly this kind of bug — and it did. Pushing on the first
+     * run meant the teardown called `history.back()`, whose `popstate` then
+     * arrived at the second run's listener and dismissed the overlay in the
+     * frame it opened: a lightbox that closed itself the moment it was tapped,
+     * in `npm run dev` only. Deferring by a frame means the discarded first
+     * run never pushes anything, so it has nothing to undo.
+     *
+     * Nothing about the behaviour changes in a build: the entry lands one
+     * frame later, which is far quicker than anybody can press Back.
+     */
+    let pushed = false
+    let cancelled = false
+    const frame = requestAnimationFrame(() => {
+      if (cancelled) return
+      window.history.pushState(token, '')
+      pushed = true
+    })
 
     const onPopState = () => {
-      ours = false
+      // Back took the entry off; there is nothing left for the cleanup to pop.
+      pushed = false
       dismiss.current()
     }
 
     window.addEventListener('popstate', onPopState)
     return () => {
+      cancelled = true
+      cancelAnimationFrame(frame)
       window.removeEventListener('popstate', onPopState)
       // Closed by something other than Back, so the entry is still there and
       // has to come off — otherwise Back would first undo an overlay that is
       // already gone.
-      if (ours) window.history.back()
+      if (pushed) window.history.back()
     }
   }, [])
 }

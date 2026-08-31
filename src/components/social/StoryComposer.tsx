@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { Camera, Images, Trash2 } from 'lucide-react'
+import { Camera, Images, Trash2, Video } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CameraCapture } from './CameraCapture'
 import { StoryFrame, STORY_BACKGROUNDS, DEFAULT_STORY_BACKGROUND } from './StoryFrame'
@@ -51,7 +51,8 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
   const [background, setBackground] = useState<StoryBackground>(DEFAULT_STORY_BACKGROUND)
   const [saving, setSaving] = useState(false)
   const [confirmDiscard, setConfirmDiscard] = useState(false)
-  const [cameraOpen, setCameraOpen] = useState(false)
+  /** `null` is closed; the value is the mode the camera opens armed in. */
+  const [cameraOpen, setCameraOpen] = useState<'photo' | 'video' | null>(null)
   const libraryInput = useRef<HTMLInputElement>(null)
   const textId = useId()
 
@@ -178,18 +179,35 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         onChange={onFile}
       />
 
-      <div className={styles.capture}>
-        <button className={styles.captureButton} onClick={() => setCameraOpen(true)}>
-          <span className={styles.captureIcon}>
-            <Camera size={20} strokeWidth={2} />
-          </span>
-          Take photo or video
+      {/*
+        A camera strip, not a pair of upload buttons.
+
+        Three small controls on one row: photo, video, and the library. They
+        are deliberately compact — a story is made with the camera, so the
+        stage above is the screen and these are the way in, not the subject.
+        Photo and Video open the same camera in different modes; choosing
+        Video arms the shutter and starts nothing, which is the whole point of
+        a mode being a mode.
+      */}
+      <div className={styles.capture} role="group" aria-label="Add to your story">
+        <button
+          className={`${styles.captureButton} ${styles.captureLead}`}
+          onClick={() => setCameraOpen('photo')}
+        >
+          <Camera size={17} strokeWidth={2.1} />
+          Photo
         </button>
-        <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
-          <span className={styles.captureIcon}>
-            <Images size={20} strokeWidth={2} />
-          </span>
-          Choose from device
+        <button className={styles.captureButton} onClick={() => setCameraOpen('video')}>
+          <Video size={17} strokeWidth={2.1} />
+          Video
+        </button>
+        <button
+          className={styles.captureButton}
+          onClick={() => libraryInput.current?.click()}
+          aria-label="Choose from device"
+        >
+          <Images size={17} strokeWidth={2.1} />
+          Upload
         </button>
       </div>
 
@@ -199,14 +217,15 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
           // viewfinder too — what is framed here is what the story will be,
           // rather than something the story frame crops the sides off later.
           frame="story"
+          initialMode={cameraOpen}
           maxVideoSec={STORY_VIDEO_MAX_SEC}
           onCapture={(file) => {
-            setCameraOpen(false)
+            setCameraOpen(null)
             void pick(file)
           }}
-          onClose={() => setCameraOpen(false)}
+          onClose={() => setCameraOpen(null)}
           onChooseInstead={() => {
-            setCameraOpen(false)
+            setCameraOpen(null)
             libraryInput.current?.click()
           }}
         />

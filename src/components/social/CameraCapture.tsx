@@ -94,12 +94,21 @@ export function CameraCapture({
   allowVideo = true,
   maxVideoSec,
   frame = 'free',
+  initialMode = 'photo',
 }: {
   onCapture: (file: File) => void
   onClose: () => void
   /** Offered when the camera cannot be used at all. */
   onChooseInstead?: () => void
   allowVideo?: boolean
+  /**
+   * Which mode the camera opens in.
+   *
+   * A mode, and only a mode. Opening on `video` arms the shutter to record —
+   * it does not start recording, and nothing in this component starts a
+   * capture except a press of the shutter itself.
+   */
+  initialMode?: 'photo' | 'video'
   /** Recording stops itself here. Stories pass 60; posts pass nothing. */
   maxVideoSec?: number
   /**
@@ -122,7 +131,7 @@ export function CameraCapture({
   const [elapsed, setElapsed] = useState(0)
   const [multipleCameras, setMultipleCameras] = useState(false)
 
-  const [mode, setMode] = useState<'photo' | 'video'>('photo')
+  const [mode, setMode] = useState<'photo' | 'video'>(initialMode)
   const [grid, setGrid] = useState(rememberedGrid)
   const [timer, setTimer] = useState<(typeof TIMERS)[number]>(rememberedTimer)
   const [countdown, setCountdown] = useState<number | null>(null)
@@ -751,12 +760,20 @@ export function CameraCapture({
           What the shutter will do, said in one word. Choosing here changes
           nothing but that: the recording starts when the shutter is pressed.
         */}
-        {canRecord ? (
+        {canRecord && !recording ? (
           <div className={styles.modes} role="group" aria-label="Capture mode">
+            {/*
+              The lit word rides on a pill that slides between the two, so the
+              selected mode is legible at a glance and in greyscale. Choosing
+              here changes what the shutter will do and nothing else.
+            */}
+            <span
+              className={cx(styles.modeThumb, mode === 'video' && styles.modeThumbRight)}
+              aria-hidden="true"
+            />
             <button
               className={cx(styles.mode, mode === 'photo' && styles.modeOn)}
               onClick={() => setMode('photo')}
-              disabled={recording}
               aria-pressed={mode === 'photo'}
             >
               Photo
@@ -764,12 +781,13 @@ export function CameraCapture({
             <button
               className={cx(styles.mode, mode === 'video' && styles.modeOn)}
               onClick={() => setMode('video')}
-              disabled={recording}
               aria-pressed={mode === 'video'}
             >
               Video
             </button>
           </div>
+        ) : recording ? (
+          <p className={styles.recordingHint}>Tap again to stop</p>
         ) : null}
 
         <div className={styles.row}>

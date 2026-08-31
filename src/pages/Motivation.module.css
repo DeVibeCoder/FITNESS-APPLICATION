@@ -17,18 +17,52 @@
 .quoteBody {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
+  align-items: flex-start;
+  gap: var(--s-2);
   padding: var(--card-pad);
 }
 
+/*
+ * Set as a statement, not as an italic caption. Clamped so it stays a headline
+ * at 320px instead of wrapping to five lines, and never grows past the card.
+ */
 .quote {
   font-family: var(--font-display);
-  font-size: 1.25rem;
-  font-weight: 650;
-  font-style: italic;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
+  font-size: clamp(1.125rem, 5.4vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.24;
   text-wrap: balance;
+}
+
+/*
+ * The one action this card needs. It sits on the photo, so it carries its own
+ * ground rather than relying on the image behind it for contrast.
+ */
+.pass {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 32px;
+  margin-top: var(--s-1);
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.24);
+  color: inherit;
+  font-size: var(--t-small);
+  font-weight: 750;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.pass:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.pass:active {
+  transform: scale(0.96);
 }
 
 .grid {

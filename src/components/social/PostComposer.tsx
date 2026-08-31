@@ -50,7 +50,6 @@ const VISIBILITY_OPTIONS: { value: Visibility; label: string }[] = [
 export function PostComposer({
   post,
   initialText,
-  kind = 'post',
   onDone,
   onCancel,
 }: {
@@ -58,12 +57,6 @@ export function PostComposer({
   post?: FeedPost
   /** Words a Share action prepared. The person edits them from here. */
   initialText?: string
-  /**
-   * Motivation is the same composer with different words on it. It writes the
-   * same row through the same service — see `NewPost.motivation` for why that
-   * is a flag rather than a second feature.
-   */
-  kind?: 'post' | 'motivation'
   onDone: () => void
   onCancel: () => void
 }) {
@@ -174,7 +167,6 @@ export function PostComposer({
         text,
         visibility,
         media,
-        motivation: kind === 'motivation',
       }),
     )
     setSaving(false)
@@ -186,11 +178,7 @@ export function PostComposer({
     setText('')
     setPicked(null)
     show(
-      visibility === 'private'
-        ? 'Saved, just for you.'
-        : kind === 'motivation'
-          ? 'Shared with the group.'
-          : 'Posted to the group.',
+      visibility === 'private' ? 'Saved, just for you.' : 'Posted to the group.',
       'success',
     )
     onDone()
@@ -221,11 +209,7 @@ export function PostComposer({
     <>
       <div className={styles.field}>
         <label className={styles.label} htmlFor={textId}>
-          {editing
-            ? 'Your post'
-            : kind === 'motivation'
-              ? 'The quote, or what it made you think'
-              : "What's going on?"}
+          {editing ? 'Your post' : "What's going on?"}
         </label>
         <textarea
           id={textId}
@@ -233,11 +217,7 @@ export function PostComposer({
           value={text}
           rows={4}
           maxLength={MAX_LENGTH}
-          placeholder={
-            kind === 'motivation'
-              ? '"You don\u2019t have to be extreme, just consistent."'
-              : 'Say something to the group…'
-          }
+          placeholder="Say something to the group…"
           onChange={(event) => setText(event.target.value)}
         />
         {remaining <= 100 ? (
@@ -267,18 +247,22 @@ export function PostComposer({
         onChange={onFile}
       />
 
-      <div className={styles.capture}>
+      {/*
+        An attach row, not a pair of cards.
+
+        A post is words with something attached; a story is a camera with words
+        after. So this sits under the box as two small chips with the label
+        beside the glyph, and New Story gets the camera strip — the two
+        composers should not be the same screen with different copy on it.
+      */}
+      <div className={styles.capture} role="group" aria-label="Add to your post">
         <button className={styles.captureButton} onClick={() => setCameraOpen(true)}>
-          <span className={styles.captureIcon}>
-            <Camera size={18} strokeWidth={2} />
-          </span>
-          Take photo or video
+          <Camera size={15} strokeWidth={2.2} />
+          {previewAsset ? 'Retake' : 'Camera'}
         </button>
         <button className={styles.captureButton} onClick={() => libraryInput.current?.click()}>
-          <span className={styles.captureIcon}>
-            <Images size={18} strokeWidth={2} />
-          </span>
-          Choose from device
+          <Images size={15} strokeWidth={2.2} />
+          {previewAsset ? 'Replace' : 'Upload'}
         </button>
       </div>
 
@@ -314,13 +298,7 @@ export function PostComposer({
       />
 
       <Button size="lg" block onClick={submit} disabled={!canPost || saving}>
-        {saving
-          ? 'Sharing…'
-          : editing
-            ? 'Save changes'
-            : kind === 'motivation'
-              ? 'Share motivation'
-              : 'Post'}
+        {saving ? 'Sharing…' : editing ? 'Save changes' : 'Post'}
       </Button>
 
       {confirmDiscard ? (

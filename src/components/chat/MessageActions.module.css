@@ -1,0 +1,152 @@
+/*
+ * Over everything, including the composer and the bottom bar — a menu the
+ * keyboard is painting over is a menu you cannot use.
+ */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  animation: fade var(--fast) var(--ease-out);
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/*
+ * Dark enough to lift the card off the thread, light enough that the message
+ * being acted on is still legible underneath — which is the point of anchoring
+ * the card to it rather than centring it.
+ */
+.scrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  background: var(--scrim);
+  cursor: default;
+}
+
+.card {
+  position: absolute;
+  width: 268px;
+  max-width: calc(100vw - 24px);
+  padding: var(--s-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  animation: pop var(--med) var(--ease-out);
+  transform-origin: top left;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+/* --- The reactions, already open ------------------------------------------ */
+
+.reactRow {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-bottom: var(--s-2);
+  margin-bottom: var(--s-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.react {
+  display: grid;
+  place-items: center;
+  flex: 1;
+  min-width: 0;
+  height: 38px;
+  border-radius: var(--r-pill);
+  /* Clamped so six targets still fit across a 320px screen. */
+  font-size: clamp(1rem, 4.6vw, 1.25rem);
+  line-height: 1;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.react:hover {
+  background: var(--bg-sunk);
+  transform: scale(1.1);
+}
+
+.reactOn {
+  background: var(--accent-soft);
+}
+
+.more {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 38px;
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  transition: background var(--fast) var(--ease);
+}
+
+.more:hover {
+  background: var(--bg-sunk);
+  color: var(--ink);
+}
+
+/* --- The actions ---------------------------------------------------------- */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  width: 100%;
+  min-height: 42px;
+  padding: 0 var(--s-2);
+  border-radius: var(--r);
+  font-size: var(--t-body);
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  transition: background var(--fast) var(--ease);
+}
+
+.action:hover {
+  background: var(--bg-sunk);
+}
+
+.actionIcon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.danger {
+  color: var(--danger);
+}
+
+.danger .actionIcon {
+  color: var(--danger);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .card {
+    animation: none;
+  }
+
+  .react {
+    transition: none;
+  }
+}

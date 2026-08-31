@@ -1,0 +1,107 @@
+/*
+ * A sticker is a small poster, not a message in a box.
+ *
+ * Four grounds rather than one so a thread of stickers does not read as one
+ * repeated object, and all four are built from tokens — they follow the theme
+ * into dark rather than being four fixed colours that stop matching.
+ */
+.sticker {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.125rem;
+  width: clamp(6.5rem, 32vw, 8.5rem);
+  aspect-ratio: 1;
+  padding: var(--s-3);
+  border-radius: var(--r-lg);
+  text-align: center;
+  box-shadow: var(--shadow-sm);
+  /*
+   * The one bit of dimension: a soft light from above and a hairline inside,
+   * which is what stops a flat tint reading as a coloured rectangle.
+   */
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.22), transparent 62%);
+  transition: transform var(--fast) var(--ease);
+}
+
+.small {
+  width: 4.5rem;
+  padding: var(--s-2);
+  border-radius: var(--r);
+  gap: 0;
+}
+
+.sticker:active {
+  transform: scale(0.97);
+}
+
+.glyph {
+  font-size: clamp(1.9rem, 9vw, 2.6rem);
+  line-height: 1;
+  /* Sits the glyph on the ground rather than floating it. */
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.22));
+}
+
+.small .glyph {
+  font-size: 1.5rem;
+}
+
+.word {
+  font-family: var(--font-display);
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  line-height: 1.1;
+  text-transform: uppercase;
+  opacity: 0.86;
+}
+
+.small .word {
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+}
+
+.ember {
+  background-color: var(--accent-soft);
+  color: var(--accent-strong);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent),
+    var(--shadow-sm);
+}
+
+.lime {
+  background-color: var(--success-soft);
+  color: var(--success);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--success) 30%, transparent),
+    var(--shadow-sm);
+}
+
+.ice {
+  background-color: var(--move-soft);
+  color: var(--move);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--move) 26%, transparent),
+    var(--shadow-sm);
+}
+
+.ink {
+  background-color: var(--bg-sunk);
+  color: var(--ink);
+  box-shadow:
+    inset 0 0 0 1px var(--line-strong),
+    var(--shadow-sm);
+}
+
+.missing {
+  font-size: var(--t-small);
+  font-style: italic;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sticker {
+    transition: none;
+  }
+}

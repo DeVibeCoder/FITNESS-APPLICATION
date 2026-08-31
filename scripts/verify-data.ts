@@ -28,6 +28,9 @@ import { progressService } from '../src/services/progressService'
 import { workoutService } from '../src/services/workoutService'
 import { challengeService } from '../src/services/challengeService'
 import { chatService, mentionedIn } from '../src/services/chatService'
+import { gifService } from '../src/services/gifService'
+import { STICKERS, STICKER_GROUPS } from '../src/data/stickers'
+import { ALL_EMOJI, EMOJI_GROUPS, searchEmoji } from '../src/data/emoji'
 import { postService, canView, DEFAULT_VISIBILITY } from '../src/services/postService'
 import { storyService } from '../src/services/storyService'
 import { mediaService, isPlaceholder } from '../src/services/mediaService'
@@ -3975,6 +3978,63 @@ async function main() {
     ),
     mentionMessage!.text,
   )
+
+  console.log('\n— Stickers are keys, never pictures —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  ok('every sticker key is unique', new Set(STICKERS.map((s) => s.key)).size === STICKERS.length)
+  ok('every sticker has a glyph and a word',
+    STICKERS.every((s) => s.glyph.length > 0 && s.word.length > 0 && s.label.length > 0))
+  ok('and belongs to a group that exists',
+    STICKERS.every((s) => STICKER_GROUPS.some((g) => g.key === s.group)))
+
+  const sticker = await chatService.sendSticker('u_ahmed', 'lets_go')
+  ok('a sticker sends', Boolean(sticker))
+  check('it carries the key', sticker!.stickerId, 'lets_go')
+  check('and no text at all', sticker!.text, '')
+  ok(
+    'nothing about it is a picture',
+    !JSON.stringify(await db.messages.get(sticker!.id)).match(/data:|blob:|http/i),
+  )
+  check('an unknown sticker sends nothing', await chatService.sendSticker('u_ahmed', 'nope'), null)
+  check(
+    'an empty message with no sticker and no share still sends nothing',
+    await chatService.send({ userId: 'u_ahmed', text: '   ' }),
+    null,
+  )
+
+  console.log('\n— Pinning lives on the message —\n')
+  check('nothing is pinned to begin with', (await chatService.pinned()).length, 0)
+  ok('pinning reports that it pinned', await chatService.togglePin(sticker!.id, 'u_ahmed'))
+  check('and the message says so', (await chatService.pinned()).map((m) => m.id), [sticker!.id])
+  check('the pin records who did it', (await db.messages.get(sticker!.id))!.pinnedBy, 'u_ahmed')
+  ok('pinning again unpins', !(await chatService.togglePin(sticker!.id, 'u_ahmed')))
+  check('and nothing is pinned again', (await chatService.pinned()).length, 0)
+
+  await chatService.togglePin(sticker!.id, 'u_ahmed')
+  await chatService.remove(sticker!.id)
+  const goneSticker = await db.messages.get(sticker!.id)
+  ok('deleting a message takes its pin with it', !goneSticker!.pinnedAt)
+  ok('and its sticker', goneSticker!.stickerId === undefined)
+  ok('leaving the deleted marker behind', Boolean(goneSticker!.deletedAt))
+  check('so nothing pinned points at a deleted message', (await chatService.pinned()).length, 0)
+  await db.messages.delete(sticker!.id)
+
+  await expectOwnershipRefusal('Nadia cannot pin as Ahmed', () =>
+    chatService.togglePin('m_11', 'u_ahmed'))
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+
+  console.log('\n— The pickers are real, and the GIF one is honest —\n')
+  ok('the emoji picker offers more than a shortlist', ALL_EMOJI.length > 400, `${ALL_EMOJI.length} emoji`)
+  ok('with no duplicates across the groups',
+    new Set(ALL_EMOJI).size === ALL_EMOJI.length)
+  ok('every group has something in it', EMOJI_GROUPS.every((g) => g.emoji.length > 0))
+  ok('search finds by word', searchEmoji('flex').includes('💪'))
+  ok('and by group name', searchEmoji('fitness').includes('🏋️'))
+  check('a search for nothing returns nothing', searchEmoji('   ').length, 0)
+  // No provider is configured, and the picker is told so rather than shown an
+  // empty grid it cannot explain.
+  ok('no GIF provider is connected', !gifService.available)
+  check('so a search has nothing to ask', await gifService.search('squat'), null)
 
   console.log('\n— Nothing was lost in the reorganisation —\n')
   ok('workouts intact', (await db.sessions.count()) > 20)

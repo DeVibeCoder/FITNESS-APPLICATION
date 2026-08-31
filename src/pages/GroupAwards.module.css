@@ -147,7 +147,20 @@
   transform: scale(0.98);
 }
 
+/*
+ * A struck medal, not a tinted circle.
+ *
+ * Three cheap layers and no images: a light from the upper left so the disc
+ * has a top and a bottom, a hairline rim inside it, and a small drop shadow
+ * under it so it sits on the tile rather than in it. The glyph gets its own
+ * shadow, which is what keeps it reading as embossed on the disc instead of
+ * printed on it.
+ *
+ * All of it composites — no filters on the whole tile, no blur, nothing that
+ * repaints while the grid scrolls.
+ */
 .markIcon {
+  position: relative;
   display: grid;
   place-items: center;
   width: 2.75rem;
@@ -155,7 +168,31 @@
   font-size: 1.375rem;
   line-height: 1;
   border-radius: 50%;
-  background: var(--gold-soft);
+  background:
+    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.85), transparent 58%),
+    linear-gradient(160deg, color-mix(in srgb, var(--gold) 26%, var(--gold-soft)), var(--gold-soft) 70%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -1px 2px color-mix(in srgb, var(--gold) 30%, transparent),
+    0 2px 5px -2px color-mix(in srgb, var(--gold) 55%, transparent);
+  transition: transform var(--med) var(--ease-out);
+}
+
+.markIcon > * {
+  filter: drop-shadow(0 1px 0 rgba(255, 255, 255, 0.55));
+}
+
+/*
+ * The one bit of motion: the medal lifts and tips a degree or two under the
+ * finger. A transform on a 44px element, nothing else — it costs a composite
+ * and stops the moment the press ends.
+ */
+.mark:hover .markIcon {
+  transform: translateY(-2px) rotate(-3deg) scale(1.04);
+}
+
+.mark:active .markIcon {
+  transform: translateY(0) rotate(0deg) scale(0.96);
 }
 
 .markTitle {
@@ -169,6 +206,15 @@
   color: var(--ink-3);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .markIcon,
+  .mark:hover .markIcon,
+  .mark:active .markIcon {
+    transition: none;
+    transform: none;
+  }
+}
+
 /*
  * Locked. Quiet rather than hidden — and still a button, because "how to earn
  * it" is the most useful thing this screen can say about it.
@@ -178,9 +224,15 @@
   box-shadow: none;
 }
 
+/* Locked marks keep the shape and lose the metal. Nothing to catch the eye. */
 .markLocked .markIcon {
   background: var(--bg-sunk);
   color: var(--ink-3);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.markLocked .markIcon > * {
+  filter: none;
 }
 
 .markLocked .markTitle,

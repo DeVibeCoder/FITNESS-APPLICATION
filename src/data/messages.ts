@@ -3,7 +3,7 @@
  * Picked by date so a line stays put for a whole day instead of flickering.
  */
 
-const DAILY_LINES = [
+export const DAILY_LINES = [
   'Consistency beats perfection.',
   'One workout at a time.',
   'You showed up. That is what matters.',

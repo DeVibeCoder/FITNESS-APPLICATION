@@ -57,18 +57,36 @@
  * not feel like waiting. `transform` only, so it composites on its own layer
  * and never touches layout.
  */
+/*
+ * A struck medal at the size the moment deserves.
+ *
+ * The same three layers the small marks in the grid carry, scaled up: a light
+ * from the upper left, a rim inside the edge, and a shadow underneath. Clamped
+ * rather than fixed, so it is a medal on a 430px phone and still a medal on a
+ * 320px one instead of pushing the title off the panel.
+ */
 .medal {
   display: grid;
   place-items: center;
-  width: 7.5rem;
-  height: 7.5rem;
-  font-size: 3.5rem;
+  width: clamp(5.5rem, 30vw, 7.5rem);
+  height: clamp(5.5rem, 30vw, 7.5rem);
+  font-size: clamp(2.5rem, 14vw, 3.5rem);
   line-height: 1;
   border-radius: 50%;
-  background: var(--gold-soft);
+  background:
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.9), transparent 56%),
+    linear-gradient(158deg, color-mix(in srgb, var(--gold) 30%, var(--gold-soft)), var(--gold-soft) 68%);
   border: 2px solid color-mix(in srgb, var(--gold) 45%, transparent);
-  box-shadow: var(--glow-gold);
+  box-shadow:
+    var(--glow-gold),
+    inset 0 2px 0 rgba(255, 255, 255, 0.65),
+    inset 0 -3px 6px color-mix(in srgb, var(--gold) 34%, transparent);
   animation: reveal 560ms var(--ease-out) both;
+}
+
+/* Embossed on the disc rather than printed onto it. */
+.medal > * {
+  filter: drop-shadow(0 2px 1px rgba(255, 255, 255, 0.55));
 }
 
 .medalLocked {
@@ -78,6 +96,10 @@
   color: var(--ink-3);
   /* A locked mark does not get the flourish; there is nothing to celebrate. */
   animation: lift var(--med) var(--ease-out) both;
+}
+
+.medalLocked > * {
+  filter: none;
 }
 
 @keyframes reveal {

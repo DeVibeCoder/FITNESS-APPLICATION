@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Heart, Lock, MessageCircle, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
+import { Heart, Lock, MessageCircle, MoreHorizontal, Pencil, Send, Trash2 } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -12,7 +12,7 @@ import { MediaLightbox } from './MediaLightbox'
 import { PostComposer } from './PostComposer'
 import type { MediaAsset } from '@/models'
 import type { FeedPost } from '@/services/postService'
-import { postService } from '@/services'
+import { chatService, postService } from '@/services'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { timeAgo } from '@/utils/date'
@@ -86,11 +86,19 @@ export function PostCard({ post }: { post: FeedPost }) {
   const kind = KIND_LABEL[post.type]
   const isMine = isOwner(post.userId)
   const reaction = post.reactionCount > 0 ? REACTION_WORD[post.type] : undefined
-  const longCaption =
-    post.text.length > FOLD_AT || post.text.split('\n').length > FOLD_AT_LINES
-  const folded = longCaption && !expanded
-  // Motivation is somebody passing something on, so it is set as a quote.
+  /*
+   * Motivation is not a post with a label on it.
+   *
+   * It is somebody handing the group a line, so it is set as one: a quote on
+   * the app's own orange, with the words at display size and the attribution
+   * underneath. It folds later than an ordinary post because a quote that
+   * stops mid-sentence is not a quote.
+   */
   const isMotivation = post.type === 'motivation'
+  const longCaption = isMotivation
+    ? post.text.length > FOLD_AT * 2
+    : post.text.length > FOLD_AT || post.text.split('\n').length > FOLD_AT_LINES
+  const folded = longCaption && !expanded
 
   const reactions = useLiveQuery(() => postService.reactionsFor(post.id), [post.id])
   const mineReacted = Boolean(reactions?.some((r) => r.userId === user?.id))
@@ -100,6 +108,18 @@ export function PostCard({ post }: { post: FeedPost }) {
   const toggle = () => {
     if (!user) return
     void guard(() => postService.toggleReaction(post.id, user.id, '🔥'))
+  }
+
+  /** Sends the line to the chat, as text, attributed to whoever wrote it. */
+  const passItOn = async () => {
+    if (!user) return
+    const sent = await guard(() =>
+      chatService.send({
+        userId: user.id,
+        text: `“${post.text}” — ${firstName(post.author.name)}`,
+      }),
+    )
+    if (sent) show('Sent to the group chat.', 'success')
   }
 
   const remove = async () => {
@@ -193,17 +213,21 @@ export function PostCard({ post }: { post: FeedPost }) {
         ) : null}
       </header>
 
-      <div className={styles.body}>
-        {post.text ? (
-          <p
-            className={[
-              styles.text,
-              folded ? styles.folded : '',
-              isMotivation ? styles.quote : '',
-            ]
-              .filter(Boolean)
-              .join(' ')}
-          >
+      <div className={[styles.body, isMotivation ? styles.motivationBody : ''].filter(Boolean).join(' ')}>
+        {isMotivation && post.text ? (
+          <blockquote className={styles.motivation}>
+            <span className={styles.motivationMark} aria-hidden="true">
+              “
+            </span>
+            <p className={[styles.motivationText, folded ? styles.folded : ''].filter(Boolean).join(' ')}>
+              {post.text}
+            </p>
+            <footer className={styles.motivationBy}>
+              Passed on by {firstName(post.author.name)}
+            </footer>
+          </blockquote>
+        ) : post.text ? (
+          <p className={[styles.text, folded ? styles.folded : ''].filter(Boolean).join(' ')}>
             {post.text}
           </p>
         ) : null}
@@ -268,7 +292,17 @@ export function PostCard({ post }: { post: FeedPost }) {
           </button>
         </span>
 
-        {reaction ? (
+        {/*
+          Motivation is the one kind of post that exists to be passed on
+          again, so it gets a control the others do not: it sends the line to
+          the chat rather than reacting to it here.
+        */}
+        {isMotivation ? (
+          <button className={styles.pass} onClick={passItOn} aria-label="Send this to the chat">
+            <Send size={14} strokeWidth={2.3} />
+            Pass it on
+          </button>
+        ) : reaction ? (
           <span className={styles.reaction}>
             <span aria-hidden="true">🔥</span>
             {reaction}!
@@ -284,7 +318,20 @@ export function PostCard({ post }: { post: FeedPost }) {
         <CommentsSheet post={post} open onClose={() => setCommentsOpen(false)} />
       ) : null}
 
-      {lightbox ? <MediaLightbox asset={lightbox} onClose={() => setLightbox(null)} /> : null}
+      {/*
+        The caption goes with the picture. Reading what somebody said about a
+        photo used to mean closing the photo first, which is the sort of small
+        tax that stops people opening them at all.
+      */}
+      {lightbox ? (
+        <MediaLightbox
+          asset={lightbox}
+          caption={post.text}
+          author={post.author}
+          when={post.createdAt}
+          onClose={() => setLightbox(null)}
+        />
+      ) : null}
 
       {/*
         The same composer that wrote it, opened on what it already says — and

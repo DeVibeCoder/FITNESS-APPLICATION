@@ -7,6 +7,7 @@ import { LogWorkoutForm } from './LogWorkoutForm'
 import { AddFoodFlow } from '@/components/nutrition/AddFoodSheet'
 import { PostComposer } from '@/components/social/PostComposer'
 import { StoryComposer } from '@/components/social/StoryComposer'
+import { MotivationComposer } from '@/components/social/MotivationComposer'
 import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { ProgressBar } from '@/components/ui/Progress'
@@ -56,7 +57,7 @@ const TITLES: Record<Mode, string> = {
   menu: 'Create',
   post: 'New post',
   story: 'New story',
-  motivation: 'Share some motivation',
+  motivation: 'Pass on a line',
   workout: "Log today's workout",
   weight: 'Weekly weigh-in',
   steps: 'Log steps',
@@ -106,10 +107,14 @@ export function LogSheet({
         <PostComposer initialText={draft?.text} onDone={close} onCancel={close} />
       ) : null}
       {mode === 'story' ? <StoryComposer onDone={close} onCancel={close} /> : null}
-      {/* The same composer, writing the same row — see NewPost.motivation. */}
-      {mode === 'motivation' ? (
-        <PostComposer kind="motivation" onDone={close} onCancel={close} />
-      ) : null}
+      {/*
+        Its own composer now. It writes the same row through the same service —
+        a post with `motivation: true` — but making a quote card and writing a
+        post are different acts, and they were the same screen with the labels
+        swapped. Editing an existing one still opens the post composer, because
+        by then it is a post with words in it.
+      */}
+      {mode === 'motivation' ? <MotivationComposer onDone={close} onCancel={close} /> : null}
       {mode === 'workout' ? <LogWorkoutForm onDone={close} /> : null}
       {mode === 'weight' ? <WeightEntryForm onDone={close} /> : null}
       {mode === 'steps' ? <StepsForm onDone={close} /> : null}

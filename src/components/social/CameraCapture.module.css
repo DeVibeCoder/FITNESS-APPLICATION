@@ -341,60 +341,78 @@
   flex-direction: column;
   align-items: center;
   gap: var(--s-3);
-  padding: var(--s-4) var(--s-6) calc(env(safe-area-inset-bottom) + var(--s-5));
+  /* Gutter shrinks with the screen so the row never has to. */
+  padding: var(--s-3) clamp(var(--s-3), 5vw, var(--s-6))
+    calc(env(safe-area-inset-bottom) + var(--s-4));
 }
 
 /*
- * Photo or video, in the plainest form there is: two words, the live one lit.
- * The original camera here refused a mode on the grounds that being in the
- * wrong one wastes people's time — the answer to that is a rail you can read
- * without pressing anything, which is what this is. Choosing a mode never
- * starts a capture; only the shutter does that.
+ * Photo or video: two words on a track, with a pill under the live one.
+ *
+ * The pill is what makes the state readable without reading — a colour change
+ * alone is a difference you have to look for, and it disappears entirely in
+ * greyscale or in bright sun, which is where a camera actually gets used.
+ * Choosing a mode never starts a capture; only the shutter does that.
  */
 .modes {
-  display: inline-flex;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
   align-items: center;
-  gap: var(--s-2);
+  padding: 3px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+/* Slides rather than cutting, so the two words read as one control. */
+.modeThumb {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: var(--r-pill);
+  background: var(--accent-lift, #f97316);
+  transition: transform var(--med) var(--ease-out);
+}
+
+.modeThumbRight {
+  transform: translateX(100%);
 }
 
 .mode {
   position: relative;
-  padding: 0.375rem 0.875rem 0.5rem;
+  z-index: 1;
+  min-width: 5.25rem;
+  padding: 0.4375rem 0.75rem;
   border-radius: var(--r-pill);
-  color: rgba(255, 255, 255, 0.55);
-  font-size: var(--t-small);
-  font-weight: 700;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: var(--t-micro);
+  font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   transition: color var(--med) var(--ease);
 }
 
-.mode:disabled {
-  opacity: 0.35;
-}
-
 .modeOn {
-  color: var(--accent-lift, #f97316);
+  color: #1b0d02;
 }
 
-/* The lit word carries a dot, so the state survives being read in greyscale. */
-.modeOn::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: 0;
-  width: 4px;
-  height: 4px;
-  margin-left: -2px;
-  border-radius: var(--r-pill);
-  background: currentColor;
+/* What the shutter will do next, while it is doing it. */
+.recordingHint {
+  color: rgba(255, 255, 255, 0.72);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--s-4);
+  gap: var(--s-3);
   width: 100%;
   max-width: 22rem;
 }
@@ -405,20 +423,25 @@
  * century. The ring stays put and the core inside it changes: a white disc
  * for a photo, red for video, a red square while recording.
  */
+/*
+ * Sized from the viewport rather than fixed at 84px: a 320px phone gives the
+ * shutter and the two side controls 22rem of row to share, and 84 + 48 + 48
+ * plus gaps does not fit. It never grows past what it was.
+ */
 .shutterWrap {
   position: relative;
   display: grid;
   place-items: center;
-  width: 84px;
-  height: 84px;
+  width: clamp(68px, 21vw, 84px);
+  height: clamp(68px, 21vw, 84px);
   flex: none;
 }
 
 .ring {
   position: absolute;
   inset: 0;
-  width: 84px;
-  height: 84px;
+  width: 100%;
+  height: 100%;
   transform: rotate(-90deg);
   pointer-events: none;
 }
@@ -441,8 +464,8 @@
 .shutter {
   display: grid;
   place-items: center;
-  width: 84px;
-  height: 84px;
+  width: 100%;
+  height: 100%;
   border-radius: var(--r-pill);
   background: none;
   transition: transform var(--fast) var(--ease);
@@ -456,11 +479,17 @@
   opacity: 0.4;
 }
 
+/*
+ * The core inside the ring. A soft light from above rather than a flat disc —
+ * the one bit of dimension on the screen, and the reason the shutter reads as
+ * a physical button rather than a white circle.
+ */
 .core {
-  width: 66px;
-  height: 66px;
+  width: 78%;
+  height: 78%;
   border-radius: var(--r-pill);
-  background: #fff;
+  background: radial-gradient(circle at 50% 32%, #fff, #e7e2dd 72%, #cfc7bf);
+  box-shadow: inset 0 -2px 6px rgba(0, 0, 0, 0.16);
   transition:
     width var(--med) var(--ease-out),
     height var(--med) var(--ease-out),
@@ -469,14 +498,15 @@
 }
 
 .coreVideo {
-  background: var(--danger);
+  background: radial-gradient(circle at 50% 32%, #ff6b5e, var(--danger) 68%, #8f1c1c);
 }
 
+/* A square while recording, which every camera has taught people means stop. */
 .coreRecording {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: var(--danger);
+  width: 36%;
+  height: 36%;
+  border-radius: 9px;
+  background: radial-gradient(circle at 50% 32%, #ff6b5e, var(--danger) 70%, #8f1c1c);
 }
 
 /* The two side controls: same weight as each other, less than the shutter. */
@@ -535,7 +565,8 @@
 
   .preview,
   .core,
-  .mode {
+  .mode,
+  .modeThumb {
     transition: none;
   }
 }

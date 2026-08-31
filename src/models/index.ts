@@ -417,6 +417,35 @@ export interface ChatMessage {
    */
   sharedDataId?: ID
   /**
+   * One of the app's own stickers, by key.
+   *
+   * A token, never an image: the sticker is drawn from `data/stickers.ts`, so
+   * a message stays as small as a message and nothing binary reaches the
+   * database. A sticker message carries no text.
+   *
+   * Not indexed — nothing queries by it, so it needs no schema version.
+   */
+  stickerId?: string
+  /**
+   * A GIF the group is looking at, as a URL on somebody else's server.
+   *
+   * Reserved and deliberately unwritten: this app has no GIF provider
+   * configured, and inventing one would mean adding a service the brief says
+   * not to add. The field exists so that connecting a real provider later is a
+   * change to the picker and nothing else.
+   */
+  gifUrl?: string
+  /**
+   * Set while the message is pinned.
+   *
+   * Pinning is a property of the message rather than a list somewhere else, so
+   * deleting a message takes its pin with it and nothing has to be swept up.
+   * Not indexed, for the same reason `deletedAt` is not.
+   */
+  pinnedAt?: Timestamp
+  /** Who pinned it. */
+  pinnedBy?: ID
+  /**
    * Set when the author deletes the message.
    *
    * Soft, so the conversation keeps its shape: the bubble stays where it was,

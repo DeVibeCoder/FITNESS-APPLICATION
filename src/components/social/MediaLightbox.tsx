@@ -3,13 +3,18 @@ import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 import { useHistoryDismiss } from '@/hooks/useHistoryDismiss'
 import { isPlaceholder } from '@/services/mediaService'
-import type { MediaAsset } from '@/models'
+import type { MediaAsset, User } from '@/models'
+import { timeAgo } from '@/utils/date'
+import { firstName } from '@/utils/format'
 // The seed's gradient artwork lives with the frame that normally draws it.
 import frameStyles from './MediaFrame.module.css'
 import styles from './MediaLightbox.module.css'
 
 /** How far a drag has to travel before it counts as "put this away". */
 const DISMISS_AT = 110
+
+/** Longer than this and the caption folds behind "See more". */
+const FOLD_AT = 140
 
 /**
  * One picture or clip, at the size it deserves.
@@ -21,14 +26,35 @@ const DISMISS_AT = 110
  * the dark ground is simply whatever is left over rather than a shape the
  * picture was poured into.
  *
+ * The caption comes with it. A photo without what was said about it is half
+ * the post, and having to close the viewer to read the sentence underneath is
+ * the kind of small tax that makes people stop opening pictures at all. Long
+ * captions fold, exactly as they do on the card.
+ *
  * Three ways out, because a full-screen picture should never trap anybody:
  * the close button, a downward drag, and Back. Escape and a click on the
  * ground work too, which between them cover every habit somebody might arrive
- * with.
+ * with — and Back consumes only this overlay, so the app's own navigation is
+ * where it was.
  */
-export function MediaLightbox({ asset, onClose }: { asset: MediaAsset; onClose: () => void }) {
+export function MediaLightbox({
+  asset,
+  onClose,
+  caption,
+  author,
+  when,
+}: {
+  asset: MediaAsset
+  onClose: () => void
+  /** What was said about it. Shown under the media, folded when long. */
+  caption?: string
+  author?: User
+  /** ISO timestamp of the post, for the relative time beside the name. */
+  when?: string
+}) {
   const from = useRef<{ x: number; y: number } | null>(null)
   const [drag, setDrag] = useState(0)
+  const [expanded, setExpanded] = useState(false)
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -51,10 +77,13 @@ export function MediaLightbox({ asset, onClose }: { asset: MediaAsset; onClose: 
    * with it, so the gesture is visibly reversible right up until it is let go
    * — which is what makes it feel like putting something down rather than
    * guessing at a threshold.
+   *
+   * A clip is dragged by the frame around it rather than by the video itself:
+   * the element's own controls need the pointer more than the gesture does,
+   * and a scrub bar that dismisses the viewer is worse than no gesture.
    */
   const onPointerDown = (event: React.PointerEvent) => {
-    // A video's own controls need the pointer more than the gesture does.
-    if (asset.kind === 'video') return
+    if (event.target instanceof HTMLVideoElement) return
     from.current = { x: event.clientX, y: event.clientY }
   }
 
@@ -73,6 +102,8 @@ export function MediaLightbox({ asset, onClose }: { asset: MediaAsset; onClose: 
   }
 
   const placeholder = isPlaceholder(asset.ref)
+  const text = caption?.trim() ?? ''
+  const longCaption = text.length > FOLD_AT || text.split('\n').length > 3
 
   return createPortal(
     <div
@@ -93,31 +124,69 @@ export function MediaLightbox({ asset, onClose }: { asset: MediaAsset; onClose: 
       </button>
 
       <div
-        className={styles.holder}
-        style={drag > 0 ? { transform: `translateY(${drag}px)` } : undefined}
+        className={styles.stage}
+        style={
+          {
+            // How much height the caption block is allowed to claim.
+            '--caption': author || text ? '7.5rem' : '0px',
+            ...(drag > 0 ? { transform: `translateY(${drag}px)` } : {}),
+          } as React.CSSProperties
+        }
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
       >
-        {placeholder ? (
-          // Seed art, drawn by CSS. It has no intrinsic size, so it gets one.
-          <span
-            className={`${styles.art} ${frameStyles[asset.ref.slice('placeholder:'.length)] ?? ''}`}
-            aria-hidden="true"
-          />
-        ) : asset.kind === 'video' ? (
-          <video
-            src={asset.ref}
-            className={styles.media}
-            controls
-            autoPlay
-            playsInline
-            preload="metadata"
-          />
-        ) : (
-          <img src={asset.ref} alt="" className={styles.media} decoding="async" />
-        )}
+        <div className={styles.holder}>
+          {placeholder ? (
+            // Seed art, drawn by CSS. It has no intrinsic size, so it gets one.
+            <span
+              className={`${styles.art} ${frameStyles[asset.ref.slice('placeholder:'.length)] ?? ''}`}
+              aria-hidden="true"
+            />
+          ) : asset.kind === 'video' ? (
+            <video
+              src={asset.ref}
+              className={styles.media}
+              controls
+              autoPlay
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img src={asset.ref} alt="" className={styles.media} decoding="async" />
+          )}
+        </div>
+
+        {/*
+          Under the media rather than over it. A caption laid on top of a photo
+          is a caption competing with the photo for the same pixels, and on a
+          portrait picture there is nowhere on it that is not the subject.
+        */}
+        {author || text ? (
+          <figcaption className={styles.caption}>
+            {author ? (
+              <p className={styles.by}>
+                {firstName(author.name)}
+                {when ? <span className={styles.when}>{timeAgo(when)}</span> : null}
+              </p>
+            ) : null}
+            {text ? (
+              <p
+                className={[styles.text, longCaption && !expanded ? styles.folded : '']
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {text}
+              </p>
+            ) : null}
+            {longCaption ? (
+              <button className={styles.more} onClick={() => setExpanded((open) => !open)}>
+                {expanded ? 'See less' : 'See more'}
+              </button>
+            ) : null}
+          </figcaption>
+        ) : null}
       </div>
     </div>,
     document.body,
