@@ -1,4 +1,8 @@
 .list {
+  /* Member names are targets, not search terms. See ChatThread. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   display: flex;
   flex-direction: column;
   border-radius: var(--card-radius);

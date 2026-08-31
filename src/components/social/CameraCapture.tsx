@@ -200,14 +200,27 @@ export function CameraCapture({
    * photo, and to decide how much of the picture the preview has to hide. They
    * cannot drift apart, which is the whole point of there being one of them.
    */
-  const ratio = frame === 'story' ? 9 / 16 : sensor ? sensor.width / sensor.height : 3 / 4
   /*
-   * The largest rectangle of the right shape that fits the measured area.
+   * The shape of the picture, and therefore the shape of the screen.
    *
-   * Immersive mode measures the whole screen rather than the strip left over
-   * between two bands, so the same line produces a far bigger picture without
-   * ever stretching it: the ratio is still the one the file will have.
+   * The story camera takes the *viewport's* ratio rather than a fixed 9:16.
+   * Insisting on 9:16 meant the largest frame that could fit a taller phone
+   * was 390×693 with 127px of black under it — better than it was, and still
+   * a card on a screen rather than a camera. Matching the viewport makes the
+   * frame the screen exactly.
+   *
+   * Nothing is stretched by this. The preview is `object-fit: cover`, so the
+   * sensor is cropped to fill, never squashed — and `takePhoto` crops to this
+   * same ratio, so the file is precisely what was framed. A story that is
+   * taller than 9:16 is drawn `contain` in the viewer over its own blurred
+   * backdrop, which is how every other shape of media is already handled.
    */
+  const viewportRatio = area.width && area.height ? area.width / area.height : null
+  const ratio = immersive
+    ? (viewportRatio ?? 9 / 16)
+    : sensor
+      ? sensor.width / sensor.height
+      : 3 / 4
   const frameWidth = Math.min(area.width, area.height * ratio)
   const frameHeight = frameWidth / ratio
 

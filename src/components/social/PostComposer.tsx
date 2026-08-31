@@ -3,7 +3,6 @@ import { Camera, Images, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { OptionGroup } from '@/components/ui/Field'
 import { CameraCapture } from './CameraCapture'
-import { MediaFrame } from './MediaFrame'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
@@ -208,8 +207,13 @@ export function PostComposer({
   return (
     <>
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={textId}>
-          {editing ? 'Your post' : "What's going on?"}
+        {/*
+          No heading. "What's going on?" over a box whose placeholder says
+          "Say something to the group…" is the same sentence twice, and it was
+          costing a line at the top of every composer.
+        */}
+        <label className="sr-only" htmlFor={textId}>
+          {editing ? 'Your post' : 'What you want to say'}
         </label>
         <textarea
           id={textId}
@@ -226,30 +230,46 @@ export function PostComposer({
       </div>
 
       {/*
-        What will actually be posted, at the shape it actually is.
+        A stage, not a shaped frame.
 
-        `contain` rather than the feed's crop: this is the check before
-        pressing Post, and a preview that quietly cuts the top off the picture
-        is the one thing it must not do. `eager` is what makes it appear at
-        all — see MediaFrame. A clip gets real controls, because "is this the
-        right video" is not a question a still frame answers.
+        `MediaFrame` sizes itself from the media's own ratio, and inside a
+        composer that has to be capped by height the two fought: the frame
+        wanted 443px for a portrait photo, the cap allowed ~370, and what was
+        left was a squashed band you could not actually see the picture in.
+
+        This is the shape the story composer uses and the reason that one has
+        never had the problem — a box with a height of its own, the media
+        drawn `contain` inside it on a dark ground. Every shape works, nothing
+        is cropped, and a clip is a real player rather than a still.
       */}
       {previewAsset ? (
-        <div className={styles.preview}>
-          <MediaFrame
-            asset={previewAsset}
-            natural
-            contain
-            eager
-            controls={previewAsset.kind === 'video'}
-          />
+        <figure className={styles.stage}>
+          {previewAsset.kind === 'video' ? (
+            <video
+              key={previewAsset.ref}
+              src={previewAsset.ref}
+              className={styles.stageMedia}
+              controls
+              playsInline
+              preload="metadata"
+            />
+          ) : (
+            <img
+              key={previewAsset.ref}
+              src={previewAsset.ref}
+              alt=""
+              className={styles.stageMedia}
+              /* Eager: this sheet was not in the layout a moment ago, and a
+                 lazy image inside it is one the browser may never decide to
+                 load. */
+              loading="eager"
+              decoding="async"
+            />
+          )}
           <button className={styles.removeImage} onClick={clearImage} aria-label="Remove media">
             <X size={15} strokeWidth={2.4} />
           </button>
-          <span className={styles.previewKind}>
-            {previewAsset.kind === 'video' ? 'Video' : 'Photo'}
-          </span>
-        </div>
+        </figure>
       ) : null}
 
       {/*
@@ -297,13 +317,12 @@ export function PostComposer({
           }}
         />
       ) : null}
-      {previewAsset?.temporary ? (
-        <p className={styles.note}>
-          Media is referenced, never copied into the app — it stays on this device and will not
-          survive a reload until cloud storage arrives.
-        </p>
-      ) : null}
-
+      {/*
+        The paragraph that used to sit here explained the app's storage model
+        to somebody in the middle of writing a post. It is true, and it is not
+        their problem at this moment — it belongs in Settings, where the rest
+        of the honest small print already lives.
+      */}
       {editing && post?.sharedType ? (
         <p className={styles.note}>The record this post shares stays attached.</p>
       ) : null}

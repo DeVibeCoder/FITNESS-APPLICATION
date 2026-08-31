@@ -4,6 +4,13 @@
  * bubble's width rather than setting its own.
  */
 .card {
+  /*
+   * A shared record is one tappable object. Its figures and labels are not
+   * separate words to be selected and searched — see ChatThread.
+   */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   display: flex;
   flex-direction: column;
   gap: 0.1875rem;

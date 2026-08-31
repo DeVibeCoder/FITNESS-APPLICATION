@@ -7,7 +7,6 @@ import { Sheet } from '@/components/ui/Sheet'
 import { Field, SelectField } from '@/components/ui/Field'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { ProfileView } from '@/components/profile/ProfileView'
-import { AvatarPicker } from '@/components/profile/AvatarPicker'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { progressService, userService } from '@/services'
@@ -41,12 +40,6 @@ export function Profile() {
   return (
     <div className={styles.page}>
       <PageHeader title="Your profile" subtitle={`@${user.handle}`} parent={{ label: 'Me', to: '/me' }} />
-
-      {/*
-        First, because it is the one thing on this page the rest of the group
-        actually sees. Only ever your own — the member view never renders it.
-      */}
-      <AvatarPicker />
 
       <ProfileView
         snapshot={snapshot}

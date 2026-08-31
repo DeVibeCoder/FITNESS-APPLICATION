@@ -29,6 +29,10 @@
 }
 
 .card {
+  /* Its labels are things to press, not words to look up. See ChatThread. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   position: absolute;
   width: 268px;
   max-width: calc(100vw - 24px);

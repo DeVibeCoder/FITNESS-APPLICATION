@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import type { ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
+import { useHistoryDismiss } from '@/hooks/useHistoryDismiss'
 import styles from './Sheet.module.css'
 
 interface SheetProps {
@@ -18,12 +19,36 @@ interface SheetProps {
  * Bottom sheet on phones, centred dialog on desktop. Everything that collects
  * input uses this so there is exactly one modal pattern in the app.
  */
-export function Sheet({ open, onClose, title, subtitle, children, footer }: SheetProps) {
+export function Sheet({ open, ...rest }: SheetProps) {
+  /*
+   * The open sheet is a component of its own, and that split is deliberate.
+   *
+   * Callers render `Sheet` whether or not it is open, but the open body runs
+   * hooks that must only exist while it is on screen — `useHistoryDismiss`
+   * pushes a history entry, and one pushed for a closed sheet would swallow a
+   * Back press that belonged to the page. Mounting and unmounting a child is
+   * how a hook gets a lifetime, rather than an early return that the rules of
+   * hooks would not allow anyway.
+   */
+  return open ? <OpenSheet {...rest} /> : null
+}
+
+function OpenSheet({ onClose, title, subtitle, children, footer }: Omit<SheetProps, 'open'>) {
   const panelRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  /*
+   * The phone's Back gesture closes the sheet rather than leaving the screen
+   * underneath it.
+   *
+   * Without this, backing out of a sheet navigated the app while the sheet
+   * stayed mounted on top — a stale overlay over a page you did not choose,
+   * which is exactly what happened when backing out of Log today's workout.
+   * Nested sheets each push their own entry, so Back unwinds them one at a
+   * time, innermost first.
+   */
+  useHistoryDismiss(onClose)
 
   useEffect(() => {
-    if (!open) return
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onClose()
     }
@@ -50,9 +75,7 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Shee
       // at the top of the page.
       previouslyFocused?.focus?.()
     }
-  }, [open, onClose])
-
-  if (!open) return null
+  }, [onClose])
 
   return createPortal(
     <div className={styles.root}>

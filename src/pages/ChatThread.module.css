@@ -2,7 +2,25 @@
  * The page fills what is left of the viewport under the app bar, so the
  * composer sits at the bottom even when there are only two messages.
  */
+/*
+ * Why the conversation is not selectable text.
+ *
+ * Android's Touch to Search answers a press on selectable text with its own
+ * bar and a "Tap to see search results" strip — and it fires on names, on
+ * message text, and on the labels inside a shared workout card, not only on
+ * the bubble the last pass covered. Every one of those is something you tap
+ * or hold to *do* something in this app, so none of them should be offering
+ * a web search for the word underneath the thumb.
+ *
+ * Scoped to this page, and undone below for the one element where selecting
+ * text is the entire point — the composer. Copying a message is not lost: it
+ * is the first item in the menu a long press now reliably opens.
+ */
 .page {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
   display: flex;
   flex-direction: column;
   /*
@@ -483,7 +501,13 @@
   gap: var(--s-2);
 }
 
+/*
+ * The one exception. What is being written has to be selectable, or the
+ * keyboard's own cut/copy/paste stops working.
+ */
 .input {
+  user-select: text;
+  -webkit-user-select: text;
   flex: 1;
   min-width: 0;
   /* Matches the send button so a single line sits centred against it. */

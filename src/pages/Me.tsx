@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronRight, Cog, Layers, LogOut, Quote, Shield, ShieldCheck } from 'lucide-react'
-import { PageHeader } from '@/components/ui/PageHeader'
 import { Section } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { LoadingScreen } from '@/components/ui/EmptyState'
@@ -51,12 +50,17 @@ export function Me() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Me" subtitle={`@${user.handle}`} />
-
+      {/*
+        No page header. The app bar already prints "Me", and the header's
+        subtitle printed the handle a second time directly above the card that
+        holds the name — two identities stacked, with a section gap between
+        them. The card is the identity, and it starts where the page does.
+      */}
       <header className={`glass ${styles.identity}`}>
         <Avatar user={user} size="xl" ring={me.streak >= 7} />
         <div className={styles.identityText}>
           <h2 className={styles.name}>{user.name}</h2>
+          <p className={styles.handle}>@{user.handle}</p>
           <span className={styles.goal}>{goalLabel(user.goal)}</span>
           <p className={styles.journey}>
             <span className="tnum">{num(user.startWeightKg, 1)}</span>

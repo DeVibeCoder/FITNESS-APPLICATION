@@ -139,7 +139,9 @@ export function PostCard({ post }: { post: FeedPost }) {
   }
 
   return (
-    <article className={styles.card}>
+    <article
+      className={[styles.card, isMotivation ? styles.cardMotivation : ''].filter(Boolean).join(' ')}
+    >
       <header className={styles.head}>
         <Link
           to={isMine ? '/me' : `/u/${post.userId}`}

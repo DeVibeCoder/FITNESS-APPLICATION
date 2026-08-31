@@ -69,6 +69,28 @@
   pointer-events: none;
 }
 
+/*
+ * The controls sit on the picture now, so their own clearance is all that
+ * keeps them off the notch and the home indicator. Modest sizes on purpose:
+ * a full-screen viewfinder does not need a bigger shutter, it needs one that
+ * does not cover what is being framed.
+ */
+.immersive .console {
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--s-5));
+}
+
+.immersive .shutterWrap {
+  width: clamp(62px, 18vw, 76px);
+  height: clamp(62px, 18vw, 76px);
+}
+
+.immersive .libraryButton,
+.immersive .flipButton,
+.immersive .sideSpacer {
+  width: 44px;
+  height: 44px;
+}
+
 /* The bands do not take taps; the controls inside them do. */
 .immersive .top > *,
 .immersive .console > * {

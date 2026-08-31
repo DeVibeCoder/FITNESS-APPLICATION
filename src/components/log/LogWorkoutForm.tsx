@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useHistoryDismiss } from '@/hooks/useHistoryDismiss'
 import { AlertTriangle, ImageUp, Info, PencilLine, RefreshCw, ScanLine, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
@@ -264,6 +265,20 @@ export function LogWorkoutForm({
     />
   )
 
+  /*
+   * One history entry per sub-screen.
+   *
+   * The sheet itself already owns an entry (see `Sheet`), so Back unwinds
+   * inside out: from the form or the failure screen it lands back on the
+   * choice, and from the choice it closes the whole sheet. Before this, Back
+   * left the flow entirely while the sheet stayed on screen.
+   *
+   * Mounted only on the sub-screens, which is what makes the entry appear and
+   * disappear with them — `useHistoryDismiss` pushes on mount and pops on
+   * unmount, so the stack is always exactly as deep as the flow is.
+   */
+  const subScreen = stage !== 'choose' && !session
+
   // --- Choose --------------------------------------------------------------
   if (stage === 'choose') {
     return (
@@ -318,6 +333,7 @@ export function LogWorkoutForm({
   if (stage === 'analyzing') {
     return (
       <div className={styles.working}>
+        {subScreen ? <StageBack onBack={() => { discardScan(); setStage('choose') }} /> : null}
         {preview.url ? (
           <img className={styles.workingShot} src={preview.url} alt="" />
         ) : null}
@@ -343,6 +359,7 @@ export function LogWorkoutForm({
   if (stage === 'failed') {
     return (
       <div className={styles.failed}>
+        {subScreen ? <StageBack onBack={() => { discardScan(); setStage('choose') }} /> : null}
         <span className={styles.failedIcon} aria-hidden="true">
           <AlertTriangle size={20} strokeWidth={2} />
         </span>
@@ -387,6 +404,7 @@ export function LogWorkoutForm({
 
   return (
     <>
+      {subScreen ? <StageBack onBack={() => setStage('choose')} /> : null}
       {scan ? (
         <div className={styles.scanBanner}>
           {preview.url ? (
@@ -521,4 +539,17 @@ export function LogWorkoutForm({
       </Button>
     </>
   )
+}
+
+/**
+ * One history entry, for as long as a sub-screen is on screen.
+ *
+ * It renders nothing. Its whole job is to exist while the flow is deeper than
+ * its first step, so the phone's Back gesture pops *this* rather than the
+ * sheet — and once it is gone, the next Back closes the sheet, which is what
+ * "back out of the flow itself" should do.
+ */
+function StageBack({ onBack }: { onBack: () => void }) {
+  useHistoryDismiss(onBack)
+  return null
 }

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Flame, Lock } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
+import { AvatarPicker } from './AvatarPicker'
 import { Card, Section } from '@/components/ui/Card'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TrendChart } from '@/components/charts/TrendChart'
@@ -63,7 +64,16 @@ export function ProfileView({ snapshot, headerAction, variant = 'self' }: Profil
         "how is this person doing" without any arithmetic.
       */}
       <header className={`glass ${styles.head}`}>
-        <Avatar user={user} size="xl" ring={snapshot.streak >= 7} />
+        {/*
+          Your own picture is changed here, on the card that shows it. Somebody
+          else's is just a picture — the member view gets no control at all,
+          which is the same rule every other edit affordance follows.
+        */}
+        {isSelf ? (
+          <AvatarPicker ring={snapshot.streak >= 7} />
+        ) : (
+          <Avatar user={user} size="xl" ring={snapshot.streak >= 7} />
+        )}
         <div className={styles.headText}>
           <h2 className={styles.name}>{user.name}</h2>
           <p className={styles.goal}>{goalLabel(user.goal)}</p>
