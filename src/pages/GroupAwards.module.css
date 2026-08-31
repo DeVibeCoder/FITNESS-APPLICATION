@@ -125,6 +125,10 @@
   flex-direction: column;
   align-items: center;
   gap: 0.25rem;
+  /* A pressed medal is a button, not an emoji to look up. See MessageBubble. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   width: 100%;
   height: 100%;
   padding: var(--s-3) var(--s-2);

@@ -153,8 +153,16 @@
  * Inside the composer's small preview the viewer's controls do not exist, so
  * the caption does not need to clear them — only the edge.
  */
+/*
+ * Lifted off the bottom edge.
+ *
+ * A caption flush against the last pixel of the frame is harder to read than
+ * one with a little air under it — the eye has nowhere to stop — and on a
+ * phone it collides with the home indicator. The composer's small stage gets
+ * proportionally less, but it still gets some.
+ */
 .compact .caption {
-  padding-bottom: var(--s-4);
+  padding-bottom: var(--s-5);
 }
 
 .compact .words {

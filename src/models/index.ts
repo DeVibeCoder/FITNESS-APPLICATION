@@ -76,7 +76,23 @@ export interface User {
    * own credentials later. Nothing in the UI ever reads it.
    */
   secret?: string
+  /**
+   * A remote picture, for when one exists. Nothing writes it today.
+   *
+   * Kept because it is the field a server will fill: once avatars live in
+   * object storage this holds the URL and `avatarMediaId` goes away, with no
+   * change above the service.
+   */
   avatarUrl?: string
+  /**
+   * The user's own picture, as a `MediaAsset` id.
+   *
+   * A reference, exactly like a post's photo — the bytes never enter the
+   * database, and the asset it points at follows the same rules as every
+   * other piece of media in the app. Not indexed: nothing queries by it, so
+   * it needs no schema version.
+   */
+  avatarMediaId?: ID
   /** Fallback avatar tint when there is no photo. */
   avatarColor: string
   birthDate: DateKey

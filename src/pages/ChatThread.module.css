@@ -27,6 +27,12 @@
  * One value, used by the page's bottom padding and by the dock's own offset,
  * so the two can never disagree — which is the bug this replaced: the composer
  * was sticky inside the scroller and the fixed bottom bar painted over it.
+ *
+ * 4.75rem is only the fallback. The real figure is measured from the dock and
+ * written onto this element, because the dock is not one height: a reply
+ * banner adds a row, a two-line message grows the textarea, and a fixed guess
+ * is what left the newest message — or half a shared workout card — sitting
+ * underneath the composer.
  */
 .page {
   --dock-height: 4.75rem;
@@ -306,13 +312,19 @@
   gap: var(--s-2);
   /* Capped at the viewport for the same reason the nav is — see BottomNav. */
   max-width: 100vw;
-  padding: var(--s-3) max(var(--gutter), var(--safe-l)) var(--s-3)
+  padding: var(--s-2) max(var(--gutter), var(--safe-l)) var(--s-2)
     max(var(--gutter), var(--safe-r));
   /*
-   * Its own ground, fading the thread out above rather than cutting it off.
-   * Without this, messages scrolled through the gaps around the composer.
+   * Flat, and only where the controls are.
+   *
+   * This used to carry a gradient fading up into the page background, so that
+   * messages scrolling past appeared to dissolve into a pale band above the
+   * composer. On a phone it read as a permanent smear across the bottom third
+   * of the conversation. The page reserves exactly the dock's height instead
+   * — measured, see `--dock-height` — so nothing ever needs to be hidden
+   * behind a fade, and the composer's own surface is the only thing painted.
    */
-  background: linear-gradient(to bottom, transparent, var(--bg) 1.75rem);
+  background: transparent;
   pointer-events: none;
 }
 
@@ -453,9 +465,16 @@
   transform: rotate(45deg);
 }
 
+/*
+ * Opaque, because it is the only thing standing between the thread and the
+ * controls now that the fade is gone. `glass` gives it the blur and the
+ * border; this gives it a ground a message cannot be read through.
+ */
 .composer {
   border-radius: var(--r-xl);
   padding: var(--s-2);
+  background: var(--surface);
+  box-shadow: var(--shadow);
 }
 
 .inputRow {

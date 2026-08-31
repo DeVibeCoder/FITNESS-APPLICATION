@@ -102,8 +102,42 @@ export function ChatThread() {
    */
   const { inset: keyboard, open: keyboardOpen } = useKeyboardInset()
   const input = useRef<HTMLTextAreaElement>(null)
+  /*
+   * Callback refs, not `useRef`, and that distinction is the whole reason the
+   * measurement works.
+   *
+   * This screen returns a loading state before it returns the thread, so the
+   * first commit — the one a `[]` effect runs after — has no dock and no page
+   * to observe, and a plain ref would have been null exactly when the effect
+   * looked. A callback ref fires when the node actually appears, whenever that
+   * is, and re-runs the effect with it.
+   */
+  const [dockNode, setDockNode] = useState<HTMLDivElement | null>(null)
+  const [pageNode, setPageNode] = useState<HTMLDivElement | null>(null)
   const positioned = useRef(false)
   const seenCount = useRef(0)
+
+  /*
+   * The dock's real height, published to the page as `--dock-height`.
+   *
+   * The page reserves exactly this much at its foot, so the newest message
+   * always clears the composer. A fixed guess could not: the dock is taller
+   * with a reply banner open, taller again while a two-line message is being
+   * typed, and the difference is precisely what was cutting a shared workout
+   * card in half at the bottom of the thread.
+   */
+  useEffect(() => {
+    if (!dockNode || !pageNode) return
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return
+      // borderBoxSize, not contentRect: the dock's own padding is part of what
+      // the thread has to clear, and contentRect leaves it out.
+      const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+      pageNode.style.setProperty('--dock-height', `${Math.ceil(height)}px`)
+    })
+    observer.observe(dockNode)
+    return () => observer.disconnect()
+  }, [dockNode, pageNode])
 
   const messages = useLiveQuery(() => chatService.list(), [])
   const users = useLiveQuery(() => userService.listMembers(), [])
@@ -157,6 +191,18 @@ export function ChatThread() {
     requestAnimationFrame(() => again(2))
   }, [])
 
+  /**
+   * Puts the newest message at the bottom of whatever space is left.
+   *
+   * Called on open, on send, on the arrow, and every time the keyboard moves.
+   * `BOTTOM` is far past any real page, so the browser clamps to the true
+   * maximum — which is the only number that is correct after a reflow nobody
+   * has measured yet.
+   */
+  const toBottom = useCallback((smooth = false) => {
+    window.scrollTo({ top: BOTTOM, behavior: smooth ? 'smooth' : 'auto' })
+  }, [])
+
   /** Marks everything read once the reader is actually at the newest message. */
   const markCaughtUp = useCallback(() => {
     if (!user || !messages || messages.length === 0) return
@@ -208,16 +254,22 @@ export function ChatThread() {
 
   /*
    * The keyboard changing the viewport is the reflow that actually decides
-   * where the bottom is, and it arrives after the focus handler has run. This
-   * catches it: while the composer has focus, any keyboard movement re-anchors
-   * on the newest message, so nobody has to scroll down after typing starts.
+   * where the bottom is, and it arrives long after the focus handler ran.
+   *
+   * Three passes rather than one. The keyboard animates over roughly a third
+   * of a second and the layout is a different height at every frame of it, so
+   * a single scroll lands against a viewport that is about to change again.
+   * Each pass is cheap — a scroll to a clamped maximum — and the last one is
+   * the one that sticks. This is what makes "the newest message is visible the
+   * moment the keyboard opens" true whether the keyboard was already up or
+   * not.
    */
   useEffect(() => {
     if (!keyboardOpen) return
     if (document.activeElement !== input.current) return
-    const settle = window.setTimeout(() => window.scrollTo({ top: BOTTOM, behavior: 'auto' }), 60)
-    return () => window.clearTimeout(settle)
-  }, [keyboardOpen, keyboard])
+    const passes = [0, 140, 340].map((delay) => window.setTimeout(() => toBottom(), delay))
+    return () => passes.forEach(window.clearTimeout)
+  }, [keyboardOpen, keyboard, toBottom])
 
   // Reaching the bottom is what marks the conversation read — not the route
   // loading. Opening and leaving without scrolling keeps the unread count.
@@ -241,7 +293,7 @@ export function ChatThread() {
   const byId = new Map(users.map((u) => [u.id, u]))
 
   const jumpToNewest = () => {
-    window.scrollTo({ top: BOTTOM, behavior: 'smooth' })
+    toBottom(true)
     setArrived(0)
     setScrolledUp(false)
     markCaughtUp()
@@ -286,7 +338,7 @@ export function ChatThread() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} ref={setPageNode}>
       {/* Focused header: out, who is here, and nothing else. */}
       <header className={styles.head}>
         <Link to="/chat" className={styles.back} aria-label="Back to chat">
@@ -400,6 +452,7 @@ export function ChatThread() {
       </div>
 
       <div
+        ref={setDockNode}
         className={[styles.dock, keyboardOpen ? styles.docked : ''].filter(Boolean).join(' ')}
         style={keyboard ? ({ '--keyboard': `${keyboard}px` } as React.CSSProperties) : undefined}
       >
@@ -520,8 +573,25 @@ export function ChatThread() {
               className={[styles.attach, stickersOpen ? styles.attachOpen : '']
                 .filter(Boolean)
                 .join(' ')}
-              onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setStickersOpen(true)}
+              onClick={() => {
+                /*
+                 * Let the keyboard go before the sheet arrives.
+                 *
+                 * The sticker sheet is a real overlay, not an input accessory,
+                 * so a keyboard still on screen underneath it fights it for
+                 * the bottom half of the phone: the sheet opens behind it, the
+                 * viewport resizes as it closes anyway, and the thread jumps.
+                 * Blurring first makes the sequence deliberate — keyboard
+                 * down, then sheet up — and the anchor effect puts the newest
+                 * message back where it belongs on the way through.
+                 *
+                 * This is also why the button does *not* preventDefault on
+                 * mousedown the way Send does: Send must keep focus, and this
+                 * must give it up.
+                 */
+                input.current?.blur()
+                setStickersOpen(true)
+              }}
               aria-label="Stickers and GIFs"
               aria-haspopup="dialog"
             >
@@ -552,17 +622,14 @@ export function ChatThread() {
                  * Tapping the composer means you are about to say something,
                  * and what you are about to say goes at the bottom — so this
                  * goes to the newest message whether or not you were already
-                 * there. It used to re-anchor only if you happened to be at the
-                 * bottom already, which left anybody who had scrolled up to
-                 * read typing blind above a keyboard covering the thread.
+                 * there, and whether or not the keyboard was already up.
                  *
-                 * Twice: once immediately, and once after the keyboard has
-                 * finished animating. The second is what actually lands, and
-                 * the animation fires no event that can be waited on reliably
-                 * across browsers. `keyboardEffect` below catches the rest.
+                 * The effect above catches the reflow the keyboard causes;
+                 * this covers the case where it causes none, because it was
+                 * already open.
                  */
                 jumpToNewest()
-                window.setTimeout(jumpToNewest, 320)
+                window.setTimeout(jumpToNewest, 120)
               }}
               onKeyDown={(event) => {
                 // Enter sends on a desktop keyboard; Shift+Enter makes a new
@@ -609,7 +676,9 @@ export function ChatThread() {
             )
             if (sent === undefined) return
             setReplyTo(null)
-            requestAnimationFrame(jumpToNewest)
+            // The sheet closing is itself a reflow, so the anchor waits for it.
+            window.setTimeout(() => toBottom(), 80)
+            window.setTimeout(() => toBottom(), 320)
           }}
         />
       ) : null}

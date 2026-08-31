@@ -1,5 +1,5 @@
 import { useId, useRef, useState } from 'react'
-import { Camera, Images, Trash2, Video } from 'lucide-react'
+import { Camera, Images, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CameraCapture } from './CameraCapture'
 import { StoryFrame, STORY_BACKGROUNDS, DEFAULT_STORY_BACKGROUND } from './StoryFrame'
@@ -189,24 +189,29 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         Video arms the shutter and starts nothing, which is the whole point of
         a mode being a mode.
       */}
+      {/*
+        Two ways in, not three.
+
+        Photo and Video used to be separate buttons that opened the same
+        camera — a choice about nothing, made before you could see what you
+        were pointing at. The camera's own shutter decides now: tap for a
+        photo, hold to record. Upload stays its own thing, because picking
+        something you already have is a different act from making something.
+      */}
       <div className={styles.capture} role="group" aria-label="Add to your story">
         <button
           className={`${styles.captureButton} ${styles.captureLead}`}
           onClick={() => setCameraOpen('photo')}
         >
-          <Camera size={17} strokeWidth={2.1} />
-          Photo
-        </button>
-        <button className={styles.captureButton} onClick={() => setCameraOpen('video')}>
-          <Video size={17} strokeWidth={2.1} />
-          Video
+          <Camera size={16} strokeWidth={2.2} />
+          Camera
         </button>
         <button
           className={styles.captureButton}
           onClick={() => libraryInput.current?.click()}
-          aria-label="Choose from device"
+          aria-label="Choose a photo or video from this device"
         >
-          <Images size={17} strokeWidth={2.1} />
+          <Images size={16} strokeWidth={2.2} />
           Upload
         </button>
       </div>
@@ -218,6 +223,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
           // rather than something the story frame crops the sides off later.
           frame="story"
           initialMode={cameraOpen}
+          holdToRecord
           maxVideoSec={STORY_VIDEO_MAX_SEC}
           onCapture={(file) => {
             setCameraOpen(null)
@@ -237,7 +243,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
       */}
       {previewAsset ? null : (
         <fieldset className={styles.grounds}>
-          <legend className={styles.label}>Background</legend>
+          <legend className="sr-only">Background</legend>
           <div className={styles.groundRow}>
             {STORY_BACKGROUNDS.map((option) => (
               <button
@@ -259,8 +265,13 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
         </fieldset>
       )}
 
+      {/*
+        One line, no field label. The stage above already shows the words
+        landing on the story as they are typed, so a heading saying "Your
+        words" is a caption for a caption.
+      */}
       <div className={styles.field}>
-        <label className={styles.label} htmlFor={textId}>
+        <label className="sr-only" htmlFor={textId}>
           {previewAsset ? 'Caption' : 'Your words'}
         </label>
         <textarea
@@ -269,7 +280,7 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
           value={text}
           rows={2}
           maxLength={MAX_LENGTH}
-          placeholder={previewAsset ? 'Optional' : 'Leg day. Pray for me 😅'}
+          placeholder={previewAsset ? 'Add a caption…' : 'Leg day. Pray for me 😅'}
           onChange={(event) => setText(event.target.value)}
         />
         {remaining <= 40 ? <p className={`${styles.counter} tnum`}>{remaining} left</p> : null}

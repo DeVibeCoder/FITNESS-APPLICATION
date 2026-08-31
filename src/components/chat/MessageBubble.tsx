@@ -56,6 +56,16 @@ export function MessageBubble({
   const { user } = useAuth()
   const { guard } = useToast()
   const [swipe, setSwipe] = useState(0)
+  /*
+   * The same travel, kept in a ref.
+   *
+   * The lift handler has to know how far the finger got, and it cannot ask
+   * the state: a fast swipe delivers its moves and its lift in one task, so
+   * React has not re-rendered and `swipe` is still whatever it was when the
+   * handler was created — zero. The ref is written synchronously and is
+   * therefore the only value that is true at the moment of the lift.
+   */
+  const swipeRef = useRef(0)
   const mine = user?.id === message.userId
   const deleted = Boolean(message.deletedAt)
   const bubbleRef = useRef<HTMLDivElement>(null)
@@ -117,6 +127,7 @@ export function MessageBubble({
     }
     start.current = { x: event.clientX, y: event.clientY }
     axis.current = 'none'
+    swipeRef.current = 0
     cancelHold()
     hold.current = window.setTimeout(openMenu, HOLD_MS)
   }
@@ -137,17 +148,19 @@ export function MessageBubble({
     // Rightwards only, and it stiffens as it goes so the row cannot be dragged
     // halfway across the screen.
     const travel = Math.max(0, dx)
+    swipeRef.current = travel
     setSwipe(travel > SWIPE_MAX ? SWIPE_MAX + (travel - SWIPE_MAX) * 0.18 : travel)
   }
 
   const endGesture = () => {
     cancelHold()
-    if (axis.current === 'x' && swipe >= REPLY_AT) {
+    if (axis.current === 'x' && swipeRef.current >= REPLY_AT) {
       navigator.vibrate?.(6)
       onReply(message)
     }
     start.current = null
     axis.current = 'none'
+    swipeRef.current = 0
     setSwipe(0)
   }
 
@@ -202,11 +215,18 @@ export function MessageBubble({
         ) : (
           <div
             ref={bubbleRef}
-            className={[styles.bubble, deleted ? styles.deleted : ''].filter(Boolean).join(' ')}
+            className={[
+              styles.bubble,
+              deleted ? styles.deleted : '',
+              message.pinnedAt && !deleted ? styles.isPinned : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
           >
             {message.pinnedAt && !deleted ? (
-              <span className={styles.pinned} aria-label="Pinned message">
-                <Pin size={11} strokeWidth={2.6} />
+              <span className={styles.pinned}>
+                <Pin size={10} strokeWidth={2.8} aria-hidden="true" />
+                Pinned
               </span>
             ) : null}
 

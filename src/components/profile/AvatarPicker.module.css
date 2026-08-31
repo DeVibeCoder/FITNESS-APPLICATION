@@ -1,0 +1,98 @@
+/*
+ * The face beside the controls, so the change is visible where it is made.
+ * Wraps at narrow widths rather than shrinking the picture — a preview you
+ * cannot see is not a preview.
+ */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--surface);
+  border: var(--card-border);
+}
+
+.face {
+  flex: none;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  flex: 1;
+  min-width: 11rem;
+}
+
+.label {
+  font-size: var(--t-small);
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 34px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition:
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.action:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.action:disabled {
+  opacity: 0.5;
+}
+
+.remove {
+  color: var(--danger);
+}
+
+.remove:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.note {
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+
+/* The input is never seen; the buttons in front of it are. */
+.file {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .action {
+    transition: none;
+  }
+}

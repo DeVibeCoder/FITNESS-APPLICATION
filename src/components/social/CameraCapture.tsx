@@ -63,6 +63,14 @@ const TIMERS = [0, 3, 10] as const
 /** Two presses of the shutter this close together are one press, twice. */
 const DEBOUNCE_MS = 350
 
+/**
+ * How long the shutter has to be held before it starts recording.
+ *
+ * Short enough that holding feels immediate, long enough that an ordinary tap
+ * — which lasts about 80ms — is never mistaken for one.
+ */
+const HOLD_TO_RECORD_MS = 260
+
 /*
  * Grid and timer are chosen once and then wanted again. Holding them at module
  * scope means the choice survives closing and reopening the camera without
@@ -95,6 +103,7 @@ export function CameraCapture({
   maxVideoSec,
   frame = 'free',
   initialMode = 'photo',
+  holdToRecord = false,
 }: {
   onCapture: (file: File) => void
   onClose: () => void
@@ -116,6 +125,16 @@ export function CameraCapture({
    * `free` keeps whatever the lens gives, which is what a post displays.
    */
   frame?: 'story' | 'free'
+  /**
+   * One shutter that does both: a tap takes a photo, a press and hold records
+   * for as long as it is held.
+   *
+   * Stories use it, and it is why they no longer carry a Photo/Video rail.
+   * Two words that both opened the same camera were a choice about nothing —
+   * the finger already knows the difference between a tap and a hold, and
+   * every story camera on a phone has taught it.
+   */
+  holdToRecord?: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const areaRef = useRef<HTMLDivElement>(null)
@@ -163,6 +182,16 @@ export function CameraCapture({
   const [zoom, setZoom] = useState(1)
 
   const canRecord = allowVideo && typeof MediaRecorder !== 'undefined'
+  /*
+   * A story is shot full-bleed.
+   *
+   * In the framed layout the viewfinder had to fit between a settings bar and
+   * a console, which on a 390px phone left a 337×600 picture inside a black
+   * screen — a preview of a preview. Here the picture takes the whole screen
+   * at its true 9:16 and the controls float over it, which is both what a
+   * phone camera looks like and what the story itself will look like.
+   */
+  const immersive = frame === 'story'
   const factor = zoomRange ? zoom / zoomRange.min : 1
   const zoomUsable = Boolean(zoomRange && (zoomRange.native || mode === 'photo'))
 
@@ -172,6 +201,13 @@ export function CameraCapture({
    * cannot drift apart, which is the whole point of there being one of them.
    */
   const ratio = frame === 'story' ? 9 / 16 : sensor ? sensor.width / sensor.height : 3 / 4
+  /*
+   * The largest rectangle of the right shape that fits the measured area.
+   *
+   * Immersive mode measures the whole screen rather than the strip left over
+   * between two bands, so the same line produces a far bigger picture without
+   * ever stretching it: the ratio is still the one the file will have.
+   */
   const frameWidth = Math.min(area.width, area.height * ratio)
   const frameHeight = frameWidth / ratio
 
@@ -470,6 +506,25 @@ export function CameraCapture({
    */
   const lastPress = useRef(0)
 
+  /*
+   * Tap or hold, on one control.
+   *
+   * The hold timer starts on press. If it fires, this is a recording and the
+   * lift stops it; if the lift comes first, it was a tap and the shutter takes
+   * a photo. `heldRef` is what tells the two apart at lift time, and it is a
+   * ref rather than state because the lift handler must read the value that is
+   * true *now*, not the one from the render that installed it.
+   */
+  const holdTimer = useRef<number | null>(null)
+  const heldRef = useRef(false)
+  const [holding, setHolding] = useState(false)
+
+  const clearHold = useCallback(() => {
+    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current)
+    holdTimer.current = null
+    setHolding(false)
+  }, [])
+
   const press = useCallback(() => {
     if (!ready) return
     const now = Date.now()
@@ -501,6 +556,36 @@ export function CameraCapture({
   }, [clearCountdown, fire, ready, recording, timer])
 
   useEffect(() => clearCountdown, [clearCountdown])
+
+  /** Press: arm the hold. Held long enough and it becomes a recording. */
+  const onShutterDown = useCallback(() => {
+    if (!ready || !canRecord) return
+    heldRef.current = false
+    setHolding(true)
+    clearCountdown()
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null
+      heldRef.current = true
+      setMode('video')
+      startRecording()
+    }, HOLD_TO_RECORD_MS)
+  }, [ready, canRecord, clearCountdown, startRecording])
+
+  /** Lift: stop the recording it started, or take the photo it was. */
+  const onShutterUp = useCallback(() => {
+    const wasHeld = heldRef.current
+    heldRef.current = false
+    clearHold()
+    if (wasHeld) {
+      stopRecording()
+      return
+    }
+    setMode('photo')
+    press()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clearHold, press])
+
+  useEffect(() => clearHold, [clearHold])
 
   /*
    * Pinch to zoom, and tap to focus, on the picture itself.
@@ -596,7 +681,12 @@ export function CameraCapture({
   const RING = 2 * Math.PI * 45
 
   return createPortal(
-    <div className={styles.root} role="dialog" aria-modal="true" aria-label="Camera">
+    <div
+      className={cx(styles.root, immersive && styles.immersive)}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Camera"
+    >
       <header className={styles.top}>
         <button className={styles.iconButton} onClick={close} aria-label="Close camera">
           <X size={20} strokeWidth={2.2} />
@@ -662,7 +752,7 @@ export function CameraCapture({
       <div className={styles.area} ref={areaRef}>
         <div
           ref={stageRef}
-          className={styles.frame}
+          className={cx(styles.frame, recording && styles.frameRecording)}
           style={{ width: frameWidth || undefined, height: frameHeight || undefined }}
           onPointerDown={onStageDown}
           onPointerMove={onStageMove}
@@ -760,7 +850,15 @@ export function CameraCapture({
           What the shutter will do, said in one word. Choosing here changes
           nothing but that: the recording starts when the shutter is pressed.
         */}
-        {canRecord && !recording ? (
+        {holdToRecord ? (
+          /*
+            No Photo/Video rail here on purpose: one shutter does both, so
+            there is nothing to choose in advance. The line says how.
+          */
+          <p className={styles.hint} aria-live="polite">
+            {recording ? 'Release to stop' : holding ? 'Keep holding…' : 'Tap for a photo · hold to record'}
+          </p>
+        ) : canRecord && !recording ? (
           <div className={styles.modes} role="group" aria-label="Capture mode">
             {/*
               The lit word rides on a pill that slides between the two, so the
@@ -823,20 +921,39 @@ export function CameraCapture({
 
             <button
               className={styles.shutter}
-              onClick={press}
+              /*
+                Pointer events, not click, when one control has to tell a tap
+                from a hold — `click` only ever arrives after the lift and
+                cannot say how long the finger was down.
+              */
+              {...(holdToRecord
+                ? {
+                    onPointerDown: onShutterDown,
+                    onPointerUp: onShutterUp,
+                    onPointerCancel: () => {
+                      if (heldRef.current) stopRecording()
+                      heldRef.current = false
+                      clearHold()
+                    },
+                    onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
+                  }
+                : { onClick: press })}
               disabled={!ready}
               aria-label={
                 recording
                   ? 'Stop recording'
-                  : mode === 'video'
-                    ? 'Start recording'
-                    : 'Take a photo'
+                  : holdToRecord
+                    ? 'Take a photo, or hold to record'
+                    : mode === 'video'
+                      ? 'Start recording'
+                      : 'Take a photo'
               }
             >
               <span
                 className={cx(
                   styles.core,
-                  mode === 'video' && !recording && styles.coreVideo,
+                  !holdToRecord && mode === 'video' && !recording && styles.coreVideo,
+                  holding && !recording && styles.coreArming,
                   recording && styles.coreRecording,
                 )}
               />

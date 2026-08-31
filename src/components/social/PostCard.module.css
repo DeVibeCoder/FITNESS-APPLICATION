@@ -111,6 +111,19 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * Motivation wears its name in the brand colour rather than in the same grey
+ * every other kind of post gets. It is the one type that is not a report of
+ * something that happened, and the badge is where that starts being obvious.
+ */
+.kindMotivation {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
 /* --- Motivation ------------------------------------------------------------
  *
  * Not a post with a label on it.
@@ -131,13 +144,49 @@
 
 .motivation {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   padding: var(--s-5) var(--s-4) var(--s-4);
   border-radius: var(--card-radius);
-  background:
-    radial-gradient(120% 90% at 8% 0%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 62%),
-    var(--accent-soft);
+  background: var(--accent-soft);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+/*
+ * The light that moves.
+ *
+ * An oversized soft radial behind the text, drifting on a very long loop. It
+ * is deliberately slow and low-contrast — a motivational card should feel
+ * alive when you look at it, not animated at you while you are reading the
+ * feed past it. One element, one transform, composited: no layout, no paint,
+ * and no cost on a phone.
+ */
+.motivationGlow {
+  position: absolute;
+  inset: -60%;
+  z-index: -1;
+  background:
+    radial-gradient(38% 44% at 22% 28%, color-mix(in srgb, var(--accent) 40%, transparent), transparent 70%),
+    radial-gradient(34% 40% at 76% 72%, color-mix(in srgb, var(--gold) 32%, transparent), transparent 72%);
+  will-change: transform;
+  animation: motivationDrift 22s var(--ease) infinite alternate;
+}
+
+@keyframes motivationDrift {
+  from {
+    transform: translate3d(-4%, -3%, 0) scale(1);
+  }
+  to {
+    transform: translate3d(5%, 4%, 0) scale(1.12);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motivationGlow {
+    animation: none;
+    /* Still a lit card, just not a moving one. */
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 /*

@@ -31,6 +31,7 @@ export function MediaFrame({
   natural = false,
   controls = false,
   autoPlay = false,
+  eager = false,
 }: {
   asset: MediaAsset
   rounded?: boolean
@@ -48,6 +49,17 @@ export function MediaFrame({
    * the opposite of a clip that starts at you while you are scrolling a feed.
    */
   autoPlay?: boolean
+  /**
+   * Load it now rather than when it scrolls into view.
+   *
+   * `loading="lazy"` is right in a feed and wrong in a composer: a picture
+   * that has just been chosen sits inside a sheet that was not in the layout a
+   * moment ago, and the browser is entitled to decide it is not visible yet
+   * and defer it. That is the whole of the "my photo does not appear until
+   * after I post it" bug — the preview was mounted and empty, waiting for a
+   * scroll that never came.
+   */
+  eager?: boolean
 }) {
   const placeholder = isPlaceholder(asset.ref)
   const name = placeholder ? asset.ref.slice('placeholder:'.length) : ''
@@ -112,7 +124,7 @@ export function MediaFrame({
           src={asset.ref}
           alt=""
           className={[styles.image, contain ? styles.contain : ''].filter(Boolean).join(' ')}
-          loading="lazy"
+          loading={eager ? 'eager' : 'lazy'}
           decoding="async"
           onError={() => setBroken(true)}
         />

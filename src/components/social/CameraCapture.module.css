@@ -26,6 +26,70 @@
   }
 }
 
+/* --- Immersive: the picture is the screen --------------------------------
+ *
+ * The framed layout puts the viewfinder between a settings bar and a console,
+ * which on a 390px phone leaves a 337×600 picture in the middle of a black
+ * screen. A story is shot full-bleed instead: the area becomes the whole
+ * viewport, the frame takes the largest 9:16 rectangle that fits it — about
+ * 390×693 on that same phone, roughly double the area — and the two control
+ * bands float over it behind gradients rather than taking space from it.
+ *
+ * Nothing is stretched. The frame is still exactly the shape of the file, so
+ * what is on screen is still what gets saved.
+ */
+.immersive {
+  grid-template-rows: 1fr;
+}
+
+.immersive .area,
+.immersive .top,
+.immersive .console {
+  grid-area: 1 / 1;
+}
+
+.immersive .area {
+  padding: 0;
+}
+
+.immersive .top {
+  align-self: start;
+  z-index: 2;
+  /* Its own shade, so white controls stay legible over a bright sky. */
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.55), transparent);
+  padding-bottom: var(--s-8);
+  pointer-events: none;
+}
+
+.immersive .console {
+  align-self: end;
+  z-index: 2;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.62), transparent);
+  padding-top: var(--s-8);
+  pointer-events: none;
+}
+
+/* The bands do not take taps; the controls inside them do. */
+.immersive .top > *,
+.immersive .console > * {
+  pointer-events: auto;
+}
+
+/* Full-bleed means the corners belong to the screen, not to a card. */
+.immersive .frame {
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/*
+ * …except while recording. The rule above is more specific than
+ * `.frameRecording`, so without restating it here the red edge simply never
+ * appeared on the one camera that most needs it.
+ */
+.immersive .frameRecording {
+  animation: recordingEdge 1.6s var(--ease) infinite;
+}
+
 /* --- Top: what the camera is set to -------------------------------------- */
 
 .top {
@@ -173,6 +237,27 @@
 /* The front camera shows you a mirror, the way every phone does. */
 .mirrored {
   transform: scaleX(-1);
+}
+
+/*
+ * Recording, said on the picture itself.
+ *
+ * A timer in the corner is easy to miss while you are looking at what you are
+ * filming, so the frame itself carries a red edge that breathes. It is an
+ * inset shadow, which composites and costs nothing to animate.
+ */
+.frameRecording {
+  animation: recordingEdge 1.6s var(--ease) infinite;
+}
+
+@keyframes recordingEdge {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 3px rgba(214, 40, 40, 0.9);
+  }
+  50% {
+    box-shadow: inset 0 0 0 3px rgba(214, 40, 40, 0.35);
+  }
 }
 
 /*
@@ -399,6 +484,23 @@
   color: #1b0d02;
 }
 
+/*
+ * How the one shutter works, in one line.
+ *
+ * It replaces the Photo/Video rail on the story camera. Two words that both
+ * opened the same camera were a choice about nothing; this is an instruction,
+ * and it changes as the finger does.
+ */
+.hint {
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  text-wrap: balance;
+}
+
 /* What the shutter will do next, while it is doing it. */
 .recordingHint {
   color: rgba(255, 255, 255, 0.72);
@@ -501,6 +603,16 @@
   background: radial-gradient(circle at 50% 32%, #ff6b5e, var(--danger) 68%, #8f1c1c);
 }
 
+/*
+ * Held, but not long enough yet. The core shrinks toward the recording size,
+ * so the hold is visibly on its way to becoming something.
+ */
+.coreArming {
+  width: 62%;
+  height: 62%;
+  background: radial-gradient(circle at 50% 32%, #ffd9d4, #ff8b80 72%, #e05b50);
+}
+
 /* A square while recording, which every camera has taught people means stop. */
 .coreRecording {
   width: 36%;
@@ -559,8 +671,16 @@
   .grid,
   .dot,
   .countdown,
-  .reticle {
+  .reticle,
+  .frameRecording {
     animation: none;
+  }
+
+  /* Still unmistakably recording, just not breathing. */
+  .frameRecording,
+  .immersive .frameRecording {
+    animation: none;
+    box-shadow: inset 0 0 0 3px rgba(214, 40, 40, 0.9);
   }
 
   .preview,
@@ -590,5 +710,15 @@
     width: min(100%, 46rem);
     margin-inline: auto;
     padding: var(--s-4) var(--s-6);
+  }
+
+  /*
+   * The story camera keeps its own capping. A 9:16 frame on a wide monitor is
+   * already limited by the window's height, so the extra width cap here would
+   * only push the controls away from the picture.
+   */
+  .immersive .area {
+    width: 100%;
+    padding: 0;
   }
 }

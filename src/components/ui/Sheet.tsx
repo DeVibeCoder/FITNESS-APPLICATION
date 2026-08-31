@@ -31,12 +31,17 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Shee
     const previousOverflow = document.body.style.overflow
     const previouslyFocused = document.activeElement as HTMLElement | null
     document.body.style.overflow = 'hidden'
-    // Move focus into the sheet so keyboard and screen-reader users land here.
-    const timer = window.setTimeout(() => {
-      panelRef.current?.querySelector<HTMLElement>(
-        'input, select, textarea, button, [tabindex]:not([tabindex="-1"])',
-      )?.focus()
-    }, 60)
+    /*
+     * Move focus into the sheet, but onto the panel rather than onto whatever
+     * control happens to be first.
+     *
+     * Focusing the first control meant opening Create put a focus ring on
+     * "Post", which reads as *already chosen* — people opened the sheet
+     * believing they had picked something. The panel is focusable for exactly
+     * this: a screen reader lands on the dialog and its title, a keyboard user
+     * tabs on from there, and no option is highlighted before it is picked.
+     */
+    const timer = window.setTimeout(() => panelRef.current?.focus(), 60)
     return () => {
       document.removeEventListener('keydown', onKeyDown)
       document.body.style.overflow = previousOverflow
@@ -58,6 +63,8 @@ export function Sheet({ open, onClose, title, subtitle, children, footer }: Shee
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
+        /* Focusable so the sheet itself can take focus; never in the tab ring. */
+        tabIndex={-1}
       >
         <div className={styles.grabber} aria-hidden="true" />
         <header className={styles.head}>

@@ -35,12 +35,18 @@
  * capped separately so a one-line caption under a narrow portrait photo does
  * not stretch the column out to the width of the screen.
  */
+/*
+ * The media, with the caption laid over its foot rather than stacked under it.
+ *
+ * Reserving a fixed block for the caption meant a one-line caption left an
+ * empty band, and a portrait photo lost height it did not need to lose. As an
+ * overlay the panel costs the picture nothing: the media takes the whole
+ * viewport and the words sit on a gradient across its bottom, which is also
+ * where every photo viewer has taught people to look for them.
+ */
 .stage {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-3);
   max-width: 100%;
   max-height: 100%;
   min-width: 0;
@@ -72,9 +78,7 @@
    * in JavaScript rather than with `:has()` because it has to be right on
    * every browser this ships to, not only the recent ones.
    */
-  max-height: calc(
-    100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6) - var(--caption)
-  );
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6));
   width: auto;
   height: auto;
   object-fit: contain;
@@ -85,9 +89,15 @@
  * Seed artwork is drawn by CSS and has no size of its own, so it is given a
  * sensible one rather than collapsing to nothing.
  */
+/*
+ * Seed artwork is drawn by CSS and has no size of its own, so it is given one
+ * — bounded by the height as well as the width, so it fills the viewer the
+ * way a real photograph does instead of sitting in a band of black.
+ */
 .art {
   display: block;
-  width: min(90vw, 46rem);
+  width: min(92vw, 46rem);
+  max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - var(--s-6));
   aspect-ratio: 4 / 3;
   border-radius: var(--r);
 }
@@ -95,15 +105,22 @@
 /* --- Caption -------------------------------------------------------------- */
 
 .caption {
-  width: 100%;
-  max-width: min(100%, 34rem);
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
   min-width: 0;
-  /* Its own scroller, so an expanded caption never pushes the media around. */
-  max-height: 30vh;
+  padding: var(--s-8) var(--s-4) var(--s-4);
+  /* Its own scroller, so an expanded caption never covers the whole picture. */
+  max-height: 60%;
   overflow-y: auto;
   overscroll-behavior: contain;
-  color: rgba(255, 255, 255, 0.92);
+  /* Dark enough under the words, gone by the time it reaches the subject. */
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.82) 18%, transparent);
+  color: rgba(255, 255, 255, 0.94);
   text-align: left;
+  border-bottom-left-radius: var(--r-sm);
+  border-bottom-right-radius: var(--r-sm);
 }
 
 .by {
@@ -117,6 +134,10 @@
   color: rgba(255, 255, 255, 0.55);
 }
 
+/*
+ * `pre-wrap` is what keeps the paragraphs somebody actually typed. Expanding
+ * "See more" has to show the post as it was written, not as one run-on block.
+ */
 .text {
   margin-top: 2px;
   font-size: var(--t-body);
@@ -124,6 +145,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   text-wrap: pretty;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
 .folded {
@@ -177,9 +199,15 @@
   }
 
   .media {
-    max-height: calc(100dvh - var(--s-8) * 2 - var(--caption));
+    max-height: calc(100dvh - var(--s-8) * 2);
     max-width: min(72rem, 88vw);
     border-radius: var(--r);
+  }
+
+  .caption {
+    padding: var(--s-10) var(--s-5) var(--s-5);
+    border-bottom-left-radius: var(--r);
+    border-bottom-right-radius: var(--r);
   }
 
   .close {

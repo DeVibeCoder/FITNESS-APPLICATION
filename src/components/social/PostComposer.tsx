@@ -225,12 +225,30 @@ export function PostComposer({
         ) : null}
       </div>
 
+      {/*
+        What will actually be posted, at the shape it actually is.
+
+        `contain` rather than the feed's crop: this is the check before
+        pressing Post, and a preview that quietly cuts the top off the picture
+        is the one thing it must not do. `eager` is what makes it appear at
+        all — see MediaFrame. A clip gets real controls, because "is this the
+        right video" is not a question a still frame answers.
+      */}
       {previewAsset ? (
         <div className={styles.preview}>
-          <MediaFrame asset={previewAsset} natural />
+          <MediaFrame
+            asset={previewAsset}
+            natural
+            contain
+            eager
+            controls={previewAsset.kind === 'video'}
+          />
           <button className={styles.removeImage} onClick={clearImage} aria-label="Remove media">
             <X size={15} strokeWidth={2.4} />
           </button>
+          <span className={styles.previewKind}>
+            {previewAsset.kind === 'video' ? 'Video' : 'Photo'}
+          </span>
         </div>
       ) : null}
 

@@ -47,10 +47,38 @@
   color: var(--ink-3);
 }
 
+/*
+ * Bounded, so a tall photo cannot push Post off the bottom of the sheet, and
+ * dark, because a contained picture leaves bars and they should read as the
+ * frame rather than as a hole in the form.
+ */
 .preview {
   position: relative;
+  max-height: 46vh;
   border-radius: var(--r);
   overflow: hidden;
+  background: var(--bg-sunk);
+}
+
+.preview figure {
+  max-height: 46vh;
+  background: transparent;
+}
+
+/* Says what kind of thing is attached, without covering it. */
+.previewKind {
+  position: absolute;
+  left: var(--s-2);
+  bottom: var(--s-2);
+  padding: 0.125rem 0.5rem;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: var(--t-micro);
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  pointer-events: none;
 }
 
 /*

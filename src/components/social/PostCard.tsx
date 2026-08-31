@@ -1,7 +1,16 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Heart, Lock, MessageCircle, MoreHorizontal, Pencil, Send, Trash2 } from 'lucide-react'
+import {
+  Heart,
+  Lock,
+  MessageCircle,
+  MoreHorizontal,
+  Pencil,
+  Send,
+  Sparkles,
+  Trash2,
+} from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { Sheet } from '@/components/ui/Sheet'
@@ -155,7 +164,16 @@ export function PostCard({ post }: { post: FeedPost }) {
                 Only you
               </span>
             ) : null}
-            {kind ? <span className={styles.kind}>{kind}</span> : null}
+            {kind ? (
+              <span
+                className={[styles.kind, isMotivation ? styles.kindMotivation : '']
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                {isMotivation ? <Sparkles size={10} strokeWidth={2.6} aria-hidden="true" /> : null}
+                {kind}
+              </span>
+            ) : null}
           </p>
         </div>
 
@@ -216,6 +234,12 @@ export function PostCard({ post }: { post: FeedPost }) {
       <div className={[styles.body, isMotivation ? styles.motivationBody : ''].filter(Boolean).join(' ')}>
         {isMotivation && post.text ? (
           <blockquote className={styles.motivation}>
+            {/*
+              A slow wash of light behind the words. It is one element and one
+              transform, so it composites and costs nothing; `prefers-reduced-
+              motion` stops it dead and leaves the same card, still.
+            */}
+            <span className={styles.motivationGlow} aria-hidden="true" />
             <span className={styles.motivationMark} aria-hidden="true">
               “
             </span>

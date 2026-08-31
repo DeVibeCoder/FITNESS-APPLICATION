@@ -20,6 +20,23 @@
    */
   touch-action: pan-y;
   -webkit-tap-highlight-color: transparent;
+  /*
+   * Why a chat message is not selectable text.
+   *
+   * Holding a message here means "open the actions". On Android, holding text
+   * *also* means "select this word", and Chrome answers a selection with its
+   * own bar and a "Tap to see search results" strip — so every press-and-hold
+   * raced our menu against a Google search for whatever word was under the
+   * thumb. Taking the selection away on the message row settles it: the hold
+   * belongs to the app.
+   *
+   * Deliberately scoped to the row, not the app. Captions, notes, everything
+   * else stays selectable — and the thing this took away, copying, is the
+   * first item in the menu the hold now reliably opens.
+   */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 /* Consecutive messages from the same person sit closer together. */
@@ -162,19 +179,33 @@
   border-bottom-right-radius: var(--r-sm);
 }
 
-/* A pinned message wears one mark, in the corner away from the text. */
+/*
+ * Pinned, said inside the message rather than stuck to its corner.
+ *
+ * The badge used to float off the bubble's top-right, overlapping whatever it
+ * sat next to and reading as a control somebody might press. This is a line
+ * of the message: a small label above the text, in the accent, that says what
+ * the message *is*. The bubble takes a tinted edge to match, so a pinned
+ * message is recognisable while scrolling past without reading the label.
+ */
 .pinned {
-  position: absolute;
-  top: -6px;
-  right: -6px;
-  display: grid;
-  place-items: center;
-  width: 18px;
-  height: 18px;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  color: var(--accent-ink);
-  box-shadow: var(--shadow-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex: 1 0 100%;
+  margin-bottom: 1px;
+  color: var(--accent-strong);
+  font-size: var(--t-micro);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.isPinned {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow:
+    var(--shadow-sm),
+    inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .text {

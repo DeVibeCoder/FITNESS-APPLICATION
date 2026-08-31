@@ -125,13 +125,7 @@ export function MediaLightbox({
 
       <div
         className={styles.stage}
-        style={
-          {
-            // How much height the caption block is allowed to claim.
-            '--caption': author || text ? '7.5rem' : '0px',
-            ...(drag > 0 ? { transform: `translateY(${drag}px)` } : {}),
-          } as React.CSSProperties
-        }
+        style={drag > 0 ? { transform: `translateY(${drag}px)` } : undefined}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}

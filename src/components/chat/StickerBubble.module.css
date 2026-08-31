@@ -17,6 +17,10 @@
   border-radius: var(--r-lg);
   text-align: center;
   box-shadow: var(--shadow-sm);
+  /* A held sticker is a held message, not a word to search for. See MessageBubble. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   /*
    * The one bit of dimension: a soft light from above and a hairline inside,
    * which is what stops a flat tint reading as a coloured rectangle.

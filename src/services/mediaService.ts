@@ -117,12 +117,19 @@ export const mediaService = {
     ignore: { postId?: ID; storyId?: ID } = {},
   ): Promise<void> {
     if (mediaIds.length === 0) return
-    const [posts, stories] = await Promise.all([db.posts.toArray(), db.stories.toArray()])
+    const [posts, stories, users] = await Promise.all([
+      db.posts.toArray(),
+      db.stories.toArray(),
+      db.users.toArray(),
+    ])
     const stillUsed = new Set<ID>([
       ...posts.filter((post) => post.id !== ignore.postId).flatMap((post) => post.mediaIds),
       ...stories
         .filter((story) => story.id !== ignore.storyId)
         .flatMap((story) => (story.mediaId ? [story.mediaId] : [])),
+      // Profile pictures are the third thing that carries media, and this is
+      // the one place that had to learn about it.
+      ...users.flatMap((user) => (user.avatarMediaId ? [user.avatarMediaId] : [])),
     ])
     await this.forget(mediaIds.filter((id) => !stillUsed.has(id)))
   },

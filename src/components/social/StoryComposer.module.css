@@ -3,16 +3,24 @@
  * Share button off the bottom of the sheet on a short phone — a preview you
  * have to scroll past to publish is not a preview.
  */
+/*
+ * The story, at the size it is worth looking at.
+ *
+ * It was capped at 14rem — a thumbnail of the thing being made, with the form
+ * underneath getting the rest of the sheet. The cap is by height now, so the
+ * stage takes whatever vertical room the sheet has and stays 9:16; on a 390px
+ * phone that is roughly 240px wide instead of 224, and considerably taller.
+ */
 .stage {
   position: relative;
   align-self: center;
-  width: min(100%, 14rem);
   aspect-ratio: 9 / 16;
-  max-height: 38vh;
+  max-width: min(100%, 17rem);
+  height: min(46vh, 26rem);
   border-radius: var(--r-lg);
   overflow: hidden;
   background: var(--bg-sunk);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow);
 }
 
 /* Before there is anything to preview. */
@@ -107,6 +115,15 @@
   transform: scale(0.97);
 }
 
+/* --- Background ----------------------------------------------------------- */
+
+.grounds {
+  display: flex;
+  justify-content: center;
+  border: 0;
+  padding: 0;
+}
+
 /*
  * Why a clip was refused, said where the decision was made rather than in a
  * toast that scrolls away while somebody is still looking at the video.
@@ -139,17 +156,26 @@
  * padding on the row rather than size on the swatch, so the strip stays short
  * without becoming fiddly.
  */
+/*
+ * One row that scrolls rather than a grid that wraps. Seven colours never
+ * become two ragged lines, and the row keeps the same height at every width.
+ */
 .groundRow {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.625rem;
+  gap: 0.5rem;
   padding-block: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.groundRow::-webkit-scrollbar {
+  display: none;
 }
 
 .ground {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   flex: none;
   border-radius: var(--r-pill);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.14);
