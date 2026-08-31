@@ -3,6 +3,9 @@ import { Camera, Images, Trash2, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { OptionGroup } from '@/components/ui/Field'
 import { CameraCapture } from './CameraCapture'
+import { isPlaceholder } from '@/services/mediaService'
+// The seed's gradient artwork lives with the frame that normally draws it.
+import frameStyles from './MediaFrame.module.css'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
@@ -230,45 +233,64 @@ export function PostComposer({
       </div>
 
       {/*
-        A stage, not a shaped frame.
+        The attachment sizes the box, not the other way round.
 
-        `MediaFrame` sizes itself from the media's own ratio, and inside a
-        composer that has to be capped by height the two fought: the frame
-        wanted 443px for a portrait photo, the cap allowed ~370, and what was
-        left was a squashed band you could not actually see the picture in.
+        Two shapes have been wrong here. First a frame that imposed a ratio and
+        fought the composer's height cap, leaving a squashed band. Then a
+        fixed-height stage with the media contained inside it — nothing was
+        cropped, but a portrait photo was shrunk into a 320px box with empty
+        bars either side, which is not "seeing what you are about to post".
 
-        This is the shape the story composer uses and the reason that one has
-        never had the problem — a box with a height of its own, the media
-        drawn `contain` inside it on a dark ground. Every shape works, nothing
-        is cropped, and a clip is a real player rather than a still.
+        This is the arrangement the media viewer already uses: the media is
+        given a ceiling and nothing else, and the holder is inline so it hugs
+        whatever the media turns out to be. A landscape photo is wide and
+        short, a portrait one is tall and narrow, a square one is square, and
+        in every case the box is exactly the picture — no imposed ratio and no
+        empty space around it.
       */}
       {previewAsset ? (
-        <figure className={styles.stage}>
-          {previewAsset.kind === 'video' ? (
-            <video
-              key={previewAsset.ref}
-              src={previewAsset.ref}
-              className={styles.stageMedia}
-              controls
-              playsInline
-              preload="metadata"
-            />
-          ) : (
-            <img
-              key={previewAsset.ref}
-              src={previewAsset.ref}
-              alt=""
-              className={styles.stageMedia}
-              /* Eager: this sheet was not in the layout a moment ago, and a
-                 lazy image inside it is one the browser may never decide to
-                 load. */
-              loading="eager"
-              decoding="async"
-            />
-          )}
-          <button className={styles.removeImage} onClick={clearImage} aria-label="Remove media">
-            <X size={15} strokeWidth={2.4} />
-          </button>
+        <figure className={styles.attachment}>
+          <span className={styles.attachmentHolder}>
+            {isPlaceholder(previewAsset.ref) ? (
+              /*
+                Seeded artwork, which is a CSS gradient rather than a file —
+                reached when an older demo post is edited. It has no intrinsic
+                size, so it is given one.
+              */
+              <span
+                className={`${styles.attachmentArt} ${
+                  frameStyles[previewAsset.ref.slice('placeholder:'.length)] ?? ''
+                }`}
+                aria-hidden="true"
+              />
+            ) : previewAsset.kind === 'video' ? (
+              <video
+                key={previewAsset.ref}
+                src={previewAsset.ref}
+                className={styles.attachmentMedia}
+                controls
+                playsInline
+                /* Enough to paint a first frame and know the shape. */
+                preload="metadata"
+              />
+            ) : (
+              <img
+                key={previewAsset.ref}
+                src={previewAsset.ref}
+                alt=""
+                className={styles.attachmentMedia}
+                /* Eager: this sheet was not in the layout a moment ago, and a
+                   lazy image inside it is one the browser may never decide to
+                   load — which is how a chosen photo used to stay invisible
+                   until after the post was published. */
+                loading="eager"
+                decoding="async"
+              />
+            )}
+            <button className={styles.removeImage} onClick={clearImage} aria-label="Remove media">
+              <X size={15} strokeWidth={2.4} />
+            </button>
+          </span>
         </figure>
       ) : null}
 

@@ -48,34 +48,49 @@
 }
 
 /*
- * The attachment, on a stage with a height of its own.
+ * The attachment, sized by the attachment.
  *
- * A height rather than a ratio is the whole fix: nothing has to negotiate
- * between the media's shape and the sheet's cap, so a portrait photo, a
- * landscape one and a clip all get the same box and are drawn whole inside
- * it. Sized in `vh` so it scales with the phone, capped in `rem` so it does
- * not become absurd on a desktop.
+ * There is deliberately no width, no height and no ratio on the box. The row
+ * centres, the holder is inline so it shrinks to its contents, and the only
+ * rule is a ceiling on the media itself. Everything else follows: a landscape
+ * photo comes out wide and short, a portrait one tall and narrow, a square one
+ * square — each of them whole, at its own proportions, with no bars around it
+ * because there is no box for bars to live in.
+ *
+ * The ceiling is what keeps it practical. `52vh` leaves the caption, the
+ * visibility choice and Post reachable without scrolling past the picture on a
+ * phone, and `26rem` stops a tall photo dominating a desktop window.
  */
-.stage {
+.attachment {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.attachmentHolder {
   position: relative;
-  display: grid;
-  place-items: center;
-  width: 100%;
-  height: min(38vh, 20rem);
+  display: inline-flex;
+  max-width: 100%;
   border-radius: var(--r);
   overflow: hidden;
+  /* Only ever seen behind a clip while its first frame decodes. */
   background: var(--bg-sunk);
-  border: 1px solid var(--line);
 }
 
 /* Whole, never cropped — this is the check before pressing Post. */
-.stageMedia {
+.attachmentMedia {
+  display: block;
   max-width: 100%;
-  max-height: 100%;
+  max-height: min(52vh, 26rem);
   width: auto;
   height: auto;
-  object-fit: contain;
+}
+
+/* Seeded artwork is drawn from CSS and has no size of its own. */
+.attachmentArt {
   display: block;
+  width: min(100%, 22rem);
+  aspect-ratio: 4 / 3;
 }
 
 /*
@@ -127,11 +142,15 @@
  * Removing the photo, on the photo. A control this destructive belongs where
  * the thing it removes is, not in a row underneath where it reads as a
  * separate decision.
+ *
+ * Top-right, which on a photograph is the corner least likely to hold the
+ * subject, and clear of a video's own controls along the bottom.
  */
 .removeImage {
   position: absolute;
   top: var(--s-2);
   right: var(--s-2);
+  z-index: 1;
   display: grid;
   place-items: center;
   width: 32px;
@@ -139,6 +158,18 @@
   border-radius: var(--r-pill);
   background: var(--scrim);
   color: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+  transition: background var(--fast) var(--ease);
+}
+
+.removeImage:hover {
+  background: rgba(20, 13, 8, 0.78);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .removeImage {
+    transition: none;
+  }
 }
 
 /* The file input itself is never seen; the button in front of it is. */
