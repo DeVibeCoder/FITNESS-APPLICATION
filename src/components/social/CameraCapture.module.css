@@ -1,17 +1,23 @@
 /*
  * Full screen and above everything, including the bottom navigation. A camera
  * with a tab bar across it is not a viewfinder.
+ *
+ * Three bands, the way a phone camera is built: the settings, the picture, and
+ * the console that takes the shot. The picture is a framed rectangle rather
+ * than a full-bleed backdrop, because a control floating over the corner of a
+ * photo is a control standing where the photo is.
  */
 .root {
   position: fixed;
   inset: 0;
   z-index: var(--z-toast);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   background: #000;
   overscroll-behavior: contain;
   animation: fade var(--med) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
 }
 
 @keyframes fade {
@@ -20,138 +26,98 @@
   }
 }
 
-/*
- * The viewfinder fills the screen and crops rather than letterboxing — a
- * camera preview with black bars reads as broken, and the capture itself is
- * taken from the full sensor frame regardless of what the preview shows.
- */
-.preview {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* The front camera shows you a mirror, the way every phone does. */
-.mirrored {
-  transform: scaleX(-1);
-}
+/* --- Top: what the camera is set to -------------------------------------- */
 
 .top {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--s-3);
   padding: calc(env(safe-area-inset-top) + var(--s-3)) var(--s-4) var(--s-3);
-  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5), transparent);
 }
 
-.controls {
-  position: relative;
-  z-index: 1;
+.tools {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--s-4);
-  padding: var(--s-5) var(--s-6) calc(env(safe-area-inset-bottom) + var(--s-6));
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+  gap: var(--s-2);
+}
+
+/*
+ * Torch, grid, timer. Smaller than anything that takes a picture, because
+ * these are set once and then forgotten about.
+ */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.1875rem;
+  height: 36px;
+  min-width: 36px;
+  padding-inline: 0.5rem;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: var(--t-small);
+  font-weight: 700;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.chip:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* On means armed, and armed is worth the brand colour. */
+.chipOn {
+  background: var(--accent-lift, #f97316);
+  color: #1b0d02;
+}
+
+.chipLabel {
+  font-variant-numeric: tabular-nums;
 }
 
 .iconButton {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   flex: none;
   border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(8px);
-  color: #fff;
-  transition: background var(--fast) var(--ease);
-}
-
-.iconButton:hover {
-  background: rgba(255, 255, 255, 0.26);
-}
-
-/* Keeps the shutter centred when a side control is absent. */
-.iconSpacer {
-  width: 44px;
-  height: 44px;
-  flex: none;
-}
-
-/*
- * The shutter. Big, round, white, in the middle — the one control on the
- * screen that never needs a label because every camera has had it for a
- * century.
- */
-.shutter {
-  display: grid;
-  place-items: center;
-  width: 74px;
-  height: 74px;
-  flex: none;
-  border-radius: var(--r-pill);
-  background: #fff;
-  color: #17110c;
-  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.28);
-  transition: transform var(--fast) var(--ease);
-}
-
-.shutter:active {
-  transform: scale(0.93);
-}
-
-.shutter:disabled {
-  opacity: 0.45;
-}
-
-.record {
-  display: grid;
-  place-items: center;
-  width: 52px;
-  height: 52px;
-  flex: none;
-  border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.16);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.12);
   color: #fff;
   transition:
     background var(--fast) var(--ease),
     transform var(--fast) var(--ease);
 }
 
-.record:disabled {
-  opacity: 0.45;
+.iconButton:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
-/* Recording is the one state worth shouting about, so it goes red. */
-.recordOn {
-  background: var(--danger);
-  color: #fff;
-  transform: scale(1.04);
+.iconButton:active {
+  transform: scale(0.94);
 }
 
 .recording {
+  /* Sits about the middle of the bar rather than out at the right edge. */
+  margin-inline: auto;
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   padding: 0.3125rem 0.75rem;
   border-radius: var(--r-pill);
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(8px);
+  background: rgba(214, 40, 40, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
   color: #fff;
   font-size: var(--t-small);
   font-weight: 700;
 }
 
 .dot {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
   border-radius: var(--r-pill);
   background: var(--danger);
   animation: pulse 1.1s ease-in-out infinite;
@@ -159,23 +125,197 @@
 
 @keyframes pulse {
   50% {
-    opacity: 0.35;
+    opacity: 0.3;
   }
 }
 
 .limit {
   font-weight: 600;
-  opacity: 0.72;
+  opacity: 0.7;
+}
+
+/* --- Middle: the picture ------------------------------------------------- */
+
+/*
+ * The area is measured; the frame is sized to fit it at the ratio of the file
+ * this will produce. Nothing here guesses at a shape.
+ */
+.area {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 0;
+  padding: var(--s-2) var(--s-3);
+}
+
+.frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 22px;
+  background: #0a0705;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.09),
+    0 24px 60px -30px rgba(0, 0, 0, 0.9);
+  /* Pinches belong to the lens here, not to the page. */
+  touch-action: none;
+}
+
+.preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: center;
+  transition: transform var(--fast) linear;
+}
+
+/* The front camera shows you a mirror, the way every phone does. */
+.mirrored {
+  transform: scaleX(-1);
 }
 
 /*
- * When there is no camera to show. Says what happened and offers the way
- * round it, rather than leaving somebody looking at a black rectangle.
+ * Rule of thirds. Hairlines at 33% and 67% in both directions, drawn as
+ * gradients so the whole grid is one element and costs one paint.
+ */
+.grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(to right, transparent calc(33.333% - 0.5px), #fff calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
+    linear-gradient(to right, transparent calc(66.666% - 0.5px), #fff calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(33.333% - 0.5px), #fff calc(33.333% - 0.5px) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(66.666% - 0.5px), #fff calc(66.666% - 0.5px) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
+  animation: fade var(--fast) var(--ease-out);
+}
+
+/* Where the finger landed, and where the lens was told to look. */
+.reticle {
+  position: absolute;
+  width: 72px;
+  height: 72px;
+  margin: -36px 0 0 -36px;
+  border: 1.5px solid var(--accent-lift, #f97316);
+  border-radius: var(--r-sm);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.28) inset;
+  pointer-events: none;
+  animation: focusPull 420ms var(--ease-out);
+}
+
+@keyframes focusPull {
+  from {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+  60% {
+    opacity: 1;
+  }
+}
+
+/* The self-timer, counting over the picture at the size of a wall clock. */
+.countdown {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: min(38vw, 11rem);
+  font-weight: 200;
+  line-height: 1;
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: countTick 1s var(--ease-out) infinite;
+}
+
+@keyframes countTick {
+  from {
+    opacity: 0.35;
+    transform: scale(1.14);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* The shutter blink: brief, white, and the only confirmation a photo needs. */
+.flashFrame {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  pointer-events: none;
+  animation: blink 170ms ease-out;
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.9;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/*
+ * The zoom stops, floating on the picture just above its bottom edge — where
+ * a phone puts them, and close enough to the shutter to reach without looking.
+ * A pinch moves between them continuously; the active stop shows where the
+ * pinch actually got to.
+ */
+.zoom {
+  position: absolute;
+  left: 50%;
+  bottom: var(--s-3);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: var(--r-pill);
+  background: rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.zoomStep {
+  display: inline-flex;
+  align-items: baseline;
+  justify-content: center;
+  min-width: 36px;
+  height: 30px;
+  padding-inline: 0.4375rem;
+  border-radius: var(--r-pill);
+  color: rgba(255, 255, 255, 0.76);
+  font-size: var(--t-small);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  transition:
+    background var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.zoomOn {
+  background: rgba(255, 255, 255, 0.95);
+  color: #17110c;
+}
+
+.times {
+  font-size: 0.625rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
+/*
+ * When there is no camera to show. It sits inside the frame, so the way out
+ * and the way round it both stay where they were.
  */
 .problem {
   position: absolute;
   inset: 0;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -183,7 +323,7 @@
   gap: var(--s-4);
   padding: var(--s-8) var(--s-5);
   text-align: center;
-  background: rgba(8, 5, 3, 0.9);
+  background: rgba(8, 5, 3, 0.92);
 }
 
 .problemText {
@@ -194,40 +334,230 @@
   text-wrap: pretty;
 }
 
+/* --- Bottom: the console ------------------------------------------------- */
+
+.console {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--s-6) calc(env(safe-area-inset-bottom) + var(--s-5));
+}
+
+/*
+ * Photo or video, in the plainest form there is: two words, the live one lit.
+ * The original camera here refused a mode on the grounds that being in the
+ * wrong one wastes people's time — the answer to that is a rail you can read
+ * without pressing anything, which is what this is. Choosing a mode never
+ * starts a capture; only the shutter does that.
+ */
+.modes {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.mode {
+  position: relative;
+  padding: 0.375rem 0.875rem 0.5rem;
+  border-radius: var(--r-pill);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: var(--t-small);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: color var(--med) var(--ease);
+}
+
+.mode:disabled {
+  opacity: 0.35;
+}
+
+.modeOn {
+  color: var(--accent-lift, #f97316);
+}
+
+/* The lit word carries a dot, so the state survives being read in greyscale. */
+.modeOn::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 4px;
+  height: 4px;
+  margin-left: -2px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  width: 100%;
+  max-width: 22rem;
+}
+
+/*
+ * The shutter. Big, round, white, in the middle — the one control on the
+ * screen that never needs a label because every camera has had it for a
+ * century. The ring stays put and the core inside it changes: a white disc
+ * for a photo, red for video, a red square while recording.
+ */
+.shutterWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  flex: none;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 84px;
+  height: 84px;
+  transform: rotate(-90deg);
+  pointer-events: none;
+}
+
+.ringTrack {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 3.5;
+}
+
+/* How much of the allowed length is gone, drawn where the eye already is. */
+.ringHead {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 120ms linear;
+}
+
+.shutter {
+  display: grid;
+  place-items: center;
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-pill);
+  background: none;
+  transition: transform var(--fast) var(--ease);
+}
+
+.shutter:active {
+  transform: scale(0.93);
+}
+
+.shutter:disabled {
+  opacity: 0.4;
+}
+
+.core {
+  width: 66px;
+  height: 66px;
+  border-radius: var(--r-pill);
+  background: #fff;
+  transition:
+    width var(--med) var(--ease-out),
+    height var(--med) var(--ease-out),
+    border-radius var(--med) var(--ease-out),
+    background var(--med) var(--ease);
+}
+
+.coreVideo {
+  background: var(--danger);
+}
+
+.coreRecording {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--danger);
+}
+
+/* The two side controls: same weight as each other, less than the shutter. */
+.libraryButton,
+.flipButton {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  flex: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  transition:
+    background var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.libraryButton {
+  border-radius: var(--r);
+}
+
+.flipButton {
+  border-radius: var(--r-pill);
+}
+
+.libraryButton:hover,
+.flipButton:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.libraryButton:active,
+.flipButton:active {
+  transform: scale(0.94);
+}
+
+.libraryButton:disabled,
+.flipButton:disabled {
+  opacity: 0.3;
+}
+
+/* Keeps the shutter centred when a side control is absent. */
+.sideSpacer {
+  width: 48px;
+  height: 48px;
+  flex: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .root {
+  .root,
+  .grid,
+  .dot,
+  .countdown,
+  .reticle {
     animation: none;
   }
 
-  .dot {
-    animation: none;
+  .preview,
+  .core,
+  .mode {
+    transition: none;
   }
 }
 
 /*
- * Desktop: a webcam preview is not a phone viewfinder. The stage is capped so
- * the picture sits in the middle of the window rather than being blown up to
- * fill a 27-inch monitor.
+ * Desktop: a webcam preview is not a phone viewfinder, and a 27-inch monitor
+ * is not a phone. The frame is capped, the console keeps its rhythm, and the
+ * whole thing sits in the middle of the window.
  */
 @media (min-width: 64rem) {
   .root {
-    padding: var(--s-8);
-    background: rgba(8, 5, 3, 0.94);
+    background: rgba(6, 4, 3, 0.96);
   }
 
-  .preview {
-    inset: var(--s-8);
-    width: auto;
-    height: auto;
-    max-width: min(60rem, 100%);
+  /*
+   * The cap goes on the measured area, never on the frame: the frame's size is
+   * computed from the ratio, and clamping one of its sides in CSS would be the
+   * one way to make the preview stop matching the file.
+   */
+  .area {
+    width: min(100%, 46rem);
     margin-inline: auto;
-    border-radius: var(--r-xl);
-    object-fit: contain;
-    background: #000;
-  }
-
-  .top,
-  .controls {
-    background: none;
+    padding: var(--s-4) var(--s-6);
   }
 }

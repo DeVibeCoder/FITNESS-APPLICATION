@@ -195,6 +195,10 @@ export function StoryComposer({ onDone, onCancel }: { onDone: () => void; onCanc
 
       {cameraOpen ? (
         <CameraCapture
+          // A story is 9:16 everywhere it is shown, so it is 9:16 in the
+          // viewfinder too — what is framed here is what the story will be,
+          // rather than something the story frame crops the sides off later.
+          frame="story"
           maxVideoSec={STORY_VIDEO_MAX_SEC}
           onCapture={(file) => {
             setCameraOpen(false)
