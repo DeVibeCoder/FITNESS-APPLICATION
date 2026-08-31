@@ -3,6 +3,7 @@ import type { EntityTable } from 'dexie'
 import type {
   BodyMeasurement,
   DailyCheckIn,
+  ChallengeParticipant,
   ChatMessage,
   ChatReaction,
   Comment,
@@ -66,6 +67,7 @@ export class CircuitDb extends Dexie {
   achievements!: EntityTable<UserAchievement, 'id'>
   videos!: EntityTable<MotivationVideo, 'id'>
   challenges!: EntityTable<GroupChallenge, 'id'>
+  challengeParticipants!: EntityTable<ChallengeParticipant, 'id'>
   messages!: EntityTable<ChatMessage, 'id'>
   chatReactions!: EntityTable<ChatReaction, 'id'>
   posts!: EntityTable<Post, 'id'>
@@ -177,6 +179,18 @@ export class CircuitDb extends Dexie {
         .modify((user: Partial<User>) => {
           if (user.status === 'pending') user.status = 'approved'
         })
+    })
+
+    /**
+     * v6 — sitting a challenge out.
+     *
+     * One new store and no upgrade function, which is the point: a challenge
+     * has always counted everyone, and it still does. A row appears here only
+     * when somebody says otherwise, so every existing database keeps exactly
+     * the board it had. The compound index is what `join`/`leave` look up by.
+     */
+    this.version(6).stores({
+      challengeParticipants: 'id, challengeId, userId, [challengeId+userId]',
     })
   }
 }

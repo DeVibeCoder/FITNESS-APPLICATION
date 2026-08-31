@@ -217,6 +217,16 @@ export function Activity() {
         ) : null}
 
         <WeeklyWeighIn onShare={(text) => open('post', { text })} />
+        {/*
+          The one way across to Progress. Activity answers "what about today";
+          the weigh-in above is the point at which that turns into "is any of
+          it working", which is a different screen — and it was previously
+          reachable from here only through the bottom bar.
+        */}
+        <Link to="/progress" className={styles.detailLink}>
+          View your progress
+          <ArrowRight size={15} strokeWidth={2.4} />
+        </Link>
       </Section>
 
       <p className={styles.footnote}>

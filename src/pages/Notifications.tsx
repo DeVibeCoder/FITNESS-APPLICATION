@@ -54,8 +54,15 @@ export function Notifications() {
 
   return (
     <div className={styles.page}>
+      {/*
+        Reached from the bell, which sits in the top bar on every screen — so
+        the honest parent is the app itself rather than whichever page happened
+        to be underneath. Without this the only way out was the bottom bar,
+        which on a secondary screen reads as having nowhere to go back to.
+      */}
       <PageHeader
         title="Notifications"
+        parent={{ label: 'Home', to: '/' }}
         subtitle={unread ? `${unread} unread` : 'All caught up'}
         action={
           unread ? (

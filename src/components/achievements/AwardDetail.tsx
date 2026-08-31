@@ -1,9 +1,11 @@
 import { useEffect, useId } from 'react'
 import { createPortal } from 'react-dom'
 import { Lock, X } from 'lucide-react'
+import { ProgressBar } from '@/components/ui/Progress'
 import type { AchievementView } from '@/services/achievementService'
 import type { User } from '@/models'
 import { formatDay, toDateKey } from '@/utils/date'
+import { num } from '@/utils/format'
 import styles from './AwardDetail.module.css'
 
 export interface AwardDetailData {
@@ -87,6 +89,28 @@ export function AwardDetail({
               {earnedBy ? `${earnedBy.name} · ` : ''}
               {formatDay(toDateKey(new Date(achievement.unlockedAt!)))}
             </p>
+          ) : achievement.progress ? (
+            /*
+              How far along, for a mark that can be part-done. Read from the
+              same measurements the unlock rule uses, so this is the actual
+              distance left rather than an encouraging guess.
+            */
+            <div className={styles.towards}>
+              <ProgressBar
+                value={achievement.progress.current}
+                max={achievement.progress.target}
+                tone="accent"
+                size="sm"
+                label={`${achievement.title}: ${achievement.progress.pct}% of the way`}
+              />
+              <p className={styles.when}>
+                <span className="tnum">
+                  {num(achievement.progress.current, achievement.progress.current % 1 === 0 ? 0 : 1)}
+                </span>{' '}
+                of <span className="tnum">{num(achievement.progress.target)}</span>{' '}
+                {achievement.progress.noun}
+              </p>
+            </div>
           ) : null}
         </div>
 

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Flame } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import type { UserSnapshot } from '@/services/progressService'
+import { goalLabel } from '@/utils/calories'
 import styles from './GroupList.module.css'
 
 interface GroupListProps {
@@ -16,13 +17,29 @@ interface GroupListProps {
    * reader to a different section of the app to read one number.
    */
   onSelect: (userId: string) => void
+  /**
+   * Also print the handle and what each person is working toward.
+   *
+   * On the Group screen this row is the only list of members, so it has to
+   * answer "who is here" as well as "how are they doing" — there used to be a
+   * second list underneath doing the first half, which meant the same three
+   * people appeared twice on one screen, both rows opening the same sheet.
+   * The rail on Home is narrow and already sits under a heading that says
+   * whose group it is, so it leaves this off.
+   */
+  showIdentity?: boolean
 }
 
 /**
  * Everyone's progress, side by side. Ordered by consistency rather than weight —
  * the group has different goals and the scale is not a leaderboard.
  */
-export function GroupList({ members, currentUserId, onSelect }: GroupListProps) {
+export function GroupList({
+  members,
+  currentUserId,
+  onSelect,
+  showIdentity = false,
+}: GroupListProps) {
   return (
     <ul className={styles.list}>
       {members.map((member) => (
@@ -43,6 +60,11 @@ export function GroupList({ members, currentUserId, onSelect }: GroupListProps) 
                 <span className={styles.goalPct}>
                   <span className="tnum">{Math.round(member.progress.pct)}%</span> toward goal
                 </span>
+                {showIdentity ? (
+                  <span className={styles.identity}>
+                    @{member.user.handle} · {goalLabel(member.user.goal)}
+                  </span>
+                ) : null}
               </span>
               <span className={styles.track} aria-hidden="true">
                 <span className={styles.fill} style={{ width: `${member.progress.pct}%` }} />

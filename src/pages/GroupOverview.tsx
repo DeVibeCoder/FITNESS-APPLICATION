@@ -1,9 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/lib/db'
 import { Section } from '@/components/ui/Card'
-import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { ProgressBar } from '@/components/ui/Progress'
 import { GroupList } from '@/components/group/GroupList'
@@ -11,7 +9,6 @@ import { MemberSheet } from '@/components/group/MemberSheet'
 import { useAuth } from '@/context/AuthContext'
 import { achievementService, challengeService, progressService, userService } from '@/services'
 import { todayKey, timeAgo } from '@/utils/date'
-import { goalLabel } from '@/utils/calories'
 import { num } from '@/utils/format'
 import styles from './GroupOverview.module.css'
 
@@ -37,12 +34,13 @@ export function GroupOverview() {
   const [selected, setSelected] = useState<string | null>(null)
 
   const members = useLiveQuery(() => progressService.groupSnapshot(today), [today])
-  const users = useLiveQuery(() => userService.listMembers(), [])
   const challenge = useLiveQuery(() => challengeService.progress(today), [today])
   // The three most recent unlocks across the whole group, so Awards has
   // something to say here without repeating the entire grid.
   const awards = useLiveQuery(async () => {
-    const rows = await db.users.toArray()
+    // Members, not accounts. Somebody still waiting on approval is not in the
+    // group, so nothing they have earned belongs on the group's board.
+    const rows = await userService.listMembers()
     const recent = await Promise.all(
       rows.map(async (member) => {
         const [latest] = await achievementService.recent(member.id, 1)
@@ -59,20 +57,31 @@ export function GroupOverview() {
       .slice(0, 3)
   }, [])
 
-  if (!user || !members || !users) return <LoadingScreen />
+  if (!user || !members) return <LoadingScreen />
 
   return (
     <>
-      {/* --- Group progress ---------------------------------------------- */}
+      {/*
+        --- Everyone ------------------------------------------------------
+        One list of the group, not two. There used to be a second "Members"
+        section further down printing the same three people with their handle
+        and goal, opening the same sheet — so this row carries those as well
+        and the duplicate is gone.
+      */}
       <Section
-        title="Group progress"
+        title="Everyone"
         action={
           <Link to="/group/progress" className={styles.sectionLink}>
             See all
           </Link>
         }
       >
-        <GroupList members={members} currentUserId={user.id} onSelect={setSelected} />
+        <GroupList
+          members={members}
+          currentUserId={user.id}
+          onSelect={setSelected}
+          showIdentity
+        />
       </Section>
 
       {/* --- Challenge ----------------------------------------------------- */}
@@ -133,33 +142,6 @@ export function GroupOverview() {
           </ul>
         </Section>
       ) : null}
-
-      {/* --- Members ------------------------------------------------------- */}
-      <Section title="Members">
-        <ul className={styles.members}>
-          {users.map((member) => (
-            <li key={member.id}>
-              <button
-                type="button"
-                className={styles.member}
-                onClick={() => setSelected(member.id)}
-                aria-haspopup="dialog"
-              >
-                <Avatar user={member} size="md" />
-                <span className={styles.memberText}>
-                  <span className={styles.memberName}>
-                    {member.name}
-                    {member.id === user.id ? <span className={styles.you}>You</span> : null}
-                  </span>
-                  <span className={styles.memberGoal}>
-                    @{member.handle} · {goalLabel(member.goal)}
-                  </span>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </Section>
 
       <MemberSheet userId={selected} onClose={() => setSelected(null)} />
     </>

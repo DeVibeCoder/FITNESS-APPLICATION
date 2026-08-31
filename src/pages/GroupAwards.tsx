@@ -10,6 +10,7 @@ import { AwardDetail, type AwardDetailData } from '@/components/achievements/Awa
 import { useAuth } from '@/context/AuthContext'
 import { achievementService, userService } from '@/services'
 import { formatDay, toDateKey } from '@/utils/date'
+import { num } from '@/utils/format'
 import { ACHIEVEMENT_GROUPS } from '@/data/achievements'
 import styles from './GroupAwards.module.css'
 
@@ -138,8 +139,28 @@ export function GroupAwards() {
                         <span className={styles.markMeta}>
                           {achievement.unlockedAt
                             ? formatDay(toDateKey(new Date(achievement.unlockedAt)))
-                            : 'Locked'}
+                            : achievement.progress
+                              ? `${num(achievement.progress.current, achievement.progress.current % 1 === 0 ? 0 : 1)} of ${num(achievement.progress.target)}`
+                              : 'Locked'}
                         </span>
+                        {/*
+                          How close, for the marks where "close" means
+                          something. It replaces the word "Locked", which said
+                          only what the padlock above it already said — and it
+                          is the same measurement the unlock rule reads, so a
+                          full bar and a padlock can never appear together.
+                        */}
+                        {!achievement.unlockedAt && achievement.progress ? (
+                          <span className={styles.markBar}>
+                            <ProgressBar
+                              value={achievement.progress.current}
+                              max={achievement.progress.target}
+                              size="sm"
+                              tone="neutral"
+                              label={`${achievement.title}: ${achievement.progress.pct}% of the way`}
+                            />
+                          </span>
+                        ) : null}
                       </button>
                     </li>
                   ))}

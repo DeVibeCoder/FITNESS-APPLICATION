@@ -708,14 +708,59 @@ export interface GroupChallenge {
   createdAt: Timestamp
 }
 
+/**
+ * Who is taking part in a given week.
+ *
+ * Absence of a row means taking part: a group of three signs up for the week
+ * together, and asking everyone to opt in every Sunday would mostly produce an
+ * empty board. A row exists only once somebody has made an explicit choice —
+ * sitting the week out (`leftAt` set) or joining back in (`leftAt` cleared) —
+ * so the record says what was actually decided rather than inventing a
+ * decision for everyone who never touched it.
+ */
+export interface ChallengeParticipant {
+  id: ID
+  challengeId: ID
+  userId: ID
+  joinedAt: Timestamp
+  /** Set while this person is sitting the week out. Re-joining clears it. */
+  leftAt?: Timestamp
+}
+
+/** Where a challenge's week sits relative to the day being asked about. */
+export type ChallengeStatus = 'upcoming' | 'active' | 'ended'
+
+/** One person's standing on the board. Computed, never persisted. */
+export interface ChallengeContribution {
+  userId: ID
+  value: number
+  /** Only meaningful on a per-member challenge. */
+  met: boolean
+  /**
+   * Position on the board, 1-based, with ties sharing a place. Ordering is
+   * what makes a list readable at a glance; it is not a competition, and
+   * nobody is ever told they came last.
+   */
+  rank: number
+}
+
 /** Computed, never persisted. */
 export interface ChallengeProgress {
   challenge: GroupChallenge
-  contributions: { userId: ID; value: number; met: boolean }[]
+  /** Only the people taking part, most contributed first. */
+  contributions: ChallengeContribution[]
+  /** Members who chose to sit this one out. */
+  sittingOut: ID[]
   total: number
   target: number
   pct: number
   complete: boolean
+  /** First and last day of the challenge week, inclusive. */
+  startDate: DateKey
+  endDate: DateKey
+  /** Days remaining including the day asked about; 0 once the week is over. */
+  daysLeft: number
+  status: ChallengeStatus
 }
 
 // ---------------------------------------------------------------------------

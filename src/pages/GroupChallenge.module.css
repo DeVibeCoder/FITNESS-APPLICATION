@@ -17,15 +17,88 @@
   letter-spacing: -0.03em;
 }
 
-.range {
+/*
+ * Taking part first, sharing second: one is a decision about the week, the
+ * other is something you do once the week has gone well.
+ */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+/* --- Finished weeks ------------------------------------------------------- */
+
+.past {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.pastRow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+}
+
+.pastIcon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.pastText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.pastTitle {
   font-size: var(--t-small);
+  font-weight: 620;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pastMeta {
+  font-size: var(--t-micro);
   color: var(--ink-3);
+}
+
+.pastState {
+  flex: none;
+  font-size: var(--t-micro);
+  font-weight: 640;
+  color: var(--ink-3);
+}
+
+.pastDone {
+  color: var(--success);
 }
 
 .note {
   font-size: var(--t-small);
   color: var(--ink-3);
   line-height: 1.55;
+}
+
+@media (min-width: 30rem) {
+  .actions {
+    flex-direction: row;
+  }
 }
 
 @media (min-width: 64rem) {

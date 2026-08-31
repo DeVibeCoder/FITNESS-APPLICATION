@@ -120,3 +120,16 @@
   color: var(--ink-3);
   font-weight: 600;
 }
+
+/*
+ * Who somebody is, under how they are doing. One line, ellipsised — a long
+ * goal label must not push the streak off the end of a narrow row.
+ */
+.identity {
+  display: block;
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

@@ -17,6 +17,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { GroupMembersSheet } from '@/components/chat/GroupMembersSheet'
+import { MemberSheet } from '@/components/group/MemberSheet'
 import { useKeyboardInset } from '@/hooks/useKeyboardInset'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -47,6 +48,15 @@ export function ChatThread() {
   const [sending, setSending] = useState(false)
   const [shareMenu, setShareMenu] = useState(false)
   const [membersOpen, setMembersOpen] = useState(false)
+  /**
+   * One person, opened from the member list.
+   *
+   * The same sheet Group opens, over the thread rather than instead of it —
+   * looking somebody up mid-conversation must not cost you the conversation,
+   * and there is no reason for Chat to grow a second member layout that can
+   * drift from the one Group already has.
+   */
+  const [memberDetail, setMemberDetail] = useState<string | null>(null)
   /**
    * Two different states, deliberately not one.
    *
@@ -278,7 +288,16 @@ export function ChatThread() {
         </button>
       </header>
 
-      <GroupMembersSheet open={membersOpen} onClose={() => setMembersOpen(false)} />
+      <GroupMembersSheet
+        open={membersOpen}
+        onClose={() => setMembersOpen(false)}
+        onSelect={(id) => {
+          // One sheet at a time: the list steps aside for the person it named.
+          setMembersOpen(false)
+          setMemberDetail(id)
+        }}
+      />
+      <MemberSheet userId={memberDetail} onClose={() => setMemberDetail(null)} />
 
       <div className={styles.thread}>
         {messages.length === 0 ? (

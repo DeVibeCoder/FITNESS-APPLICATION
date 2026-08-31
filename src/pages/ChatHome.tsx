@@ -32,11 +32,9 @@ export function ChatHome() {
   const { user } = useAuth()
 
   const summary = useLiveQuery(() => (user ? chatService.summary(user.id) : undefined), [user?.id])
+  // Members only, matching Group and the thread header. A request awaiting a
+  // decision is not in this room and cannot read it.
   const users = useLiveQuery(() => userService.listMembers(), [])
-  const everyone = useLiveQuery(
-    async () => (await userService.list()).filter((u) => (u.status ?? 'approved') !== 'rejected'),
-    [],
-  )
 
   if (!user || !summary || !users) return <LoadingScreen />
 
@@ -47,7 +45,6 @@ export function ChatHome() {
     : null
 
   const active = users.length
-  const total = everyone?.length ?? active
   const unread = summary.unread
 
   return (
@@ -63,9 +60,7 @@ export function ChatHome() {
         <div className={styles.top}>
           <div className={styles.identity}>
             <span className={styles.name}>Fitness group</span>
-            <span className={styles.people}>
-              {total > active ? `${active} of ${total} people` : `${active} people`}
-            </span>
+            <span className={styles.people}>{active} people</span>
           </div>
           {unread > 0 ? (
             <span className={styles.unread}>

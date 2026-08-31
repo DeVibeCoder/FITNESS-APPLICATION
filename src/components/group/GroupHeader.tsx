@@ -22,13 +22,12 @@ export function GroupHeader() {
   const today = todayKey()
 
   const members = useLiveQuery(() => progressService.groupSnapshot(today), [today])
+  // The group is the approved members and nothing else. This used to count
+  // people awaiting approval too, so the header said "3 of 4" while every
+  // total underneath it was over three — one screen answering "how many of us
+  // are there" two different ways. Requests live in Admin, which is where a
+  // decision can actually be made about them.
   const users = useLiveQuery(() => userService.listMembers(), [])
-  // Everyone with a live account, so a member waiting on approval is counted
-  // as "of 4" rather than quietly disappearing from the group's size.
-  const everyone = useLiveQuery(
-    async () => (await userService.list()).filter((u) => (u.status ?? 'approved') !== 'rejected'),
-    [],
-  )
   // Chat lives in its own tab now. This is the one trace of it here: a count,
   // not a card, and not a way in — §6 is explicit that Group is not messaging.
   const summary = useLiveQuery(() => (user ? chatService.summary(user.id) : undefined), [user?.id])
@@ -45,15 +44,12 @@ export function GroupHeader() {
   )
 
   const active = users?.length ?? 0
-  const total = everyone?.length ?? active
 
   return (
     <header className={`onPhoto ${styles.header}`}>
       <CardPhoto image="group" />
       <p className="eyebrow">Our fitness group</p>
-      <h1 className={styles.title}>
-        {total > active ? `${active} of ${total} people` : `${active} people`}
-      </h1>
+      <h1 className={styles.title}>{active} people</h1>
 
       <div className={styles.faces}>
         {(users ?? []).map((member) => (

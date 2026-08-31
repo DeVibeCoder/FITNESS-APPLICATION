@@ -1,14 +1,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/lib/db'
 import { Section } from '@/components/ui/Card'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { MemberCard } from '@/components/group/MemberCard'
 import { MemberSheet } from '@/components/group/MemberSheet'
 import { GroupWeek } from '@/components/group/GroupWeek'
 import { useAuth } from '@/context/AuthContext'
-import { achievementService, progressService } from '@/services'
+import { achievementService, progressService, userService } from '@/services'
 import { reviewService } from '@/services/reviewService'
 import { formatRange, startOfWeek, endOfWeek, todayKey } from '@/utils/date'
 import styles from './OurProgress.module.css'
@@ -38,8 +37,10 @@ export function OurProgress() {
   const members = useLiveQuery(() => progressService.groupSnapshot(today), [today])
   const week = useLiveQuery(() => reviewService.groupWeek(today), [today])
 
+  // Both of these key off the same list the board is built from: a pending or
+  // rejected account is not part of the group and must not appear beside one.
   const weeklyChanges = useLiveQuery(async () => {
-    const rows = await db.users.toArray()
+    const rows = await userService.listMembers()
     const entries = await Promise.all(
       rows.map(async (member) => {
         const summary = await progressService.weeklySummary(member.id, today)
@@ -50,7 +51,7 @@ export function OurProgress() {
   }, [today])
 
   const achievements = useLiveQuery(async () => {
-    const rows = await db.users.toArray()
+    const rows = await userService.listMembers()
     const entries = await Promise.all(
       rows.map(async (member) => [member.id, (await achievementService.recent(member.id, 1))[0]] as const),
     )

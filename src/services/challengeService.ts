@@ -1,8 +1,16 @@
 import { db } from '@/lib/db'
 import { userService } from './userService'
 import { now, uid } from '@/lib/id'
-import type { ChallengeProgress, DateKey, GroupChallenge, ID } from '@/models'
-import { daysBetween, startOfWeek, weekDays } from '@/utils/date'
+import { assertOwner } from './ownership'
+import type {
+  ChallengeContribution,
+  ChallengeProgress,
+  ChallengeStatus,
+  DateKey,
+  GroupChallenge,
+  ID,
+} from '@/models'
+import { daysBetween, endOfWeek, startOfWeek, todayKey, weekDays } from '@/utils/date'
 import { updateService } from './updateService'
 
 /**
@@ -112,21 +120,93 @@ export const challengeService = {
     }
   },
 
+  // --- Taking part ---------------------------------------------------------
+
+  /**
+   * Everyone sitting this challenge out.
+   *
+   * Rows only exist for people who made a choice, so this is normally empty
+   * and the whole group is on the board — see `ChallengeParticipant`.
+   */
+  async sittingOut(challengeId: ID): Promise<ID[]> {
+    const rows = await db.challengeParticipants.where('challengeId').equals(challengeId).toArray()
+    return rows.filter((row) => row.leftAt).map((row) => row.userId)
+  },
+
+  /** Is this person on the board? Everyone is, until they say otherwise. */
+  async isTakingPart(challengeId: ID, userId: ID): Promise<boolean> {
+    const row = await db.challengeParticipants
+      .where('[challengeId+userId]')
+      .equals([challengeId, userId])
+      .first()
+    return !row?.leftAt
+  },
+
+  /**
+   * Sit this week out.
+   *
+   * Nothing is deleted and nothing already logged is affected — the person
+   * simply stops being counted toward this week's target, which is what keeps
+   * a per-member challenge honest when one of three is away or injured.
+   */
+  async leave(challengeId: ID, userId: ID): Promise<void> {
+    // You answer for yourself. The same check a server would run.
+    assertOwner(userId)
+    const existing = await db.challengeParticipants
+      .where('[challengeId+userId]')
+      .equals([challengeId, userId])
+      .first()
+    if (existing) {
+      if (existing.leftAt) return
+      await db.challengeParticipants.update(existing.id, { leftAt: now() })
+      return
+    }
+    await db.challengeParticipants.add({
+      id: uid('cp'),
+      challengeId,
+      userId,
+      joinedAt: now(),
+      leftAt: now(),
+    })
+  },
+
+  /** Join back in. Progress is derived, so the week's records come back too. */
+  async join(challengeId: ID, userId: ID): Promise<void> {
+    assertOwner(userId)
+    const existing = await db.challengeParticipants
+      .where('[challengeId+userId]')
+      .equals([challengeId, userId])
+      .first()
+    if (!existing) return
+    // The row stays: it is the record that a choice was made, and clearing the
+    // date is what puts the person back on the board.
+    await db.challengeParticipants.update(existing.id, { leftAt: undefined, joinedAt: now() })
+  },
+
+  // --- Progress ------------------------------------------------------------
+
   /**
    * Progress for a week, derived entirely from the records the rest of the app
    * already writes. Nothing about a challenge is stored as a running total, so
    * deleting a workout correctly takes it back off the board.
+   *
+   * Only members count, and only members taking part: a pending account is not
+   * in the group, and somebody sitting the week out asked not to be counted.
    */
-  async progress(date: DateKey): Promise<ChallengeProgress | null> {
+  async progress(date: DateKey, asOf: DateKey = todayKey()): Promise<ChallengeProgress | null> {
     const challenge = await this.forWeek(date)
     if (!challenge) return null
     const days = weekDays(challenge.weekStart)
     const from = days[0]
     const to = days[days.length - 1]
-    const users = await userService.listMembers()
+    const [users, out] = await Promise.all([
+      userService.listMembers(),
+      this.sittingOut(challenge.id).then((ids) => new Set(ids)),
+    ])
+    const taking = users.filter((user) => !out.has(user.id))
 
-    const contributions = await Promise.all(
-      users.map(async (user) => {
+    const measured = await Promise.all(
+      taking.map(async (user) => {
         const value = await measure(challenge.metric, user.id, from, to, user.waterGoalL)
         return {
           userId: user.id,
@@ -136,20 +216,44 @@ export const challengeService = {
       }),
     )
 
-    const total = contributions.reduce((sum, c) => sum + c.value, 0)
-    const target = challenge.perMember ? challenge.target * users.length : challenge.target
-    const complete = challenge.perMember
-      ? contributions.every((c) => c.met) && contributions.length > 0
-      : total >= challenge.target
+    const total = measured.reduce((sum, c) => sum + c.value, 0)
+    const target = challenge.perMember ? challenge.target * taking.length : challenge.target
+    const complete =
+      taking.length > 0 &&
+      (challenge.perMember ? measured.every((c) => c.met) : total >= challenge.target)
 
     return {
       challenge,
-      contributions,
+      contributions: ranked(measured),
+      // Only people still in the group: somebody whose account was never
+      // approved is not sitting this one out, they are simply not here.
+      sittingOut: users.filter((user) => out.has(user.id)).map((user) => user.id),
       total,
       target,
       pct: target === 0 ? 0 : Math.min(100, Math.round((total / target) * 100)),
       complete,
+      ...runsFor(challenge.weekStart, asOf),
     }
+  },
+
+  /**
+   * Challenges from weeks already finished, newest first.
+   *
+   * Read exactly the way the live one is, so a past week says whether it was
+   * actually completed rather than being remembered as a title. Nothing is
+   * created here: a week nobody opened the app during has no challenge, and
+   * inventing one afterwards would put a target on the board that the group
+   * was never asked for.
+   */
+  async history(date: DateKey = todayKey(), limit = 4): Promise<ChallengeProgress[]> {
+    const thisWeek = startOfWeek(date)
+    const past = (await db.challenges.toArray())
+      .filter((challenge) => challenge.weekStart < thisWeek)
+      .sort((a, b) => (a.weekStart < b.weekStart ? 1 : -1))
+      .slice(0, limit)
+
+    const rows = await Promise.all(past.map((challenge) => this.progress(challenge.weekStart, date)))
+    return rows.filter((row): row is ChallengeProgress => row !== null)
   },
 
   /**
@@ -170,6 +274,45 @@ export const challengeService = {
     })
     return true
   },
+}
+
+/**
+ * Standard competition ranking: two people on 40 both come second, and the
+ * next one comes fourth. Ordering is what makes a board readable at a glance;
+ * the number itself is never presented as a score.
+ */
+function ranked(rows: { userId: ID; value: number; met: boolean }[]): ChallengeContribution[] {
+  const sorted = [...rows].sort((a, b) => b.value - a.value || a.userId.localeCompare(b.userId))
+  let rank = 0
+  let previous: number | null = null
+  return sorted.map((row, index) => {
+    if (previous === null || row.value !== previous) rank = index + 1
+    previous = row.value
+    return { ...row, rank }
+  })
+}
+
+/**
+ * When a challenge runs, and how much of it is left.
+ *
+ * Derived from `weekStart` rather than stored: both dates are the same week
+ * boundary the rest of the app already computes, and a second copy on the row
+ * is a second thing that can be wrong.
+ */
+function runsFor(
+  weekStart: DateKey,
+  asOf: DateKey,
+): { startDate: DateKey; endDate: DateKey; daysLeft: number; status: ChallengeStatus } {
+  const endDate = endOfWeek(weekStart)
+  const status: ChallengeStatus =
+    asOf < weekStart ? 'upcoming' : asOf > endDate ? 'ended' : 'active'
+  return {
+    startDate: weekStart,
+    endDate,
+    // Inclusive of the day being asked about, so the last day reads "1 day left".
+    daysLeft: status === 'ended' ? 0 : daysBetween(asOf < weekStart ? weekStart : asOf, endDate) + 1,
+    status,
+  }
 }
 
 /** Each metric reads the same records the rest of the app writes. */

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { AlertTriangle, ChevronRight, LogOut, Moon, RotateCcw, Sun, SunMoon } from 'lucide-react'
-import { db } from '@/lib/db'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Section } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -12,7 +11,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { useToast } from '@/context/ToastContext'
 import { resetDatabase } from '@/data/seed'
-import { hasRole } from '@/services'
+import { hasRole, userService } from '@/services'
 import { firstName } from '@/utils/format'
 import type { ThemePref } from '@/services/storageService'
 import styles from './More.module.css'
@@ -30,7 +29,9 @@ export function More() {
   const [confirmReset, setConfirmReset] = useState(false)
   const [resetting, setResetting] = useState(false)
 
-  const members = useLiveQuery(() => db.users.toArray(), [])
+  // Members only. A request awaiting a decision belongs on the Admin screen,
+  // which is the one place a decision can be made about it.
+  const members = useLiveQuery(() => userService.listMembers(), [])
 
   if (!user) return null
 

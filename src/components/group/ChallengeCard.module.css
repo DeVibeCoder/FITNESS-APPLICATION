@@ -54,6 +54,18 @@
   line-height: 1.45;
 }
 
+/* When it runs. Quiet — it is context for the target, not the target. */
+.when {
+  margin-top: 4px;
+  font-size: var(--t-micro);
+  color: var(--ink-3);
+}
+
+.urgent {
+  color: var(--energy);
+  font-weight: 640;
+}
+
 .done {
   padding: var(--s-2) var(--s-3);
   border-radius: var(--r-sm);
@@ -99,6 +111,19 @@
   gap: var(--s-3);
 }
 
+/*
+ * Position on the board. Deliberately the smallest thing in the row: it is a
+ * reading aid for a list of three, not a medal.
+ */
+.rank {
+  min-width: 1ch;
+  flex: none;
+  font-size: var(--t-micro);
+  font-weight: 640;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+
 .name {
   flex: 1;
   font-size: var(--t-small);
@@ -121,6 +146,13 @@
 .of {
   color: var(--ink-3);
   font-weight: 500;
+}
+
+.nobody,
+.sittingOut {
+  font-size: var(--t-small);
+  color: var(--ink-3);
+  line-height: 1.5;
 }
 
 /*

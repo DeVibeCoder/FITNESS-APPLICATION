@@ -1,10 +1,9 @@
 import { useMemo } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { db } from '@/lib/db'
 import { Section } from '@/components/ui/Card'
 import { EmptyState, LoadingScreen } from '@/components/ui/EmptyState'
 import { UpdateFeed } from '@/components/group/UpdateFeed'
-import { updateService } from '@/services'
+import { updateService, userService } from '@/services'
 import type { UpdateWithReactions } from '@/services/updateService'
 import { addDays, startOfWeek, toDateKey, todayKey } from '@/utils/date'
 import { EMPTY } from '@/data/messages'
@@ -25,11 +24,18 @@ const ORDER = ['Today', 'Yesterday', 'Earlier this week', 'Last week', 'Older']
 export function Updates() {
   const today = todayKey()
   const updates = useLiveQuery(() => updateService.all(200), [])
-  const users = useLiveQuery(() => db.users.toArray(), [])
+  const users = useLiveQuery(() => userService.listMembers(), [])
+
+  const memberIds = useMemo(() => new Set((users ?? []).map((u) => u.id)), [users])
 
   const grouped = useMemo(() => {
     const buckets = new Map<string, UpdateWithReactions[]>()
     for (const update of updates ?? []) {
+      // The feed is the group's, so it carries the group's activity. Anything
+      // written by an account that is not a member is skipped here rather than
+      // silently dropped by the row renderer, which would leave a day heading
+      // standing over nothing.
+      if (!memberIds.has(update.userId)) continue
       const bucket = bucketFor(update.createdAt, today)
       buckets.set(bucket, [...(buckets.get(bucket) ?? []), update])
     }
@@ -37,9 +43,9 @@ export function Updates() {
       label,
       updates: buckets.get(label)!,
     }))
-  }, [updates, today])
+  }, [updates, today, memberIds])
 
-  if (updates === undefined) return <LoadingScreen />
+  if (updates === undefined || users === undefined) return <LoadingScreen />
 
   const userMap = new Map((users ?? []).map((u) => [u.id, u]))
 

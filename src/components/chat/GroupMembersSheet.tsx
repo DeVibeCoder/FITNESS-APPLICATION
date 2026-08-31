@@ -1,4 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
+import { ChevronRight } from 'lucide-react'
 import { Avatar } from '@/components/ui/Avatar'
 import { Sheet } from '@/components/ui/Sheet'
 import { useAuth } from '@/context/AuthContext'
@@ -11,39 +12,45 @@ import styles from './GroupMembersSheet.module.css'
  * Who is in this conversation.
  *
  * The row of faces at the top of Chat was decoration — it said three people
- * were here without saying which three. Tapping it now opens this: name, goal
- * and, when it matters, whether someone is still waiting to be approved.
+ * were here without saying which three. Tapping it now opens this: name, goal,
+ * and a way through to the same member view Group uses, so "who is Samir and
+ * how is he doing" can be answered without leaving the thread.
  *
- * Deliberately thin. No weight, no calories, no streaks, no consistency — a
- * chat header is not the place to publish anyone's numbers, and Group already
- * has a screen for the ones the group does share. What is here is only what a
- * person picked as their focus.
+ * The list itself stays thin. No weight, no calories, no streaks — a chat
+ * header is not the place to publish anybody's numbers. The details behind a
+ * row are the group's own member view, which is where those numbers already
+ * live and where they are already governed.
+ *
+ * Only members appear. A request still waiting on a decision is not in this
+ * room, and Admin is the screen where something can actually be done about it.
  */
-export function GroupMembersSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function GroupMembersSheet({
+  open,
+  onClose,
+  onSelect,
+}: {
+  open: boolean
+  onClose: () => void
+  /** Opens one person's details. Omitted, the rows are not interactive. */
+  onSelect?: (userId: string) => void
+}) {
   const { user } = useAuth()
-
-  // Everyone with a live account, so somebody waiting on approval appears as
-  // pending rather than quietly not existing.
-  const members = useLiveQuery(
-    async () => (await userService.list()).filter((u) => (u.status ?? 'approved') !== 'rejected'),
-    [],
-  )
+  const members = useLiveQuery(() => userService.listMembers(), [])
 
   const rows = members ?? []
-  const approved = rows.filter((member) => (member.status ?? 'approved') === 'approved')
 
   return (
     <Sheet
       open={open}
       onClose={onClose}
       title="Group members"
-      subtitle={`${approved.length} ${approved.length === 1 ? 'person' : 'people'} in this chat`}
+      subtitle={`${rows.length} ${rows.length === 1 ? 'person' : 'people'} in this chat`}
     >
       <ul className={styles.list}>
         {rows.map((member) => {
-          const pending = (member.status ?? 'approved') === 'pending'
-          return (
-            <li key={member.id} className={styles.item}>
+          const direction = goalProfile(member.goal).direction
+          const body = (
+            <>
               <Avatar user={member} size="md" />
               <div className={styles.text}>
                 <p className={styles.name}>
@@ -54,9 +61,29 @@ export function GroupMembersSheet({ open, onClose }: { open: boolean; onClose: (
                   @{member.handle} · {goalLabel(member.goal)}
                 </p>
               </div>
-              <span className={[styles.state, pending ? styles.pending : ''].filter(Boolean).join(' ')}>
-                {pending ? 'Pending' : goalProfile(member.goal).direction === 'up' ? 'Building' : goalProfile(member.goal).direction === 'down' ? 'Cutting' : 'Holding'}
+              <span className={styles.state}>
+                {direction === 'up' ? 'Building' : direction === 'down' ? 'Cutting' : 'Holding'}
               </span>
+              {onSelect ? (
+                <ChevronRight size={16} strokeWidth={2} className={styles.chevron} />
+              ) : null}
+            </>
+          )
+
+          return (
+            <li key={member.id}>
+              {onSelect ? (
+                <button
+                  type="button"
+                  className={`${styles.item} ${styles.itemButton}`}
+                  onClick={() => onSelect(member.id)}
+                  aria-haspopup="dialog"
+                >
+                  {body}
+                </button>
+              ) : (
+                <div className={styles.item}>{body}</div>
+              )}
             </li>
           )
         })}

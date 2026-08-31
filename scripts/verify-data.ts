@@ -2471,6 +2471,90 @@ async function main() {
     !('total' in challenge) && !('progress' in challenge),
   )
 
+  console.log('\n— A challenge knows when it runs —\n')
+  check('it starts on the Sunday of its week', challengeProgress!.startDate, challenge.weekStart)
+  check('and ends six days later', challengeProgress!.endDate, endOfWeek(challenge.weekStart))
+  check('this week is running', challengeProgress!.status, 'active')
+  ok(
+    'with at least a day left and never more than seven',
+    challengeProgress!.daysLeft >= 1 && challengeProgress!.daysLeft <= 7,
+    `${challengeProgress!.daysLeft} days`,
+  )
+  const nextWeekProgress = await challengeService.progress(addDays(today, 7), today)
+  check('next week has not started', nextWeekProgress!.status, 'upcoming')
+  const lastWeekChallenge = await challengeService.ensureWeek(addDays(today, -7))
+  const lastWeekProgress = await challengeService.progress(lastWeekChallenge.weekStart, today)
+  check('a finished week reads as ended', lastWeekProgress!.status, 'ended')
+  check('with nothing left of it', lastWeekProgress!.daysLeft, 0)
+
+  console.log('\n— The board is ordered, and nobody is ranked out of it —\n')
+  ok(
+    'contributions come back highest first',
+    challengeProgress!.contributions.every(
+      (row, index, all) => index === 0 || all[index - 1].value >= row.value,
+    ),
+  )
+  ok('the first place is 1', challengeProgress!.contributions[0].rank === 1)
+  ok(
+    'ranks never skip ahead of the row they are on',
+    challengeProgress!.contributions.every((row, index) => row.rank <= index + 1),
+  )
+  ok(
+    'and equal figures share a place',
+    challengeProgress!.contributions.every(
+      (row, index, all) => index === 0 || row.value !== all[index - 1].value || row.rank === all[index - 1].rank,
+    ),
+  )
+
+  console.log('\n— Sitting a challenge out, and coming back —\n')
+  ok('everybody is taking part until they say otherwise',
+    await challengeService.isTakingPart(challenge.id, 'u_ahmed'))
+  check('so nobody is listed as sitting out', challengeProgress!.sittingOut.length, 0)
+
+  await challengeService.leave(challenge.id, 'u_ahmed')
+  const afterLeaving = await challengeService.progress(today)
+  ok('leaving takes you off the board',
+    !afterLeaving!.contributions.some((c) => c.userId === 'u_ahmed'))
+  check('and names you as sitting it out', afterLeaving!.sittingOut, ['u_ahmed'])
+  ok(
+    'a per-member target follows the people actually in it',
+    !challenge.perMember || afterLeaving!.target === challenge.target * afterLeaving!.contributions.length,
+  )
+  ok('the challenge row itself is untouched',
+    Boolean(await db.challenges.get(challenge.id)))
+  ok("and nothing of Ahmed's was deleted",
+    (await db.sessions.where('userId').equals('u_ahmed').count()) > 0)
+
+  await expectOwnershipRefusal('Nadia cannot sit Ahmed out', () =>
+    challengeService.leave(challenge.id, 'u_ahmed'))
+  await expectOwnershipRefusal('nor put him back in', () =>
+    challengeService.join(challenge.id, 'u_ahmed'))
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+
+  await challengeService.join(challenge.id, 'u_ahmed')
+  const afterRejoining = await challengeService.progress(today)
+  ok('joining back puts you on the board again',
+    afterRejoining!.contributions.some((c) => c.userId === 'u_ahmed'))
+  check('with nobody sitting out', afterRejoining!.sittingOut.length, 0)
+  check(
+    'and the week you already logged comes back with you',
+    afterRejoining!.contributions.find((c) => c.userId === 'u_ahmed')!.value,
+    challengeProgress!.contributions.find((c) => c.userId === 'u_ahmed')!.value,
+  )
+
+  console.log('\n— Finished weeks are read, not remembered —\n')
+  const past = await challengeService.history(today)
+  ok('the finished week is in the history', past.some((row) => row.challenge.id === lastWeekChallenge.id))
+  ok('this week is not', !past.some((row) => row.challenge.id === challenge.id))
+  ok('nor is next week', !past.some((row) => row.challenge.id === nextWeekChallenge.id))
+  ok('every finished week carries its own completion state',
+    past.every((row) => typeof row.complete === 'boolean'))
+  ok('and its own dates', past.every((row) => row.endDate === endOfWeek(row.startDate)))
+
+  // Put the board back exactly as the seed left it.
+  await db.challenges.delete(lastWeekChallenge.id)
+  await db.challengeParticipants.clear()
+
   console.log('\n— Achievements are earned, in both directions —\n')
   const ahmedAchievements = await achievementService.listForUser('u_ahmed')
   check('the full set is defined', ahmedAchievements.length, 31)
@@ -2494,6 +2578,44 @@ async function main() {
     'nobody is handed a badge they have not earned',
     samirBadges.filter((a) => a.unlockedAt).length < samirBadges.length,
   )
+
+  console.log('\n— A locked award says how far off it is —\n')
+  const lockedMarks = ahmedAchievements.filter((a) => !a.unlockedAt)
+  const earnedMarks = ahmedAchievements.filter((a) => a.unlockedAt)
+  ok('there is something still to earn', lockedMarks.length > 0, `${lockedMarks.length} locked`)
+  ok('an earned award carries no progress bar', earnedMarks.every((a) => a.progress === undefined))
+  ok(
+    'a locked award that can be measured carries one',
+    lockedMarks.some((a) => a.progress !== undefined),
+  )
+  ok(
+    'and it never reads as finished',
+    lockedMarks.every((a) => !a.progress || a.progress.pct < 100),
+  )
+  ok(
+    'progress never runs past its own target',
+    lockedMarks.every((a) => !a.progress || a.progress.current <= a.progress.target),
+  )
+  ok(
+    'nor below zero',
+    lockedMarks.every((a) => !a.progress || a.progress.current >= 0),
+  )
+  ok(
+    'every bar says what it is counting',
+    lockedMarks.every((a) => !a.progress || a.progress.noun.length > 0),
+  )
+  const hundred = ahmedAchievements.find((a) => a.key === 'hundred_workouts')!
+  check('the 100-workout mark counts workouts', hundred.progress?.noun, 'workouts')
+  check('against a target of 100', hundred.progress?.target, 100)
+  check(
+    'and it is the same figure the unlock rule reads',
+    hundred.progress?.current,
+    await db.sessions.where('userId').equals('u_ahmed').filter((s) => s.status === 'completed').count(),
+  )
+  // A personal best either happened or it did not, so there is nothing
+  // part-way to show and nothing is invented.
+  const pr = ahmedAchievements.find((a) => a.key === 'first_pr')!
+  ok('a mark that cannot be part-done shows no bar', !pr.unlockedAt ? pr.progress === undefined : true)
 
   console.log('\n— Motivation rotates by the week —\n')
   const thisWeekVideo = await motivationService.featuredForWeek(today)
@@ -3320,7 +3442,14 @@ async function main() {
     !(await progressService.groupSnapshot(today)).some((m) => m.user.id === waiting!.id))
   ok('and so does the challenge board',
     !(await challengeService.progress(today))!.contributions.some((c) => c.userId === waiting!.id))
+  ok('they are not listed as sitting it out either',
+    !(await challengeService.progress(today))!.sittingOut.includes(waiting!.id))
   ok('and the story rail', !(await storyService.rings('u_ahmed')).some((r) => r.user.id === waiting!.id))
+  // One definition of "the group", used by every screen that shows it.
+  ok('the members list is what Group, Chat and Settings all read',
+    (await userService.listMembers()).every((m) => (m.status ?? 'approved') === 'approved'))
+  ok('a rejected account is not a member either',
+    !(await userService.listMembers()).some((m) => m.status === 'rejected'))
 
   console.log('\n— Only an admin decides, and the decision sticks —\n')
   await authService.signIn('nadia', DEMO_PASSWORD)

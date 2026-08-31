@@ -187,3 +187,15 @@
 .markLocked .markMeta {
   color: var(--ink-3);
 }
+
+/*
+ * The bar under a locked mark. Full width of the tile and pushed to the
+ * bottom, so a column of marks lines its bars up whether or not the titles
+ * ran to two lines.
+ */
+.markBar {
+  display: block;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 0.25rem;
+}
