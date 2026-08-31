@@ -12,6 +12,33 @@
 
 export type WorkoutAppId = 'home_workout' | 'lose_weight_men' | 'other'
 
+/** Matches the app's own `WorkoutKind`. Repeated, not imported: the server
+ *  shares no code with the browser bundle, and one enum in two places is
+ *  cheaper than a dependency between them. */
+export type ReadWorkoutKind = 'strength' | 'cardio' | 'general'
+
+/**
+ * One exercise line, as printed.
+ *
+ * Every number is optional and every one of them is either on the screen or
+ * absent — the same rule the session-level fields follow. A row that reads
+ * "Squats 3 x 12" yields sets and reps and nothing else; there is no third
+ * number to infer and none is invented.
+ *
+ * `kind` decides which numbers the review form asks about, and is derived from
+ * which ones were actually read rather than asked of the model, so it cannot
+ * disagree with the row it labels.
+ */
+export interface ReadExercise {
+  name: string
+  kind: 'strength' | 'cardio'
+  sets?: number
+  reps?: number
+  weightKg?: number
+  durationSec?: number
+  distanceKm?: number
+}
+
 /**
  * What was legible in the screenshot.
  *
@@ -38,6 +65,16 @@ export interface ReadWorkout {
   exerciseCount?: number
   /** A date printed on the screen, ISO yyyy-mm-dd, when there is one. */
   date?: string
+  /** What sort of session the screen describes, when it is evident. */
+  kind?: ReadWorkoutKind
+  /**
+   * The exercises the screen actually lists.
+   *
+   * Empty when the summary gives only totals, which is the common case — a
+   * finished-workout screen usually shows a name, a time and a calorie figure
+   * and nothing else. An empty list is a correct reading, not a failure.
+   */
+  exercises?: ReadExercise[]
 }
 
 export interface WorkoutVisionResult extends ReadWorkout {

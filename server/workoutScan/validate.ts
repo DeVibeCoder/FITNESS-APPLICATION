@@ -1,4 +1,9 @@
-import type { WorkoutAppId, WorkoutVisionResult } from './types.ts'
+import type {
+  ReadExercise,
+  ReadWorkoutKind,
+  WorkoutAppId,
+  WorkoutVisionResult,
+} from './types.ts'
 import { WorkoutScanFailure } from './types.ts'
 
 /**
@@ -20,6 +25,14 @@ const MAX_DURATION_SEC = 6 * 60 * 60
 const MAX_KCAL = 5000
 const MAX_EXERCISES = 60
 const MAX_DAY = 400
+const MAX_SETS = 50
+const MAX_REPS = 500
+const MAX_WEIGHT_KG = 500
+const MAX_DISTANCE_KM = 500
+/** Past this the model is transcribing a menu, not an exercise list. */
+const MAX_LISTED = 40
+
+const KINDS: ReadWorkoutKind[] = ['strength', 'cardio', 'general']
 
 function asString(value: unknown, max = 80): string | undefined {
   if (typeof value !== 'string') return undefined
@@ -104,6 +117,65 @@ const FIELDS = [
   'exerciseCount',
 ] as const
 
+function asKind(value: unknown): ReadWorkoutKind | undefined {
+  const raw = typeof value === 'string' ? value.trim().toLowerCase() : ''
+  return KINDS.find((kind) => kind === raw)
+}
+
+/**
+ * One exercise row, validated the same way everything else here is: coerced
+ * into range, and dropped rather than repaired when it will not coerce.
+ *
+ * A row with no name is discarded outright — an exercise the model could not
+ * name is not something the review form can usefully show. A row with a name
+ * and no numbers is kept, because "Squats" on its own is exactly what some
+ * summary screens print and the person can fill in the rest.
+ *
+ * `kind` is derived from what survived rather than believed from the model:
+ * a row carrying a distance is cardio whatever it was labelled, and one
+ * carrying reps is not.
+ */
+function asExercises(value: unknown): ReadExercise[] {
+  if (!Array.isArray(value)) return []
+  const rows: ReadExercise[] = []
+
+  for (const entry of value.slice(0, MAX_LISTED)) {
+    if (typeof entry !== 'object' || entry === null) continue
+    const source = entry as Record<string, unknown>
+    const name = asString(source.name, 60)
+    if (!name) continue
+
+    const sets = asNumber(source.sets, 1, MAX_SETS)
+    const reps = asNumber(source.reps, 1, MAX_REPS)
+    const weightKg = asNumber(source.weightKg, 0.5, MAX_WEIGHT_KG)
+    const durationSec = parseClock(source.durationSec ?? source.duration)
+    const distanceKm = asNumber(source.distanceKm, 0.01, MAX_DISTANCE_KM)
+
+    const cardio = durationSec !== undefined || distanceKm !== undefined
+    const strength = sets !== undefined || reps !== undefined || weightKg !== undefined
+
+    rows.push({
+      name,
+      // Both, or neither: fall back to what the model called it, then to
+      // strength, which is what an unlabelled list of movements usually is.
+      kind: cardio && !strength ? 'cardio' : strength ? 'strength' : asKind(source.kind) === 'cardio' ? 'cardio' : 'strength',
+      sets: sets === undefined ? undefined : Math.round(sets),
+      reps: reps === undefined ? undefined : Math.round(reps),
+      weightKg,
+      durationSec,
+      distanceKm,
+    })
+  }
+
+  // A row's numbers must belong to its own kind, or the review form would show
+  // a distance field holding a rep count.
+  return rows.map((row) =>
+    row.kind === 'cardio'
+      ? { ...row, sets: undefined, reps: undefined, weightKg: undefined }
+      : { ...row, durationSec: undefined, distanceKm: undefined },
+  )
+}
+
 export function validateWorkoutResult(raw: unknown): WorkoutVisionResult {
   if (typeof raw !== 'object' || raw === null) {
     throw new WorkoutScanFailure('unreadable_response', 'The analysis came back empty.')
@@ -128,9 +200,22 @@ export function validateWorkoutResult(raw: unknown): WorkoutVisionResult {
     caloriesKcal: asNumber(source.caloriesKcal, 1, MAX_KCAL),
     exerciseCount: asNumber(source.exerciseCount, 1, MAX_EXERCISES),
     date: /^\d{4}-\d{2}-\d{2}$/.test(String(source.date ?? '')) ? String(source.date) : undefined,
+    kind: asKind(source.kind),
+    exercises: asExercises(source.exercises),
     confidence: asNumber(source.confidence, 0, 1) ?? 0.4,
     notAWorkout: false,
     missing: [],
+  }
+
+  /*
+   * A listed exercise count beats a stated one.
+   *
+   * When the screen both states "8 exercises" and lists them, the list is the
+   * thing the review form will actually show, and a header that disagrees with
+   * it would leave the user looking at six rows under a label saying eight.
+   */
+  if (result.exercises && result.exercises.length > 0) {
+    result.exerciseCount = result.exercises.length
   }
 
   if (result.dayNumber !== undefined) result.dayNumber = Math.round(result.dayNumber)
@@ -149,6 +234,8 @@ export function validateWorkoutResult(raw: unknown): WorkoutVisionResult {
   // offered another go or the manual route, not asked to type everything into
   // a form that pretended to have scanned something.
   const read = FIELDS.length - result.missing.length
+  // A screen that listed exercises was read, whatever else it withheld.
+  if (read === 0 && (result.exercises?.length ?? 0) > 0) return result
   if (read === 0) {
     throw new WorkoutScanFailure(
       'no_workout_found',

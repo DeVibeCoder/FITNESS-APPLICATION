@@ -1,4 +1,4 @@
-import type { WorkoutSource } from '@/models'
+import type { ExerciseKind, WorkoutKind, WorkoutSource } from '@/models'
 import { prepareImageForUpload } from '@/lib/image'
 
 /**
@@ -19,6 +19,22 @@ import { prepareImageForUpload } from '@/lib/image'
  * The saved workout record contains structured fields only.
  */
 
+/**
+ * One exercise the screenshot listed.
+ *
+ * Shaped to drop straight into the manual log's own draft, so the review form
+ * is the manual form and there is no second editor to keep in step.
+ */
+export interface ScannedExercise {
+  name: string
+  kind: ExerciseKind
+  sets?: number
+  reps?: number
+  weightKg?: number
+  durationSec?: number
+  distanceKm?: number
+}
+
 export interface WorkoutScan {
   /** Which app the screenshot came from, when the chrome identified it. */
   app?: WorkoutSource
@@ -32,6 +48,10 @@ export interface WorkoutScan {
   exerciseCount?: number
   /** A date printed on the screen, yyyy-mm-dd. */
   date?: string
+  /** What sort of session the screen described, when it was evident. */
+  kind?: WorkoutKind
+  /** The exercises the screen listed. Empty is the common, correct answer. */
+  exercises: ScannedExercise[]
   /** 0–1, how legible the screenshot was. */
   confidence: number
   confidenceLevel: 'high' | 'medium' | 'low'
@@ -144,6 +164,8 @@ export const workoutScanService = {
       caloriesKcal: asCount(payload.caloriesKcal),
       exerciseCount: asCount(payload.exerciseCount),
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(payload.date ?? '')) ? String(payload.date) : undefined,
+      kind: asKind(payload.kind),
+      exercises: asExercises(payload.exercises),
       confidence: Number(payload.confidence) || 0,
       confidenceLevel: (payload.confidenceLevel as WorkoutScan['confidenceLevel']) ?? 'low',
       missing: Array.isArray(payload.missing) ? (payload.missing as string[]) : [],
@@ -154,6 +176,37 @@ export const workoutScanService = {
 }
 
 const SOURCES: WorkoutSource[] = ['home_workout', 'lose_weight_men', 'other']
+const KINDS: WorkoutKind[] = ['strength', 'cardio', 'general']
+
+function asKind(value: unknown): WorkoutKind | undefined {
+  return KINDS.find((kind) => kind === value)
+}
+
+/**
+ * The server has already validated these; this is the same defensive pass the
+ * rest of the file applies, because a response body is untrusted input on the
+ * way in whoever produced it.
+ */
+function asExercises(value: unknown): ScannedExercise[] {
+  if (!Array.isArray(value)) return []
+  return value.flatMap((entry): ScannedExercise[] => {
+    if (typeof entry !== 'object' || entry === null) return []
+    const row = entry as Record<string, unknown>
+    const name = asText(row.name)
+    if (!name) return []
+    return [
+      {
+        name,
+        kind: row.kind === 'cardio' ? 'cardio' : 'strength',
+        sets: asCount(row.sets),
+        reps: asCount(row.reps),
+        weightKg: asCount(row.weightKg),
+        durationSec: asCount(row.durationSec),
+        distanceKm: asCount(row.distanceKm),
+      },
+    ]
+  })
+}
 
 function asSource(value: unknown): WorkoutSource | undefined {
   return SOURCES.find((source) => source === value)

@@ -39,29 +39,33 @@ Rules, in order of importance:
 8. caloriesKcal: the number of calories the app reported. Just the number.
 9. exerciseCount: only when the screen states a count, or lists exercises you can count with certainty. Never guess from a plan name.
 10. date: only if a calendar date is printed on the screen, formatted yyyy-mm-dd.
-11. Set notAWorkout to true when the image is not a workout summary at all — a home screen, a menu, a photograph, a chat. Do not try to salvage a reading from it.
-12. missing: list the names of the fields you could not read.
+11. kind: "strength" when the screen is about sets and reps or named lifts, "cardio" when it is about a run, ride, swim, row or similar, "general" for anything else. Only when the screen makes it evident.
+12. exercises: transcribe the exercise list ONLY if the screenshot actually lists individual exercises. Most summary screens do not — they show a name, a time and a calorie figure, and for those the correct answer is an empty array. For each row give the name exactly as printed, and only the numbers printed beside it:
+    - "Squats 3 x 12" gives name "Squats", sets 3, reps 12. There is no weight on that line, so omit weightKg.
+    - "Bench press 4 x 8 @ 60kg" gives sets 4, reps 8, weightKg 60.
+    - "Treadmill 20:00 2.5 km" gives name "Treadmill", durationSec "20:00", distanceKm 2.5.
+    - A row with only a name and no numbers is still worth returning; give the name and omit every number.
+    Never split one exercise into several, never merge several into one, and never add an exercise that is not printed.
+13. Set notAWorkout to true when the image is not a workout summary at all — a home screen, a menu, a photograph, a chat. Do not try to salvage a reading from it.
+14. missing: list the names of the fields you could not read.
 
 confidence is 0 to 1 and reflects how legible the screenshot was. A blurry, cropped or partially obscured screen should score low even if you managed to read some of it.`
 
-const RESPONSE_SCHEMA = {
-  type: 'object',
-  properties: {
-    app: { type: 'string', enum: ['home_workout', 'lose_weight_men', 'other'] },
-    appName: { type: 'string' },
-    planName: { type: 'string' },
-    dayNumber: { type: 'number' },
-    workoutName: { type: 'string' },
-    durationSec: { type: 'string' },
-    caloriesKcal: { type: 'number' },
-    exerciseCount: { type: 'number' },
-    date: { type: 'string' },
-    confidence: { type: 'number' },
-    notAWorkout: { type: 'boolean' },
-    missing: { type: 'array', items: { type: 'string' } },
-  },
-  required: ['confidence', 'notAWorkout'],
-}
+/*
+ * There is deliberately no `response_schema`.
+ *
+ * Constraining the response to one made this model markedly *worse* at the
+ * job: on a summary screen printing "Day 12", "42:30", "318 kcal" and five
+ * exercises, it returned the plan name and reported everything else as
+ * unreadable — with a confidence of 1.0. The identical image and prompt
+ * without the schema returns every field correctly, exercises included.
+ *
+ * Nothing is lost by dropping it. `response_mime_type` still forces JSON, and
+ * the answer was never trusted anyway: `validateWorkoutResult` treats it as
+ * hostile input, coerces every field into range and discards whatever will not
+ * coerce. The schema was a second, weaker copy of a check we already do
+ * properly — and it was costing us the readings.
+ */
 
 interface GeminiResponse {
   candidates?: {
@@ -141,7 +145,6 @@ export class GeminiWorkoutVisionProvider implements WorkoutVisionProvider {
           ],
           generationConfig: {
             response_mime_type: 'application/json',
-            response_schema: RESPONSE_SCHEMA,
             // Transcription, not writing. Near-zero temperature keeps the same
             // screenshot returning the same reading.
             temperature: 0,

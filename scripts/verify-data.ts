@@ -4126,6 +4126,125 @@ async function main() {
   // The update the log posted is history; the seed's own rows are unaffected.
   await db.updates.filter((u) => u.dedupeKey === `workout:${manual.id}`).delete()
 
+  console.log('\n\u2014 Reading exercises off a screenshot \u2014\n')
+  const listed = validateWorkoutResult({
+    planName: 'Full Body',
+    durationSec: '42:00',
+    caloriesKcal: 320,
+    kind: 'strength',
+    exercises: [
+      { name: 'Squats', sets: 3, reps: 12 },
+      { name: 'Bench press', sets: 4, reps: 8, weightKg: 60 },
+      { name: 'Treadmill', durationSec: '20:00', distanceKm: 2.5 },
+      { name: 'Plank' },
+    ],
+    confidence: 0.9,
+  })
+  check('the session fields are read', [listed.planName, listed.durationSec, listed.caloriesKcal],
+    ['Full Body', 2520, 320])
+  check('every named row survives', listed.exercises!.length, 4)
+  check('sets and reps come through',
+    [listed.exercises![0].sets, listed.exercises![0].reps], [3, 12])
+  check('and a weight when the line carried one', listed.exercises![1].weightKg, 60)
+  check('a row with a time and a distance reads as cardio', listed.exercises![2].kind, 'cardio')
+  check('with its own numbers',
+    [listed.exercises![2].durationSec, listed.exercises![2].distanceKm], [1200, 2.5])
+  ok('and no sets or reps on it',
+    listed.exercises![2].sets === undefined && listed.exercises![2].reps === undefined)
+  ok('a bare name is kept, with nothing invented beside it',
+    listed.exercises![3].name === 'Plank' &&
+      listed.exercises![3].sets === undefined &&
+      listed.exercises![3].reps === undefined &&
+      listed.exercises![3].weightKg === undefined)
+  check('the count follows the list it was given', listed.exerciseCount, 4)
+
+  console.log('\n\u2014 Nothing absent is invented \u2014\n')
+  const sparse = validateWorkoutResult({
+    planName: 'Full Body',
+    durationSec: '42 min',
+    confidence: 0.8,
+  })
+  check('what was printed is read', [sparse.planName, sparse.durationSec], ['Full Body', 2520])
+  check('calories stay absent', sparse.caloriesKcal, undefined)
+  check('and are reported as missing', sparse.missing.includes('caloriesKcal'), true)
+  check('no exercises are conjured', sparse.exercises, [])
+  check('nor a count of them', sparse.exerciseCount, undefined)
+
+  console.log('\n\u2014 Doubtful rows are dropped, not repaired \u2014\n')
+  const messy = validateWorkoutResult({
+    planName: 'Full Body',
+    durationSec: '30:00',
+    exercises: [
+      { name: '', sets: 3, reps: 10 },
+      { name: 'n/a', sets: 3 },
+      { sets: 4, reps: 8 },
+      { name: 'Curls', sets: 999, reps: 12, weightKg: -5 },
+      'not an object',
+      { name: 'Rows', sets: 3, reps: 10 },
+    ],
+    confidence: 0.6,
+  })
+  check('only the usable rows survive', messy.exercises!.map((e) => e.name), ['Curls', 'Rows'])
+  check('an out-of-range set count is dropped', messy.exercises![0].sets, undefined)
+  check('and a negative weight with it', messy.exercises![0].weightKg, undefined)
+  ok('the row itself is kept, because its name was legible',
+    messy.exercises![0].name === 'Curls' && messy.exercises![0].reps === 12)
+
+  console.log('\n\u2014 An unreadable screenshot is a failure, not a blank form \u2014\n')
+  let refusedBlankRead = false
+  try {
+    validateWorkoutResult({ confidence: 0.9 })
+  } catch (error) {
+    refusedBlankRead = error instanceof WorkoutScanFailure && error.code === 'no_workout_found'
+  }
+  ok('nothing legible is refused', refusedBlankRead)
+  let refusedNonWorkout = false
+  try {
+    validateWorkoutResult({ notAWorkout: true, confidence: 0.9 })
+  } catch (error) {
+    refusedNonWorkout = error instanceof WorkoutScanFailure && error.code === 'no_workout_found'
+  }
+  ok('and so is a photo of something else', refusedNonWorkout)
+  ok('but a screen that listed only exercises is a reading',
+    validateWorkoutResult({
+      exercises: [{ name: 'Squats', sets: 3, reps: 12 }],
+      confidence: 0.7,
+    }).exercises!.length === 1)
+
+  console.log('\n\u2014 An imported workout is an ordinary workout \u2014\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const importedBefore = await db.sessions.count()
+  const imported = await workoutService.logManual({
+    userId: 'u_ahmed',
+    date: today,
+    kind: listed.kind ?? 'general',
+    name: listed.planName ?? 'Workout',
+    durationSec: listed.durationSec ?? 0,
+    caloriesKcal: listed.caloriesKcal,
+    exercises: listed.exercises!.map((row) => ({
+      name: row.name,
+      kind: row.kind,
+      sets: row.sets,
+      reps: row.reps,
+      weightKg: row.weightKg,
+      durationSec: row.durationSec,
+      distanceKm: row.distanceKm,
+    })),
+  })
+  check('it is the same kind of record a typed one is', imported.loggedVia, 'manual')
+  check('with the calories the screen printed', imported.caloriesKcal, 320)
+  check('and the exercises it listed', (await workoutService.exercisesFor(imported.id)).length, 4)
+  check('exactly one session was created', await db.sessions.count(), importedBefore + 1)
+  ok('it counts toward the day', await workoutService.completedOn('u_ahmed', today))
+  await expectOwnershipRefusal('Nadia cannot import onto Ahmed', () =>
+    workoutService.logManual({
+      userId: 'u_ahmed', date: today, kind: 'general', name: 'Nope', durationSec: 60, exercises: [],
+    }))
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  await workoutService.removeSession(imported.id)
+  check('and deleting it leaves the history as it was', await db.sessions.count(), importedBefore)
+  await db.updates.filter((u) => u.dedupeKey === `workout:${imported.id}`).delete()
+
   console.log('\n— Nothing was lost in the reorganisation —\n')
   ok('workouts intact', (await db.sessions.count()) > 20)
   ok('weigh-ins intact', (await db.weights.count()) > 20)

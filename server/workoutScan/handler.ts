@@ -128,6 +128,10 @@ export async function runWorkoutScan(
     caloriesKcal: read.caloriesKcal,
     exerciseCount: read.exerciseCount,
     date: read.date,
+    kind: read.kind,
+    // Always an array, so the browser never has to distinguish "no exercises
+    // on the screen" from "the field was left off the response".
+    exercises: read.exercises ?? [],
     confidence: Math.round(read.confidence * 100) / 100,
     confidenceLevel: legibility(read.confidence),
     missing: read.missing,

@@ -19,7 +19,26 @@ import { summarise } from './exerciseSummary'
 import styles from './ManualWorkoutForm.module.css'
 
 /** One exercise as it is being edited, before it has an id. */
-type Draft = Omit<LoggedExercise, 'id' | 'sessionId' | 'order'>
+export type Draft = Omit<LoggedExercise, 'id' | 'sessionId' | 'order'>
+
+/**
+ * A workout somebody else worked out, handed over to be checked.
+ *
+ * Screenshot import fills this in and lets this form do the rest, which is the
+ * point: there is one editor, one review step and one save path, so an
+ * imported workout cannot drift from a typed one. Every field is optional
+ * because a screenshot may have shown any subset of them, and an absent field
+ * has to arrive blank rather than as a zero somebody has to notice and undo.
+ */
+export interface WorkoutDraft {
+  kind?: WorkoutKind
+  name?: string
+  date?: string
+  durationSec?: number
+  caloriesKcal?: number
+  note?: string
+  exercises?: Draft[]
+}
 
 const KINDS: { value: WorkoutKind; label: string; icon: typeof Dumbbell; hint: string }[] = [
   { value: 'strength', label: 'Strength', icon: Dumbbell, hint: 'Sets and reps' },
@@ -62,25 +81,47 @@ const blankExercise = (kind: ExerciseKind): Draft => ({ name: '', kind })
  */
 export function ManualWorkoutForm({
   session,
+  draft,
+  onStep,
   onDone,
 }: {
   /** Editing an existing hand-written log rather than starting a new one. */
   session?: WorkoutSession
+  /**
+   * Values to start from — what a screenshot was read as. Never saved without
+   * being seen: this only fills the form the person is about to check.
+   */
+  draft?: WorkoutDraft
+  /**
+   * Which step the form is on. Screenshot import listens so it can put the
+   * picture away for the final summary — that step is meant to be the whole
+   * workout at a glance, and a screenshot above it is one more thing between
+   * the reader and the thing they are confirming.
+   */
+  onStep?: (step: 'details' | 'review') => void
   onDone: () => void
 }) {
   const { user } = useAuth()
   const { show, guard } = useToast()
 
   const [step, setStep] = useState<'details' | 'review'>('details')
-  const [kind, setKind] = useState<WorkoutKind>(session?.kind ?? 'strength')
-  const [name, setName] = useState(session?.name ?? '')
-  const [date, setDate] = useState(session?.date ?? todayKey())
+  useEffect(() => onStep?.(step), [step, onStep])
+  const [kind, setKind] = useState<WorkoutKind>(session?.kind ?? draft?.kind ?? 'strength')
+  const [name, setName] = useState(session?.name ?? draft?.name ?? '')
+  const [date, setDate] = useState(session?.date ?? draft?.date ?? todayKey())
   const [durationText, setDurationText] = useState(
-    session ? duration(session.durationSec) : '',
+    session
+      ? duration(session.durationSec)
+      : draft?.durationSec
+        ? duration(draft.durationSec)
+        : '',
+  )
+  const [calories, setCalories] = useState(
+    session?.caloriesKcal ? String(session.caloriesKcal) : draft?.caloriesKcal ? String(draft.caloriesKcal) : '',
   )
   const [difficulty, setDifficulty] = useState<Difficulty>(session?.difficulty ?? 'just_right')
-  const [note, setNote] = useState(session?.note ?? '')
-  const [exercises, setExercises] = useState<Draft[]>([])
+  const [note, setNote] = useState(session?.note ?? draft?.note ?? '')
+  const [exercises, setExercises] = useState<Draft[]>(session ? [] : (draft?.exercises ?? []))
   const [editingAt, setEditingAt] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(!session)
@@ -142,6 +183,7 @@ export function ManualWorkoutForm({
         kind,
         name,
         durationSec,
+        caloriesKcal: Number.parseFloat(calories) || 0,
         difficulty,
         note,
         exercises: named,
@@ -168,6 +210,7 @@ export function ManualWorkoutForm({
           <p className={styles.reviewMeta}>
             {KINDS.find((k) => k.value === kind)!.label}
             {durationSec > 0 ? ` · ${duration(durationSec)}` : ''}
+            {Number.parseFloat(calories) > 0 ? ` · ${Number.parseFloat(calories)} kcal` : ''}
           </p>
 
           {named.length > 0 ? (
@@ -244,14 +287,31 @@ export function ManualWorkoutForm({
         />
       </div>
 
-      <Field
-        label="How long"
-        value={durationText}
-        inputMode="numeric"
-        placeholder="45:00"
-        hint="Minutes, or mm:ss."
-        onChange={(event) => setDurationText(event.target.value)}
-      />
+      <div className={styles.pair}>
+        <Field
+          label="How long"
+          value={durationText}
+          inputMode="numeric"
+          placeholder="45:00"
+          hint="Minutes, or mm:ss."
+          onChange={(event) => setDurationText(event.target.value)}
+        />
+        {/*
+          Optional, and blank by default. A hand-written log has no honest
+          calorie figure to offer; an imported one has whatever the other app
+          printed, and nothing when it printed nothing.
+        */}
+        <Field
+          label="Calories"
+          type="number"
+          inputMode="numeric"
+          min={0}
+          suffix="kcal"
+          value={calories}
+          placeholder="—"
+          onChange={(event) => setCalories(event.target.value)}
+        />
+      </div>
 
       {/* --- Exercises -------------------------------------------------- */}
       <section className={styles.exercises}>

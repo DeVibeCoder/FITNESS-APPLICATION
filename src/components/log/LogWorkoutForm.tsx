@@ -16,12 +16,13 @@ import {
 } from '@/services/workoutScanService'
 import { WORKOUT_APPS } from '@/data/workoutApps'
 import { ManualWorkoutForm } from './ManualWorkoutForm'
+import { WorkoutImportFlow } from './WorkoutImportFlow'
 import type { Difficulty, WorkoutSession, WorkoutSource } from '@/models'
 import { todayKey } from '@/utils/date'
 import { duration, parseDuration } from '@/utils/format'
 import styles from './LogWorkoutForm.module.css'
 
-type Stage = 'choose' | 'analyzing' | 'failed' | 'form' | 'manual'
+type Stage = 'choose' | 'analyzing' | 'failed' | 'form' | 'manual' | 'import'
 
 /** Field names as the server reports them, and what to call them out loud. */
 const FIELD_LABEL: Record<string, string> = {
@@ -314,7 +315,7 @@ export function LogWorkoutForm({
           size="lg"
           block
           icon={<ImageUp size={16} strokeWidth={2.2} />}
-          onClick={() => fileInput.current?.click()}
+          onClick={() => setStage('import')}
         >
           Add from a screenshot
         </Button>
@@ -328,8 +329,6 @@ export function LogWorkoutForm({
           </p>
         </div>
 
-        {hiddenInput}
-
         <ul className={styles.apps2}>
           {WORKOUT_APPS.filter((app) => app.value !== 'other').map((app) => (
             <li key={app.value}>{app.label}</li>
@@ -342,6 +341,16 @@ export function LogWorkoutForm({
           Your screenshot is sent for reading and then discarded. It is never saved — only the
           workout details you confirm are kept.
         </p>
+      </>
+    )
+  }
+
+  // --- Reading a screenshot --------------------------------------------------
+  if (stage === 'import') {
+    return (
+      <>
+        {subScreen ? <StageBack onBack={() => setStage('choose')} /> : null}
+        <WorkoutImportFlow onDone={onDone} onCancel={() => setStage('choose')} />
       </>
     )
   }
