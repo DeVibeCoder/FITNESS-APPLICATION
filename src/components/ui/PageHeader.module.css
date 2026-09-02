@@ -95,8 +95,8 @@
 .parent {
   display: inline-flex;
   align-items: center;
-  min-height: 30px;
-  margin-block: -6px;
+  min-height: 32px;
+  margin-block: -7px;
   font-size: var(--t-micro);
   font-weight: 750;
   letter-spacing: 0.07em;

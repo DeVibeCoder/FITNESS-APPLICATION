@@ -260,6 +260,8 @@ export function WorkoutImportFlow({
   if (stage === 'reading') {
     return (
       <>
+        {/* Back puts the picture down and stops the reading with it. */}
+        <PictureBack onBack={clear} />
         {picture}
         {tools}
         <div className={styles.working}>
@@ -282,6 +284,8 @@ export function WorkoutImportFlow({
   if (stage === 'failed') {
     return (
       <>
+        {/* The picture is still a rung: Back puts it down, it does not leave. */}
+        <PictureBack onBack={clear} />
         {picture}
         <div className={styles.failed}>
           <span className={styles.failedIcon} aria-hidden="true">
@@ -328,7 +332,7 @@ export function WorkoutImportFlow({
   return (
     <>
       {/* Back from the review returns to the picture, not out of the flow. */}
-      <ReviewBack onBack={clear} />
+      <PictureBack onBack={clear} />
 
       {formStep === 'details' ? picture : null}
       {formStep === 'details' ? tools : null}
@@ -388,10 +392,17 @@ function ReadingSummary({ scan }: { scan: WorkoutScan }) {
 }
 
 /**
- * One history entry for the review step, so Back returns to the picture rather
- * than closing the whole sheet. Renders nothing; its lifetime is the feature.
+ * One history entry for as long as a picture is in hand.
+ *
+ * It used to exist only on the review screen, which meant Back while the
+ * screenshot was being read — or while the failure was on screen — unwound the
+ * whole import flow in one press and took the picture with it. A picture is a
+ * rung of its own: Back puts it down and returns to the two ways of choosing
+ * one, and the press after that leaves the flow.
+ *
+ * Renders nothing; its lifetime is the feature.
  */
-function ReviewBack({ onBack }: { onBack: () => void }) {
+function PictureBack({ onBack }: { onBack: () => void }) {
   useHistoryDismiss(onBack)
   return null
 }

@@ -49,6 +49,13 @@ header.bar {
   display: grid;
   place-items: center;
   flex: none;
+  /*
+   * The mark stays 30px; the box it sits in becomes a finger. It is the way
+   * home from every screen in the app and was the smallest target in the bar.
+   * The header's height is fixed, so nothing moves.
+   */
+  min-width: 40px;
+  min-height: 40px;
 }
 
 .title {

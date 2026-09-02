@@ -72,7 +72,15 @@
 
 .action {
   align-self: flex-start;
-  margin-top: var(--s-2);
+  /*
+   * The link keeps its size and its place; only what a thumb has to hit grows,
+   * and the negative margin hands the extra back to the bubble.
+   */
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-top: 0;
+  margin-block-end: -6px;
   padding: var(--s-1) 0;
   font-size: var(--t-small);
   font-weight: 640;

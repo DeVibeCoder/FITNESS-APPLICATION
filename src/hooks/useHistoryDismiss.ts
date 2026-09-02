@@ -57,12 +57,40 @@ let selfPops = 0
  */
 const accountedFor = new WeakSet<Event>()
 
+/**
+ * The one listener that owns the credit above.
+ *
+ * The counter used to be spent by whichever overlay listener happened to hear
+ * the pop — and if the overlay that caused it was the last one open, there was
+ * no listener left to hear anything. The credit then sat there unspent, and
+ * the *next* real Back was swallowed as "ours": open a sheet, close it, open a
+ * photo, press Back, and the photo stayed on screen.
+ *
+ * So the accounting belongs to the module, not to whoever happens to be
+ * mounted. This listener is attached once, before any overlay's, and is
+ * therefore always the first to see a pop: it spends the credit, marks the
+ * event, and every overlay listener after it agrees about what that pop was.
+ */
+let bookkeeping = false
+
+function keepBooks(): void {
+  if (bookkeeping || typeof window === 'undefined') return
+  bookkeeping = true
+  window.addEventListener('popstate', (event) => {
+    if (selfPops > 0) {
+      selfPops--
+      accountedFor.add(event)
+    }
+  })
+}
+
 export function useHistoryDismiss(onDismiss: () => void): void {
   const dismiss = useRef(onDismiss)
   dismiss.current = onDismiss
 
   useEffect(() => {
     if (typeof window === 'undefined') return
+    keepBooks()
 
     const token = Symbol('overlay')
     /*
@@ -89,15 +117,8 @@ export function useHistoryDismiss(onDismiss: () => void): void {
     })
 
     const onPopState = (event: PopStateEvent) => {
-      // Already recognised as ours by whichever listener heard it first.
+      // The bookkeeper above has already decided whether this pop was ours.
       if (accountedFor.has(event)) return
-      // A pop this module asked for, not one the user made. Swallow it, and
-      // say so on the event so the listeners after this one agree.
-      if (selfPops > 0) {
-        selfPops--
-        accountedFor.add(event)
-        return
-      }
       // Somebody is above us; the Back belongs to them.
       if (stack[stack.length - 1] !== token) return
       stack.pop()
@@ -115,8 +136,9 @@ export function useHistoryDismiss(onDismiss: () => void): void {
       if (at !== -1) stack.splice(at, 1)
       // Closed by something other than Back, so the entry is still there and
       // has to come off — otherwise Back would first undo an overlay that is
-      // already gone. The counter tells the remaining listeners that the pop
-      // this causes is ours and not a gesture.
+      // already gone. The counter tells the bookkeeper that the pop this
+      // causes is ours and not a gesture, and the bookkeeper is still
+      // listening even when this was the last overlay open.
       if (pushed) {
         selfPops++
         window.history.back()

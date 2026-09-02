@@ -2230,6 +2230,64 @@ async function main() {
   ok('no fake percentage anywhere in the scanner',
     !/progress\s*=\s*[0-9]/.test(scannerSource16) && !scannerSource16.includes('setProgress'))
 
+  // ---------------------------------------------------------------------
+  // Phase 17 — two bugs found by walking the app, and the shapes that stop
+  // them coming back.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A pop this module caused is always accounted for —\n')
+  const dismissSource = await readFile(
+    new URL('../src/hooks/useHistoryDismiss.ts', import.meta.url), 'utf8')
+  /*
+   * The bug: closing an overlay pops the entry it pushed, and the credit for
+   * that pop used to be spent by whichever overlay listener heard it. When the
+   * overlay that closed was the last one open there was no listener left, the
+   * credit sat there unspent, and the next real Back was swallowed as "ours" —
+   * open a sheet, close it, open a photo, press Back, and the photo stayed.
+   */
+  ok('the credit is owned by a listener of the module, not of an overlay',
+    dismissSource.includes('function keepBooks()') &&
+      dismissSource.includes("window.addEventListener('popstate'"))
+  ok('that listener is attached before any overlay listener',
+    dismissSource.indexOf('keepBooks()') < dismissSource.indexOf("window.addEventListener('popstate', onPopState)"))
+  ok('and it is attached once, however many overlays open',
+    dismissSource.includes('if (bookkeeping') && dismissSource.includes('bookkeeping = true'))
+  ok('an overlay listener now only reads the verdict',
+    dismissSource.includes('if (accountedFor.has(event)) return') &&
+      !/onPopState[^]*selfPops--/.test(dismissSource))
+  ok('a pop is still marked so every listener agrees about it',
+    dismissSource.includes('accountedFor.add(event)'))
+
+  console.log('\n— A picture in hand is a rung of its own —\n')
+  const importSource17 = await readFile(
+    new URL('../src/components/log/WorkoutImportFlow.tsx', import.meta.url), 'utf8')
+  /*
+   * The second bug: only the review screen held a history entry, so Back while
+   * the screenshot was being read — or while the failure was on screen — threw
+   * the picture away and unwound the whole flow in one press.
+   */
+  ok('the rung is mounted for every stage that holds a picture',
+    (importSource17.match(/<PictureBack onBack=\{clear\} \/>/g) ?? []).length === 3,
+    `${(importSource17.match(/<PictureBack/g) ?? []).length} mounts`)
+  for (const stage of ["stage === 'reading'", "stage === 'failed'"]) {
+    const from = importSource17.indexOf(`if (${stage})`)
+    const to = importSource17.indexOf('// ---', from + 10)
+    ok(`${stage.replace('stage === ', '')} carries it`,
+      importSource17.slice(from, to).includes('<PictureBack'))
+  }
+  ok('and putting the picture down is what Back does there',
+    importSource17.includes('function PictureBack') && importSource17.includes('useHistoryDismiss(onBack)'))
+
+  console.log('\n— Small controls carry a finger, without growing —\n')
+  const cardCss = await readFile(new URL('../src/components/ui/Card.module.css', import.meta.url), 'utf8')
+  const headerCss = await readFile(new URL('../src/components/ui/PageHeader.module.css', import.meta.url), 'utf8')
+  const railCss = await readFile(new URL('../src/components/social/StoriesRail.module.css', import.meta.url), 'utf8')
+  ok('a section action is at least 32px tall', /\.sectionHead > a,[^}]*min-height: 32px/s.test(cardCss))
+  ok('and gives the height back so the layout does not move', /\.sectionHead > a,[^}]*margin-block: -6px/s.test(cardCss))
+  ok('the breadcrumb is a finger tall too', /\.parent \{[^}]*min-height: 32px/s.test(headerCss))
+  ok('and the story badge keeps its size while catching a wider press',
+    railCss.includes('.plus::after') && /\.plus::after \{[^}]*inset: -10px/s.test(railCss))
+
   console.log('\n— Card images are presentation, not data —\n')
 
   const cardImageSource = await readFile(

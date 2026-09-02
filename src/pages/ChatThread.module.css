@@ -148,6 +148,8 @@
   text-align: left;
   border-radius: var(--r);
   transition: background-color var(--fast) var(--ease);
+  /* A whole-width control in the header, and a pixel short of a finger. */
+  min-height: 36px;
 }
 
 .who:hover {
