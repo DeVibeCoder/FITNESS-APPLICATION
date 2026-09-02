@@ -75,12 +75,69 @@
   color: var(--ink-3);
 }
 
-.preview {
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  object-fit: cover;
+/* --- The photo ---
+   Fitted rather than cropped: a plate photographed in portrait must not be
+   sliced into a 4:3 letterbox before anybody has judged whether it is the
+   right picture. */
+.shot {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.shotImage {
+  display: block;
+  max-width: 100%;
+  max-height: min(34vh, 18rem);
+  width: auto;
+  height: auto;
   border-radius: var(--r-lg);
+  border: 1px solid var(--line);
   background: var(--bg-sunk);
+}
+
+.shotTools {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-2);
+}
+
+.shotTool {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 32px;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-pill);
+  background: var(--bg-sunk);
+  border: 1px solid var(--line);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  white-space: nowrap;
+  transition:
+    border-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+}
+
+.shotTool:hover {
+  border-color: var(--accent);
+  color: var(--ink);
+}
+
+.shotToolDanger {
+  color: var(--danger);
+}
+
+.shotToolDanger:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* The input is never seen; the buttons in front of it are. */
+.file {
+  display: none;
 }
 
 .analyzing {

@@ -1562,6 +1562,92 @@ async function main() {
   ok('no blob, buffer, data URI or base64 payload in any table', imageLeaks.length === 0,
     imageLeaks.join('; ') || 'swept every row of every table')
   check('the photos table is still empty', await db.photos.count(), 0)
+
+  // ---------------------------------------------------------------------
+  // Phase 13 — nutrition as a page of Activity, and a camera that is a
+  // camera. The claims under test are the two that a screenshot cannot
+  // settle: which route the photo actually comes from, and whether the
+  // picture survives a failed reading.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Nutrition belongs to Activity —\n')
+  const appSource = await readFile(new URL('../src/App.tsx', import.meta.url), 'utf8')
+  ok('nutrition is nested under the activity path',
+    appSource.includes('path="activity/nutrition"'))
+  ok('and the old top-level path still redirects there',
+    appSource.includes('path="nutrition"') && appSource.includes('to="/activity/nutrition"'))
+  const navSource = await readFile(
+    new URL('../src/components/nav/BottomNav.tsx', import.meta.url), 'utf8')
+  ok("the Activity tab matches its children, so it stays lit on the nutrition page",
+    /\{ to: '\/activity', label: 'Activity', icon: Activity, end: false \}/.test(navSource))
+  const nutritionPage = await readFile(
+    new URL('../src/pages/Nutrition.tsx', import.meta.url), 'utf8')
+  ok('the page says which section it is inside, and back goes there',
+    nutritionPage.includes("parent={{ label: 'Activity', to: '/activity' }}"))
+
+  console.log('\n— The Activity summary is one nutrition section —\n')
+  const activitySource = await readFile(new URL('../src/pages/Activity.tsx', import.meta.url), 'utf8')
+  check('exactly one link into the nutrition page',
+    (activitySource.match(/to="\/activity\/nutrition"/g) ?? []).length, 1)
+  check('and one section titled Nutrition',
+    (activitySource.match(/title="Nutrition"/g) ?? []).length, 1)
+  const fuelSource = await readFile(
+    new URL('../src/components/home/FuelCard.tsx', import.meta.url), 'utf8')
+  for (const shown of ['Calories', 'Protein', 'Water']) {
+    ok(`the summary shows ${shown.toLowerCase()}`, fuelSource.includes(shown))
+  }
+  ok('protein is measured against the live energy plan, not a stored copy',
+    fuelSource.includes('snapshot.energy.macros.proteinG'))
+  ok('the detailed water controls live on the nutrition page',
+    fuelSource.includes('to="/activity/nutrition"') && !fuelSource.includes("open('water')"))
+
+  console.log('\n— Take a photo opens the camera —\n')
+  const scannerSource = await readFile(
+    new URL('../src/components/nutrition/FoodScanner.tsx', import.meta.url), 'utf8')
+  ok('the scanner opens the real camera component',
+    scannerSource.includes("from '@/components/social/CameraCapture'") &&
+      scannerSource.includes('<CameraCapture'))
+  ok('and never dresses a file picker up as one',
+    !/capture=/.test(scannerSource))
+  const sheetSource = await readFile(
+    new URL('../src/components/nutrition/AddFoodSheet.tsx', import.meta.url), 'utf8')
+  for (const route of ['Take a food photo', 'Choose from device', 'Enter it manually']) {
+    ok(`the chooser offers "${route}"`, sheetSource.includes(route))
+  }
+  ok('choosing the camera starts the scanner in the camera',
+    sheetSource.includes("startScan('camera')") && sheetSource.includes("startScan('library')"))
+
+  console.log('\n— The picture survives a failed scan —\n')
+  const failedBranch = scannerSource.slice(
+    scannerSource.indexOf("if (stage === 'failed')"),
+    scannerSource.indexOf('// --- Review'),
+  )
+  ok('the failure screen still shows the photo', failedBranch.includes('{picture}'))
+  ok('and offers a retry', failedBranch.includes('Try again'))
+  ok('and a way to type the meal in instead', failedBranch.includes('Enter food manually'))
+  ok('and retake, replace or remove', failedBranch.includes('{tools}'))
+  ok('a failure is never replaced with sample food',
+    !/sample|example meal|placeholder food/i.test(failedBranch))
+
+  console.log('\n— The review list is the source of truth —\n')
+  const reviewItems = steakScan.items.map((item, index) => ({ ...item, id: `r${index}` }))
+  const reviewBase = scanTotals(reviewItems)
+  const withExtra = scanTotals([
+    ...reviewItems,
+    { ...reviewItems[0], id: 'manual_1', name: 'Olive oil', kcal: 120, proteinG: 0, carbsG: 0, fatG: 14 },
+  ])
+  check('adding a line by hand raises the total', withExtra.kcal, reviewBase.kcal + 120)
+  check('and its fat with it', withExtra.fatG, reviewBase.fatG + 14)
+  const withoutFirst = scanTotals(reviewItems.slice(1))
+  check('removing a detected food lowers it again',
+    withoutFirst.kcal, reviewBase.kcal - reviewItems[0].kcal)
+  ok('the scanner recomputes totals from the list rather than the response',
+    scannerSource.includes('const totals = scanTotals(items)'))
+  ok('and can add a line the photo did not show',
+    scannerSource.includes('Add another food') && scannerSource.includes('blankItem()'))
+  ok('a hand-added line is saved as a manual entry, not as photo evidence',
+    scannerSource.includes("source: item.manual ? 'manual' : 'photo'"))
+
   authService.signOut()
   await resetDatabase()
 

@@ -123,12 +123,13 @@ export function Activity() {
       </Section>
 
       {/*
-        One card for calories and water, and one way into the detail. There
-        used to be two sections here — "Calories & water" and "Nutrition" —
-        both ending in a link called Details that went to the same screen.
+        One nutrition section, and one way into the detail. There used to be
+        two here — "Calories & water" and "Nutrition" — both ending in a link
+        called Details that went to the same screen. Calories, protein and
+        water are one subject at a glance; the meals behind them are a page.
       */}
       <Section
-        title="Calories & water"
+        title="Nutrition"
         action={
           snapshot.nutrition.kcal > 0 || snapshot.waterMl > 0 ? (
             <ShareAction

@@ -1,6 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertTriangle, Camera, ImageUp, Info, PencilLine, RefreshCw, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Camera,
+  ImageUp,
+  Info,
+  PencilLine,
+  Plus,
+  RefreshCw,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CameraCapture } from '@/components/social/CameraCapture'
 import { Field, SelectField } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
@@ -16,16 +26,67 @@ import styles from './FoodScanner.module.css'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'failed'
 
+/** Where this flow opens: the chooser, the camera, or the device's picker. */
+export type ScanStart = 'choose' | 'camera' | 'library'
+
+/**
+ * A row on the review list.
+ *
+ * `manual` marks a line the person added themselves, so it is never dressed up
+ * with a confidence score the model never gave — nothing on this screen may
+ * claim the photograph said something it did not.
+ */
+type ReviewItem = ScanItem & { manual?: boolean }
+
+let manualCounter = 0
+
+function blankItem(): ReviewItem {
+  return {
+    id: `manual_${++manualCounter}`,
+    name: '',
+    quantity: 100,
+    unit: 'g',
+    kcal: 0,
+    proteinG: 0,
+    carbsG: 0,
+    fatG: 0,
+    confidence: 0,
+    confidenceLevel: 'high',
+    alternatives: [],
+    nutritionFrom: 'none',
+    fromDatabase: false,
+    manual: true,
+  }
+}
+
 /**
  * Photo → analysis → correct → save.
  *
- * The photo is sent to our own endpoint for analysis and held locally only as
- * an object URL while the review is on screen. Confirming saves numbers only.
+ * Three rules, the same three the workout screenshot reader follows:
  *
- * When analysis fails, this shows the failure. It never substitutes example
- * food for the food in the photograph.
+ *   The picture appears immediately. "Take a photo" opens the camera itself
+ *   through `getUserMedia` rather than a file input wearing a camera label,
+ *   and what it hands back is on screen before any analysis is attempted.
+ *
+ *   The picture survives failure. Every unhappy path keeps it visible and
+ *   offers a way forward — try again, retake, or type the meal in.
+ *
+ *   Nothing is written until Add. The photo is an object URL for as long as
+ *   this component is mounted and is released on confirm, cancel, retake and
+ *   unmount. Only the numbers somebody has reviewed are ever stored.
  */
-export function FoodScanner({ date, onDone }: { date?: string; onDone: () => void }) {
+export function FoodScanner({
+  date,
+  onDone,
+  onManual,
+  start = 'choose',
+}: {
+  date?: string
+  onDone: () => void
+  /** Hands the flow to the manual form, keeping one food form in the app. */
+  onManual?: () => void
+  start?: ScanStart
+}) {
   const { user } = useAuth()
   const { show, guard } = useToast()
   const preview = useTempImage()
@@ -34,14 +95,27 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
   const lastFile = useRef<File | null>(null)
 
   const [stage, setStage] = useState<Stage>('choose')
+  const [cameraOpen, setCameraOpen] = useState(start === 'camera')
   const [result, setResult] = useState<ScanResult | null>(null)
-  const [items, setItems] = useState<ScanItem[]>([])
+  const [items, setItems] = useState<ReviewItem[]>([])
   const [meal, setMeal] = useState<MealSlot>('lunch')
   const [failure, setFailure] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [saving, setSaving] = useState(false)
   const [slow, setSlow] = useState(false)
 
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  /*
+   * Opening straight into the device's picker.
+   *
+   * The tap that chose "Choose from device" is still the current user
+   * gesture when this effect runs, which is what lets the input open. If a
+   * browser refuses, the chooser is already on screen behind it — a blocked
+   * picker costs one more tap rather than stranding anybody.
+   */
+  useEffect(() => {
+    if (start === 'library') inputRef.current?.click()
+  }, [start])
 
   // The server may quietly retry a stalled call. The browser cannot observe
   // that, so rather than claim a retry we simply stop pretending it is quick.
@@ -93,13 +167,13 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
         message: error instanceof ScanError ? error.message : 'Food analysis is temporarily unavailable.',
         canRetry: error instanceof ScanError ? error.canRetry : true,
       })
+      // Deliberately not 'choose': the photo stays, and so does the way out.
       setStage('failed')
     }
   }
 
-  const onPick = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    event.target.value = ''
+  /** Accepts a photo from either route: shows it, then reads it. */
+  const accept = (file: File | undefined) => {
     if (!file) return // Picker cancelled — nothing to clean up.
 
     try {
@@ -114,10 +188,19 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
     void analyze(file)
   }
 
-  const patch = (id: string, changes: Partial<ScanItem>) =>
+  const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    // Reset, so choosing the same file twice in a row still fires.
+    event.target.value = ''
+    accept(file)
+  }
+
+  const patch = (id: string, changes: Partial<ReviewItem>) =>
     setItems((current) => current.map((item) => (item.id === id ? { ...item, ...changes } : item)))
 
   const drop = (id: string) => setItems((current) => current.filter((item) => item.id !== id))
+
+  const addItem = () => setItems((current) => [...current, blankItem()])
 
   // The list is the source of truth: the headline can never disagree with it.
   const totals = scanTotals(items)
@@ -142,12 +225,18 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
           proteinG: Math.round(item.proteinG),
           carbsG: Math.round(item.carbsG),
           fatG: Math.round(item.fatG),
-          source: 'photo',
+          // A line typed on the review screen is a manual entry, whatever
+          // started the flow.
+          source: item.manual ? 'manual' : 'photo',
         })
       }
+      // `guard` says "it failed" with `undefined`, so success has to say
+      // something. Without this the meal saved and the sheet stayed open with
+      // the photo still held.
+      return true
     })
     setSaving(false)
-    if (saved !== undefined) {
+    if (saved) {
       preview.release()
       show(`Added ${items.length} ${items.length === 1 ? 'item' : 'items'}.`, 'success')
       onDone()
@@ -159,18 +248,75 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
     onDone()
   }
 
+  /** The photo, at the size it deserves — never cropped to a thumbnail. */
+  const picture = preview.url ? (
+    <figure className={styles.shot}>
+      <img src={preview.url} alt="The meal you photographed" className={styles.shotImage} />
+    </figure>
+  ) : null
+
+  const fileField = (
+    <input
+      ref={inputRef}
+      type="file"
+      accept={foodScanService.accept}
+      className={styles.file}
+      onChange={onPick}
+      aria-label="Choose a food photo"
+    />
+  )
+
+  const cameraSheet = cameraOpen ? (
+    <CameraCapture
+      /* Stills only: a video of a plate is a worse photograph of it. */
+      allowVideo={false}
+      onCapture={(captured) => {
+        setCameraOpen(false)
+        accept(captured)
+      }}
+      onClose={() => {
+        setCameraOpen(false)
+        // Backing out of a camera that was opened directly leaves the chooser
+        // rather than an empty screen.
+        if (stage === 'choose') setStage('choose')
+      }}
+      onChooseInstead={() => {
+        setCameraOpen(false)
+        inputRef.current?.click()
+      }}
+    />
+  ) : null
+
+  /** Retake, replace, remove — the three things you do to a picture. */
+  const tools = (
+    <div className={styles.shotTools}>
+      <button className={styles.shotTool} onClick={() => setCameraOpen(true)}>
+        <Camera size={14} strokeWidth={2.2} />
+        Retake
+      </button>
+      <button className={styles.shotTool} onClick={() => inputRef.current?.click()}>
+        <ImageUp size={14} strokeWidth={2.2} />
+        Replace
+      </button>
+      <button className={`${styles.shotTool} ${styles.shotToolDanger}`} onClick={reset}>
+        <Trash2 size={14} strokeWidth={2.2} />
+        Remove
+      </button>
+    </div>
+  )
+
   // --- Choose -------------------------------------------------------------
   if (stage === 'choose') {
     return (
       <>
         <div className={styles.chooser}>
-          <button className={styles.chooseButton} onClick={() => inputRef.current?.click()}>
+          <button className={styles.chooseButton} onClick={() => setCameraOpen(true)}>
             <span className={styles.chooseIcon}>
               <Camera size={20} strokeWidth={1.9} />
             </span>
             <span className={styles.chooseText}>
-              <span className={styles.chooseLabel}>Take a photo</span>
-              <span className={styles.chooseHint}>Opens your camera on a phone</span>
+              <span className={styles.chooseLabel}>Take a food photo</span>
+              <span className={styles.chooseHint}>Opens the camera</span>
             </span>
           </button>
           <button className={styles.chooseButton} onClick={() => inputRef.current?.click()}>
@@ -178,20 +324,25 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
               <ImageUp size={20} strokeWidth={1.9} />
             </span>
             <span className={styles.chooseText}>
-              <span className={styles.chooseLabel}>Choose a photo</span>
-              <span className={styles.chooseHint}>Pick one from your library</span>
+              <span className={styles.chooseLabel}>Choose from device</span>
+              <span className={styles.chooseHint}>Pick a photo you already have</span>
             </span>
           </button>
+          {onManual ? (
+            <button className={styles.chooseButton} onClick={onManual}>
+              <span className={styles.chooseIcon}>
+                <PencilLine size={20} strokeWidth={1.9} />
+              </span>
+              <span className={styles.chooseText}>
+                <span className={styles.chooseLabel}>Enter it manually</span>
+                <span className={styles.chooseHint}>Name, portion and the numbers</span>
+              </span>
+            </button>
+          ) : null}
         </div>
 
-        <input
-          ref={inputRef}
-          type="file"
-          accept={foodScanService.accept}
-          capture="environment"
-          className="sr-only"
-          onChange={onPick}
-        />
+        {fileField}
+        {cameraSheet}
 
         <p className={styles.privacy}>
           <Info size={13} strokeWidth={2.2} />
@@ -206,7 +357,7 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
   if (stage === 'analyzing') {
     return (
       <div className={styles.analyzing}>
-        {preview.url ? <img src={preview.url} alt="" className={styles.preview} /> : null}
+        {picture}
         <div className={styles.analyzingText}>
           <span className={styles.spinner} aria-hidden="true" />
           <div>
@@ -221,6 +372,7 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
         <Button variant="secondary" block onClick={cancel}>
           Cancel
         </Button>
+        {fileField}
       </div>
     )
   }
@@ -228,17 +380,23 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
   // --- Failed -------------------------------------------------------------
   if (stage === 'failed') {
     return (
-      <div className={styles.failed}>
-        <span className={styles.failIcon}>
-          <AlertTriangle size={22} strokeWidth={2} />
-        </span>
-        <p className={styles.failTitle}>We couldn't analyse that photo</p>
-        <p className={styles.failBody}>{failure?.message}</p>
+      <>
+        {/* The photo stays: it is still the meal, and typing it in is a
+            perfectly good answer with the picture in front of you. */}
+        {picture}
+        <div className={styles.failed}>
+          <span className={styles.failIcon}>
+            <AlertTriangle size={22} strokeWidth={2} />
+          </span>
+          <p className={styles.failTitle}>We couldn't analyse that photo</p>
+          <p className={styles.failBody}>{failure?.message}</p>
+        </div>
         <div className={styles.failActions}>
           {failure?.canRetry && lastFile.current ? (
             <Button
               size="lg"
               block
+              icon={<RefreshCw size={16} strokeWidth={2.2} />}
               onClick={() => lastFile.current && analyze(lastFile.current, true)}
             >
               Try again
@@ -249,12 +407,15 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
             size="lg"
             block
             icon={<PencilLine size={16} strokeWidth={2.2} />}
-            onClick={cancel}
+            onClick={() => (onManual ? onManual() : cancel())}
           >
             Enter food manually
           </Button>
+          {tools}
         </div>
-      </div>
+        {fileField}
+        {cameraSheet}
+      </>
     )
   }
 
@@ -263,9 +424,8 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
 
   return (
     <>
-      {preview.url ? (
-        <img src={preview.url} alt="The meal you photographed" className={styles.preview} />
-      ) : null}
+      {picture}
+      {tools}
 
       {result?.source === 'mock' ? (
         <p className={styles.devWarning}>
@@ -304,49 +464,56 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
               <input
                 className={styles.nameInput}
                 value={item.name}
+                placeholder={item.manual ? 'What was it?' : undefined}
                 onChange={(event) => patch(item.id, { name: event.target.value })}
                 aria-label="Food name"
               />
               <button
                 className={styles.remove}
                 onClick={() => drop(item.id)}
-                aria-label={`Remove ${item.name}`}
+                aria-label={`Remove ${item.name || 'this item'}`}
               >
                 <Trash2 size={14} strokeWidth={2.1} />
               </button>
             </div>
 
             <div className={styles.itemMeta}>
-              <span
-                className={[
-                  styles.confidence,
-                  item.confidenceLevel === 'high'
-                    ? styles.sure
-                    : item.confidenceLevel === 'medium'
-                      ? styles.maybe
-                      : styles.unsure,
-                ].join(' ')}
-              >
-                {item.confidenceLevel === 'high'
-                  ? 'High confidence'
-                  : item.confidenceLevel === 'medium'
-                    ? 'Likely'
-                    : 'Not sure'}
-                {' · '}
-                <span className="tnum">{Math.round(item.confidence * 100)}%</span>
-              </span>
-              {item.cookingMethod ? <span className={styles.tag}>{item.cookingMethod}</span> : null}
-              {item.nutritionFrom === 'database' ? (
-                <span className={item.matchLevel === 'low' ? styles.noMatch : styles.matched}>
-                  {item.matchLevel === 'low' ? 'match needs confirming' : 'USDA'}
-                  {item.matchedName && item.matchedName.toLowerCase() !== item.name.toLowerCase()
-                    ? `: “${item.matchedName}”`
-                    : ''}
-                </span>
-              ) : item.nutritionFrom === 'estimate' ? (
-                <span className={styles.noMatch}>estimated, not from the database — check it</span>
+              {item.manual ? (
+                <span className={styles.tag}>Added by you</span>
               ) : (
-                <span className={styles.noMatch}>no nutrition found — please fill in</span>
+                <>
+                  <span
+                    className={[
+                      styles.confidence,
+                      item.confidenceLevel === 'high'
+                        ? styles.sure
+                        : item.confidenceLevel === 'medium'
+                          ? styles.maybe
+                          : styles.unsure,
+                    ].join(' ')}
+                  >
+                    {item.confidenceLevel === 'high'
+                      ? 'High confidence'
+                      : item.confidenceLevel === 'medium'
+                        ? 'Likely'
+                        : 'Not sure'}
+                    {' · '}
+                    <span className="tnum">{Math.round(item.confidence * 100)}%</span>
+                  </span>
+                  {item.cookingMethod ? <span className={styles.tag}>{item.cookingMethod}</span> : null}
+                  {item.nutritionFrom === 'database' ? (
+                    <span className={item.matchLevel === 'low' ? styles.noMatch : styles.matched}>
+                      {item.matchLevel === 'low' ? 'match needs confirming' : 'USDA'}
+                      {item.matchedName && item.matchedName.toLowerCase() !== item.name.toLowerCase()
+                        ? `: “${item.matchedName}”`
+                        : ''}
+                    </span>
+                  ) : item.nutritionFrom === 'estimate' ? (
+                    <span className={styles.noMatch}>estimated, not from the database — check it</span>
+                  ) : (
+                    <span className={styles.noMatch}>no nutrition found — please fill in</span>
+                  )}
+                </>
               )}
             </div>
 
@@ -436,6 +603,20 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
         ))}
       </ul>
 
+      {/*
+        Something the camera could not see — the oil it was cooked in, the
+        drink beside it — goes on as a line of its own rather than being
+        smuggled into one of the detected foods.
+      */}
+      <Button
+        variant="secondary"
+        block
+        icon={<Plus size={16} strokeWidth={2.4} />}
+        onClick={addItem}
+      >
+        Add another food
+      </Button>
+
       <p className={styles.hiddenCalories}>
         Oil, butter, sauce and dressing are hard to see in a photo and are not included. Add them as
         a separate item if they were used.
@@ -473,6 +654,9 @@ export function FoodScanner({ date, onDone }: { date?: string; onDone: () => voi
       <Button variant="ghost" onClick={cancel}>
         Discard this scan
       </Button>
+
+      {fileField}
+      {cameraSheet}
     </>
   )
 }

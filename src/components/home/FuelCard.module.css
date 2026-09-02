@@ -197,3 +197,32 @@
 .fillWater {
   background: var(--move);
 }
+
+/* --- Protein, under the calorie headline --- */
+.macro {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-top: 0.125rem;
+  font-size: var(--t-small);
+}
+
+.macroLabel {
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.macroValue {
+  font-weight: 650;
+  color: var(--ink-2);
+}
+
+/* A hairline: protein is context for the number above, not a rival to it. */
+.trackThin {
+  height: 4px;
+}
+
+.fillProtein {
+  background: var(--success);
+}

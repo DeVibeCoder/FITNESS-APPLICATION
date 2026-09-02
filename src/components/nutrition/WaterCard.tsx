@@ -49,10 +49,11 @@ export function WaterCard({ date, goalL }: { date: string; goalL: number }) {
       show('Enter an amount between 0 and 15 litres.', 'error')
       return
     }
-    const result = await guard(() =>
-      nutritionService.setWaterTotal(user.id, date, Math.round(litresValue * 1000)),
-    )
-    if (result !== undefined) {
+    const result = await guard(async () => {
+      await nutritionService.setWaterTotal(user.id, date, Math.round(litresValue * 1000))
+      return true
+    })
+    if (result) {
       show('Water updated.', 'success')
       setEditing(false)
     }

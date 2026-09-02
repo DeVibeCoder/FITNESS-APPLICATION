@@ -3,7 +3,7 @@ import { ProgressBar } from '@/components/ui/Progress'
 import type { MacroTotals } from '@/services/nutritionService'
 import type { EnergyPlan } from '@/utils/calories'
 import { calorieStatus, macroProgress } from '@/utils/nutrition'
-import { num } from '@/utils/format'
+import { litres, num } from '@/utils/format'
 import styles from './CalorieSummary.module.css'
 
 /**
@@ -24,9 +24,14 @@ const MACRO_TONE: Record<string, 'success' | 'move' | 'energy'> = {
 export function CalorieSummary({
   totals,
   energy,
+  waterMl,
+  waterGoalMl,
 }: {
   totals: MacroTotals
   energy: EnergyPlan
+  /** Today's water, read-only here — the water card below owns changing it. */
+  waterMl: number
+  waterGoalMl: number
 }) {
   const status = calorieStatus(totals.kcal, energy.target)
   const macros = macroProgress(totals, energy.macros)
@@ -79,6 +84,27 @@ export function CalorieSummary({
             />
           </li>
         ))}
+        {/*
+          Water finishes the day's totals rather than being a number you have
+          to scroll for. It is shown, not edited: the water card below is the
+          one place the amount is changed.
+        */}
+        <li>
+          <div className={styles.macroHead}>
+            <span>Water</span>
+            <span className={styles.macroValue}>
+              <span className="tnum">{litres(waterMl)}</span> /{' '}
+              <span className="tnum">{num(waterGoalMl / 1000, 1)}</span> L
+            </span>
+          </div>
+          <ProgressBar
+            value={waterMl}
+            max={waterGoalMl}
+            size="sm"
+            tone={waterMl >= waterGoalMl ? 'success' : 'move'}
+            label="Water"
+          />
+        </li>
       </ul>
 
       <p className={styles.note}>

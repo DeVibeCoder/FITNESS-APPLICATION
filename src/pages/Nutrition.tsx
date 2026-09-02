@@ -116,7 +116,12 @@ export function Nutrition() {
       </div>
 
       <Section title={isToday ? 'Today' : formatDay(date)}>
-        <CalorieSummary totals={day.totals} energy={energy} />
+        <CalorieSummary
+          totals={day.totals}
+          energy={energy}
+          waterMl={day.waterMl}
+          waterGoalMl={Math.round(user.waterGoalL * 1000)}
+        />
       </Section>
 
       <Section

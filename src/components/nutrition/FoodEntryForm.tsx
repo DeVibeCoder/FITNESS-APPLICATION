@@ -85,6 +85,12 @@ export function FoodEntryForm({ entry, meal, date, onDone }: FoodEntryFormProps)
     }
 
     setSaving(true)
+    /*
+     * `guard` reports failure as `undefined`, so a guarded action has to hand
+     * back something to distinguish "it worked" from "it threw". Without the
+     * `true` the form saved the food and then sat there, apparently ignoring
+     * the button that had just worked.
+     */
     const result = await guard(async () => {
       if (entry) {
         await nutritionService.updateFood(entry.id, payload)
@@ -96,9 +102,10 @@ export function FoodEntryForm({ entry, meal, date, onDone }: FoodEntryFormProps)
           ...payload,
         })
       }
+      return true
     })
     setSaving(false)
-    if (result !== undefined) {
+    if (result) {
       show(editing ? 'Entry updated.' : 'Added.', 'success')
       onDone()
     }
@@ -107,9 +114,12 @@ export function FoodEntryForm({ entry, meal, date, onDone }: FoodEntryFormProps)
   const remove = async () => {
     if (!entry) return
     setSaving(true)
-    const result = await guard(() => nutritionService.removeFood(entry.id))
+    const result = await guard(async () => {
+      await nutritionService.removeFood(entry.id)
+      return true
+    })
     setSaving(false)
-    if (result !== undefined) {
+    if (result) {
       show('Entry deleted.')
       onDone()
     }

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, Camera, PencilLine, Search } from 'lucide-react'
+import { ChevronLeft, Camera, ImageUp, PencilLine } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { FoodEntryForm } from './FoodEntryForm'
-import { FoodScanner } from './FoodScanner'
+import { FoodScanner, type ScanStart } from './FoodScanner'
 import type { FoodEntry, MealSlot } from '@/models'
 import styles from './AddFoodSheet.module.css'
 
@@ -29,6 +29,11 @@ const TITLES: Record<Mode, string> = {
  * The single entry point for logging food. Both the nutrition screen and the
  * quick-log sheet render this, so there is one form and one scanner in the app.
  *
+ * Three ways in, named for what they actually do. Taking a photo opens the
+ * camera, choosing from the device opens the picker, and typing it in opens the
+ * same form an edit opens — a "camera" that was really the gallery, and a
+ * gallery that was really the camera, were the same button twice.
+ *
  * Split from its Sheet wrapper so the quick-log sheet can host the flow inside
  * the sheet it already has open, rather than stacking a second one on top.
  */
@@ -48,14 +53,22 @@ export function AddFoodFlow({
   onModeChange?: (mode: Mode) => void
 }) {
   const [mode, setModeState] = useState<Mode>(entry ? 'manual' : startIn)
+  /** Which door the scanner opens on. Only meaningful while mode is 'scan'. */
+  const [scanStart, setScanStart] = useState<ScanStart>('choose')
 
   const setMode = (next: Mode) => {
     setModeState(next)
     onModeChange?.(next)
   }
 
+  const startScan = (from: ScanStart) => {
+    setScanStart(from)
+    setMode('scan')
+  }
+
   useEffect(() => {
     setModeState(entry ? 'manual' : startIn)
+    setScanStart('choose')
   }, [entry, startIn])
 
   const onClose = onDone
@@ -72,6 +85,28 @@ export function AddFoodFlow({
       {mode === 'choose' ? (
         <ul className={styles.options}>
           <li>
+            <button className={styles.option} onClick={() => startScan('camera')}>
+              <span className={styles.icon}>
+                <Camera size={19} strokeWidth={1.9} />
+              </span>
+              <span className={styles.text}>
+                <span className={styles.label}>Take a food photo</span>
+                <span className={styles.hint}>Opens the camera, then you correct it</span>
+              </span>
+            </button>
+          </li>
+          <li>
+            <button className={styles.option} onClick={() => startScan('library')}>
+              <span className={styles.icon}>
+                <ImageUp size={19} strokeWidth={1.9} />
+              </span>
+              <span className={styles.text}>
+                <span className={styles.label}>Choose from device</span>
+                <span className={styles.hint}>Use a photo you already took</span>
+              </span>
+            </button>
+          </li>
+          <li>
             <button className={styles.option} onClick={() => setMode('manual')}>
               <span className={styles.icon}>
                 <PencilLine size={19} strokeWidth={1.9} />
@@ -82,28 +117,6 @@ export function AddFoodFlow({
               </span>
             </button>
           </li>
-          <li>
-            <button className={styles.option} onClick={() => setMode('scan')}>
-              <span className={styles.icon}>
-                <Camera size={19} strokeWidth={1.9} />
-              </span>
-              <span className={styles.text}>
-                <span className={styles.label}>Scan a meal</span>
-                <span className={styles.hint}>Start from a photo, then correct it</span>
-              </span>
-            </button>
-          </li>
-          <li>
-            <span className={`${styles.option} ${styles.disabled}`} aria-disabled="true">
-              <span className={styles.icon}>
-                <Search size={19} strokeWidth={1.9} />
-              </span>
-              <span className={styles.text}>
-                <span className={styles.label}>Search a food database</span>
-                <span className={styles.hint}>Not connected yet</span>
-              </span>
-            </span>
-          </li>
         </ul>
       ) : null}
 
@@ -111,7 +124,14 @@ export function AddFoodFlow({
         <FoodEntryForm entry={entry} meal={meal} date={date} onDone={onClose} />
       ) : null}
 
-      {mode === 'scan' ? <FoodScanner date={date} onDone={onClose} /> : null}
+      {mode === 'scan' ? (
+        <FoodScanner
+          date={date}
+          start={scanStart}
+          onManual={() => setMode('manual')}
+          onDone={onClose}
+        />
+      ) : null}
     </>
   )
 }
@@ -136,7 +156,7 @@ export function AddFoodSheet({
       open={open}
       onClose={onClose}
       title={entry ? 'Edit food' : TITLES[mode]}
-      subtitle={mode === 'choose' ? 'Type it in, or start from a photo.' : undefined}
+      subtitle={mode === 'choose' ? 'Photograph it, or type it in.' : undefined}
     >
       {open ? (
         <AddFoodFlow
