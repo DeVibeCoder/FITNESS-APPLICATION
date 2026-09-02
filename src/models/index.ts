@@ -296,8 +296,19 @@ export interface WorkoutSession {
  */
 export type WorkoutKind = 'strength' | 'cardio' | 'general'
 
-/** The shape of one exercise's numbers. A session may mix both. */
-export type ExerciseKind = 'strength' | 'cardio'
+/**
+ * The shape of one exercise's numbers. A session may mix all three.
+ *
+ * `timed` is the plank-shaped exercise: repeated like a strength movement and
+ * measured like a cardio one. It existed in every workout app and in none of
+ * this app's rows, so "Plank 3 × 45 sec" arrived as three sets of nothing —
+ * the 45 seconds had no field to live in and was dropped on the way in.
+ *
+ * Adding it is additive at every level: `kind` is a plain string on a row that
+ * already carries both `sets` and `durationSec`, so no store changes, no
+ * migration, and every existing row keeps the kind it was written with.
+ */
+export type ExerciseKind = 'strength' | 'timed' | 'cardio'
 
 /**
  * One exercise inside a manually logged session.
@@ -309,9 +320,10 @@ export type ExerciseKind = 'strength' | 'cardio'
  * ad-hoc movement would fill the exercise library with single-use rows.
  *
  * So this is its own store, keyed to the session, holding the numbers a person
- * actually wrote down. Both shapes live on one row with everything optional:
- * a strength entry fills sets/reps/weight, a cardio entry fills duration and
- * distance, and neither carries the other's empty fields.
+ * actually wrote down. Every shape lives on one row with everything optional:
+ * a strength entry fills sets/reps/weight, a timed entry fills sets and
+ * duration, a cardio entry fills duration and distance, and none of them
+ * carries another's empty fields.
  */
 export interface LoggedExercise {
   id: ID
@@ -320,12 +332,13 @@ export interface LoggedExercise {
   order: number
   name: string
   kind: ExerciseKind
-  /** Strength. */
+  /** Strength, and the set count of a timed exercise. */
   sets?: number
   reps?: number
   weightKg?: number
-  /** Cardio. */
+  /** How long one set is held, for `timed`; how long it ran, for `cardio`. */
   durationSec?: number
+  /** Cardio only. */
   distanceKm?: number
   note?: string
 }

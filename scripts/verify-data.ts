@@ -60,6 +60,7 @@ import { weeklyChangeNote, weeklyChangeSentiment } from '../src/utils/goals'
 import { TempImage } from '../src/lib/tempImage'
 import { scanTotals } from '../src/services/foodScanService'
 import { calorieStatus, formatPortion, macroProgress } from '../src/utils/nutrition'
+import { parseHold, summarise } from '../src/components/log/exerciseSummary'
 import { reviewService } from '../src/services/reviewService'
 import { motivationService } from '../src/services/motivationService'
 import { REACTION_EMOJI } from '../src/services/updateService'
@@ -2021,6 +2022,213 @@ async function main() {
   }
   ok('no blob, buffer, data URI or base64 payload in any table', importLeaks.length === 0,
     importLeaks.join('; ') || 'swept every row of every table')
+
+  // ---------------------------------------------------------------------
+  // Phase 16 — the exercise that is counted in seconds.
+  //
+  // A plank is repeated like a strength exercise and measured like a cardio
+  // one. With only those two shapes the second number had nowhere to live, so
+  // "Plank 3 x 45 sec" was saved as three sets of nothing. These tests are
+  // about that number surviving: through the reader, through the editor,
+  // through a save, an edit and a delete, and back onto the card.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A hold is read as a hold —\n')
+  check('"45 sec" is forty-five seconds', parseClock('45 sec'), 45)
+  check('"30s" too', parseClock('30s'), 30)
+  check('"90 seconds" too', parseClock('90 seconds'), 90)
+  check('a clock is still a clock', parseClock('20:00'), 1200)
+  check('and minutes are still minutes', parseClock('23 min'), 1380)
+  check('and an hour and five', parseClock('1h 05m'), 3900)
+  check('nonsense is still nothing', parseClock('later'), undefined)
+
+  const timedVision: WorkoutVisionProvider = {
+    name: 'test-timed',
+    async read() {
+      return validateWorkoutResult({
+        workoutName: 'Core circuit',
+        durationSec: '18:30',
+        exercises: [
+          { name: 'Plank', sets: 3, durationSec: '45 sec' },
+          { name: 'Squats', sets: 3, reps: 12, weightKg: 20 },
+          { name: 'Treadmill', durationSec: '10 min', distanceKm: 1.2 },
+          { name: 'Wall sit', sets: 2, durationSec: '60s' },
+        ],
+        confidence: 0.9,
+      })
+    },
+  }
+
+  const timedRead = await runWorkoutScan(
+    { imageBase64: Buffer.alloc(2048).toString('base64'), mimeType: 'image/png' },
+    { vision: timedVision, source: 'live' },
+  )
+  const readRows = timedRead.exercises
+  check('four exercises came through', readRows.length, 4)
+  check('the plank is timed', readRows[0].kind, 'timed')
+  check('with its sets', readRows[0].sets, 3)
+  check('and its hold in seconds', readRows[0].durationSec, 45)
+  ok('and no reps invented for it', readRows[0].reps === undefined)
+  check('the squat is still strength', readRows[1].kind, 'strength')
+  check('with its weight', readRows[1].weightKg, 20)
+  ok('and no duration bolted on', readRows[1].durationSec === undefined)
+  check('the treadmill is still cardio', readRows[2].kind, 'cardio')
+  check('with its distance', readRows[2].distanceKm, 1.2)
+  check('and its time', readRows[2].durationSec, 600)
+  check('the wall sit is timed too', readRows[3].kind, 'timed')
+  check('at sixty seconds', readRows[3].durationSec, 60)
+
+  console.log('\n— Sparse screenshots stay sparse —\n')
+  const sparseRead = await runWorkoutScan(
+    { imageBase64: Buffer.alloc(2048).toString('base64'), mimeType: 'image/png' },
+    {
+      vision: {
+        name: 'test-sparse',
+        async read() {
+          return validateWorkoutResult({ workoutName: 'Evening run', durationSec: '32:10', confidence: 0.8 })
+        },
+      },
+      source: 'live',
+    },
+  )
+  check('the name was read', sparseRead.workoutName, 'Evening run')
+  check('and the duration', sparseRead.durationSec, 1930)
+  check('no exercises were invented', sparseRead.exercises.length, 0)
+  check('no calories were invented', sparseRead.caloriesKcal, undefined)
+  ok('and the blanks are named as blanks', sparseRead.missing.includes('caloriesKcal'),
+    sparseRead.missing.join(', '))
+
+  console.log('\n— A timed exercise survives the round trip —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const timedDay = today
+  const beforeTimed = (await workoutService.sessionsForDay('u_ahmed', timedDay)).length
+
+  const timedSession = await workoutService.logManual({
+    userId: 'u_ahmed', date: timedDay, kind: 'strength', name: 'Core circuit',
+    durationSec: 1110,
+    exercises: [
+      { name: 'Plank', kind: 'timed', sets: 3, durationSec: 45 },
+      { name: 'Squats', kind: 'strength', sets: 3, reps: 12, weightKg: 20 },
+      { name: 'Treadmill', kind: 'cardio', durationSec: 600, distanceKm: 1.2 },
+    ],
+  })
+  const savedRows = await workoutService.exercisesFor(timedSession.id)
+  check('one session', (await workoutService.sessionsForDay('u_ahmed', timedDay)).length, beforeTimed + 1)
+  check('three exercises', savedRows.length, 3)
+  check('the plank kept its kind', savedRows[0].kind, 'timed')
+  check('its sets', savedRows[0].sets, 3)
+  check('and its hold', savedRows[0].durationSec, 45)
+
+  console.log('\n— And reads back as one line —\n')
+  check('the plank', summarise(savedRows[0]), '3 × 45 sec')
+  check('the squat', summarise(savedRows[1]), '3 × 12 · 20 kg')
+  check('the treadmill', summarise(savedRows[2]), '10:00 · 1.2 km')
+  check('a hold with no sets', summarise({ kind: 'timed', durationSec: 60 }), '60 sec')
+  check('a long hold reads as a clock', summarise({ kind: 'timed', sets: 2, durationSec: 150 }), '2 × 02:30')
+  check('a timed row with nothing says nothing', summarise({ kind: 'timed' }), '')
+
+  console.log('\n— Typing a hold —\n')
+  check('"45" is seconds here', parseHold('45'), 45)
+  check('"45 sec" too', parseHold('45 sec'), 45)
+  check('"45s" too', parseHold('45s'), 45)
+  check('"2 min" is minutes', parseHold('2 min'), 120)
+  check('"1:30" is a clock', parseHold('1:30'), 90)
+  check('nothing is nothing', parseHold(''), null)
+  check('and nonsense is refused', parseHold('soon'), null)
+
+  console.log('\n— Editing and deleting it —\n')
+  await workoutService.logManual({
+    sessionId: timedSession.id,
+    userId: 'u_ahmed', date: timedDay, kind: 'strength', name: 'Core circuit',
+    durationSec: 1110,
+    exercises: [
+      { name: 'Plank', kind: 'timed', sets: 4, durationSec: 60 },
+      { name: 'Squats', kind: 'strength', sets: 3, reps: 12, weightKg: 20 },
+      { name: 'Treadmill', kind: 'cardio', durationSec: 600, distanceKm: 1.2 },
+    ],
+  })
+  const editedRows = await workoutService.exercisesFor(timedSession.id)
+  check('editing does not duplicate the session',
+    (await workoutService.sessionsForDay('u_ahmed', timedDay)).length, beforeTimed + 1)
+  check('nor the exercises', editedRows.length, 3)
+  check('the longer hold is kept', editedRows[0].durationSec, 60)
+  check('and the extra set', editedRows[0].sets, 4)
+  check('and it still reads right', summarise(editedRows[0]), '4 × 60 sec')
+
+  await workoutService.removeSession(timedSession.id)
+  check('deleting removes the session',
+    (await workoutService.sessionsForDay('u_ahmed', timedDay)).length, beforeTimed)
+  check('and its exercises', (await workoutService.exercisesFor(timedSession.id)).length, 0)
+
+  console.log('\n— Nutrition lookups happen together —\n')
+  const lookupOrder: string[] = []
+  let inFlight = 0
+  let peak = 0
+  const slowNutrition: NutritionProvider = {
+    name: 'test-parallel',
+    async lookup(query) {
+      inFlight += 1
+      peak = Math.max(peak, inFlight)
+      lookupOrder.push(query.name)
+      await new Promise((resolve) => setTimeout(resolve, 60))
+      inFlight -= 1
+      return { kcal: 100, proteinG: 5, carbsG: 10, fatG: 2, matchedName: query.name, source: 'test', matchConfidence: 0.9 }
+    },
+  }
+  const manyFoods: FoodVisionProvider = {
+    name: 'test-many',
+    async identify() {
+      return {
+        items: ['Rice', 'Chicken', 'Broccoli', 'Egg', 'Olive oil'].map((name) => ({
+          name, foodType: 'other', quantity: 100, unit: 'g' as const, confidence: 0.9, alternatives: [],
+        })),
+        mealDescription: 'A plate',
+        overallConfidence: 0.9,
+        needsUserConfirmation: false,
+      }
+    },
+  }
+  const startedAt = Date.now()
+  const parallelScan = await runFoodScan(
+    { imageBase64: Buffer.alloc(4096).toString('base64'), mimeType: 'image/jpeg' },
+    { vision: manyFoods, nutrition: slowNutrition, source: 'live' },
+  )
+  const parallelElapsed = Date.now() - startedAt
+  check('every food is still looked up', lookupOrder.length, 5)
+  ok('and they run together rather than one after another', peak >= 5, `${peak} at once`)
+  ok('so five 60 ms lookups cost about one', parallelElapsed < 200, `${parallelElapsed} ms`)
+  check('with the numbers landing on the right items', parallelScan.items.length, 5)
+  ok('all from the database', parallelScan.items.every((item) => item.fromDatabase))
+
+  const halfBroken: NutritionProvider = {
+    name: 'test-half',
+    async lookup(query) {
+      if (query.name === 'Chicken') throw new Error('FDC down for this one')
+      return { kcal: 100, proteinG: 5, carbsG: 10, fatG: 2, matchedName: query.name, source: 'test', matchConfidence: 0.9 }
+    },
+  }
+  const partialScan = await runFoodScan(
+    { imageBase64: Buffer.alloc(4096).toString('base64'), mimeType: 'image/jpeg' },
+    { vision: manyFoods, nutrition: halfBroken, source: 'live' },
+  )
+  check('one failed lookup does not sink the scan', partialScan.items.length, 5)
+  ok('the food it failed on is marked as not from the database',
+    partialScan.items.find((item) => item.name === 'Chicken')?.fromDatabase === false)
+  ok('while the others kept theirs',
+    partialScan.items.filter((item) => item.fromDatabase).length === 4)
+
+  console.log('\n— The scan says only what it can see —\n')
+  const scannerSource16 = await readFile(
+    new URL('../src/components/nutrition/FoodScanner.tsx', import.meta.url), 'utf8')
+  const scanServiceSource16 = await readFile(
+    new URL('../src/services/foodScanService.ts', import.meta.url), 'utf8')
+  ok('the preparing stage is announced by the code that prepares',
+    scanServiceSource16.includes("options.onStage?.('preparing')") &&
+      scanServiceSource16.includes("options.onStage?.('analyzing')"))
+  ok('and the screen shows those two, not a march of invented ones',
+    scannerSource16.includes("phase === 'preparing' ? 'Preparing your photo' : 'Analysing your meal'"))
+  ok('no fake percentage anywhere in the scanner',
+    !/progress\s*=\s*[0-9]/.test(scannerSource16) && !scannerSource16.includes('setProgress'))
 
   console.log('\n— Card images are presentation, not data —\n')
 

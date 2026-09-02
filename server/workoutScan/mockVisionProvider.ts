@@ -15,7 +15,9 @@ import type { WorkoutVisionProvider, WorkoutVisionResult } from './types.ts'
  * Note the deliberately partial answer: calories are left missing, because the
  * case worth exercising in development is the one where the screenshot did not
  * say everything and the review form has to ask. The exercise list is partial
- * in the same way — one row carries a weight and one does not.
+ * in the same way — one row carries a weight, one does not, and one is a hold
+ * counted in seconds, which is the shape most easily lost between the reader
+ * and the editor.
  */
 export class DevMockWorkoutVisionProvider implements WorkoutVisionProvider {
   readonly name = 'dev-mock'
@@ -31,6 +33,7 @@ export class DevMockWorkoutVisionProvider implements WorkoutVisionProvider {
       exercises: [
         { name: 'DEV MOCK squats', kind: 'strength', sets: 3, reps: 12 },
         { name: 'DEV MOCK bench press', kind: 'strength', sets: 4, reps: 8, weightKg: 60 },
+        { name: 'DEV MOCK plank', kind: 'timed', sets: 3, durationSec: 45 },
         { name: 'DEV MOCK treadmill', kind: 'cardio', durationSec: 600, distanceKm: 1.5 },
       ],
       confidence: 0.1,

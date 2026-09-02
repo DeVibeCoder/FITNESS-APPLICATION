@@ -43,7 +43,11 @@ Rules, in order of importance:
 12. exercises: transcribe the exercise list ONLY if the screenshot actually lists individual exercises. Most summary screens do not — they show a name, a time and a calorie figure, and for those the correct answer is an empty array. For each row give the name exactly as printed, and only the numbers printed beside it:
     - "Squats 3 x 12" gives name "Squats", sets 3, reps 12. There is no weight on that line, so omit weightKg.
     - "Bench press 4 x 8 @ 60kg" gives sets 4, reps 8, weightKg 60.
+    - "Plank 3 x 45 sec" is a held exercise: give sets 3 and durationSec "45 sec". It has no reps, so omit reps. The same for "Wall sit 2 x 60s" and "Hollow hold 1 x 90 sec".
+    - "Jumping jacks 3 x 30 sec" is also held time, not reps: sets 3, durationSec "30 sec".
+    - "Plank 60 sec" with no set count gives durationSec "60 sec" and no sets.
     - "Treadmill 20:00 2.5 km" gives name "Treadmill", durationSec "20:00", distanceKm 2.5.
+    - A number followed by sec, secs, s or min beside an exercise is time held, never reps. A bare number after "x" is reps.
     - A row with only a name and no numbers is still worth returning; give the name and omit every number.
     Never split one exercise into several, never merge several into one, and never add an exercise that is not printed.
 13. Set notAWorkout to true when the image is not a workout summary at all — a home screen, a menu, a photograph, a chat. Do not try to salvage a reading from it.

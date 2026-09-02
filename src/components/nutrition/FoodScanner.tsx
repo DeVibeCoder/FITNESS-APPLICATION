@@ -17,7 +17,14 @@ import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
 import { achievementService, nutritionService } from '@/services'
 import { MEAL_SLOTS } from '@/services/nutritionService'
-import { foodScanService, ScanError, scanTotals, type ScanItem, type ScanResult } from '@/services/foodScanService'
+import {
+  foodScanService,
+  ScanError,
+  scanTotals,
+  type ScanItem,
+  type ScanResult,
+  type ScanStage,
+} from '@/services/foodScanService'
 import type { MealSlot } from '@/models'
 import { FOOD_UNITS, formatPortion, type FoodUnit } from '@/utils/nutrition'
 import { todayKey } from '@/utils/date'
@@ -112,6 +119,8 @@ export function FoodScanner({
   const [failure, setFailure] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [saving, setSaving] = useState(false)
   const [slow, setSlow] = useState(false)
+  /** What is actually happening, as far as this side of the wire can tell. */
+  const [phase, setPhase] = useState<ScanStage>('preparing')
   /*
    * The latest `accept`, for the mount effect below. The effect must run after
    * the first render (when a handed-in file arrives), and `accept` is defined
@@ -167,11 +176,13 @@ export function FoodScanner({
     abortRef.current = controller
 
     setStage('analyzing')
+    setPhase('preparing')
     setFailure(null)
     try {
       const scan = await foodScanService.analyzeImage(file, {
         signal: controller.signal,
         forceRefresh,
+        onStage: setPhase,
       })
       if (controller.signal.aborted) return
       setResult(scan)
@@ -382,11 +393,21 @@ export function FoodScanner({
         <div className={styles.analyzingText}>
           <span className={styles.spinner} aria-hidden="true" />
           <div>
-            <p className={styles.analyzingTitle}>Analysing your meal</p>
+            {/*
+              Two stages, and both of them are true. Shrinking the photo
+              happens here and is named here; everything after it is one
+              request whose inside this side cannot see, so it is described as
+              the one thing it is rather than as a march of invented steps.
+            */}
+            <p className={styles.analyzingTitle}>
+              {phase === 'preparing' ? 'Preparing your photo' : 'Analysing your meal'}
+            </p>
             <p className={styles.analyzingHint}>
-              {slow
-                ? 'Taking a little longer than usual. Hang on…'
-                : 'Identifying foods and estimating portions…'}
+              {phase === 'preparing'
+                ? 'Shrinking it before it leaves your phone…'
+                : slow
+                  ? 'Still identifying foods and looking up their nutrition. This can take up to a minute.'
+                  : 'Identifying foods and looking up their nutrition…'}
             </p>
           </div>
         </div>

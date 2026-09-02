@@ -81,6 +81,20 @@ export function parseClock(value: unknown): number | undefined {
     return seconds > 0 && seconds <= MAX_DURATION_SEC ? seconds : undefined
   }
 
+  /*
+   * "45 sec", "30s" — a hold, counted in seconds.
+   *
+   * Anchored to the whole string so it cannot eat the trailing "s" of a
+   * "1h 05m 30s" that the branch below reads properly. Without this a plank
+   * printed as "3 x 45 sec" lost its 45 at the very first parse, long before
+   * anything downstream could decide what shape the row was.
+   */
+  const heldSeconds = text.match(/^(\d{1,4})\s*(?:s|sec|secs|second|seconds)$/i)
+  if (heldSeconds) {
+    const seconds = Number(heldSeconds[1])
+    return seconds > 0 && seconds <= MAX_DURATION_SEC ? seconds : undefined
+  }
+
   // "23 min", "1h 05m" — the other two shapes these screens use.
   const hours = text.match(/(\d{1,2})\s*h/i)
   const minutes = text.match(/(\d{1,3})\s*m(?!s)/i)
@@ -151,14 +165,28 @@ function asExercises(value: unknown): ReadExercise[] {
     const durationSec = parseClock(source.durationSec ?? source.duration)
     const distanceKm = asNumber(source.distanceKm, 0.01, MAX_DISTANCE_KM)
 
+    const timedSets = durationSec !== undefined && sets !== undefined && distanceKm === undefined
     const cardio = durationSec !== undefined || distanceKm !== undefined
     const strength = sets !== undefined || reps !== undefined || weightKg !== undefined
 
     rows.push({
       name,
-      // Both, or neither: fall back to what the model called it, then to
-      // strength, which is what an unlabelled list of movements usually is.
-      kind: cardio && !strength ? 'cardio' : strength ? 'strength' : asKind(source.kind) === 'cardio' ? 'cardio' : 'strength',
+      /*
+       * Read from the numbers that survived, in the order that keeps the most
+       * of them. Sets beside a hold and no distance is a plank: timed, and the
+       * only shape that carries both figures. Everything else is as before —
+       * a distance makes it cardio, sets or reps make it strength, and a row
+       * with nothing falls back to what the model called it.
+       */
+      kind: timedSets
+        ? 'timed'
+        : cardio && !strength
+          ? 'cardio'
+          : strength
+            ? 'strength'
+            : asKind(source.kind) === 'cardio'
+              ? 'cardio'
+              : 'strength',
       sets: sets === undefined ? undefined : Math.round(sets),
       reps: reps === undefined ? undefined : Math.round(reps),
       weightKg,
@@ -167,13 +195,17 @@ function asExercises(value: unknown): ReadExercise[] {
     })
   }
 
-  // A row's numbers must belong to its own kind, or the review form would show
-  // a distance field holding a rep count.
-  return rows.map((row) =>
-    row.kind === 'cardio'
-      ? { ...row, sets: undefined, reps: undefined, weightKg: undefined }
-      : { ...row, durationSec: undefined, distanceKm: undefined },
-  )
+  /*
+   * A row's numbers must belong to its own kind, or the review form would show
+   * a distance field holding a rep count. Each shape keeps exactly what it can
+   * display: cardio a clock and a distance, timed a set count and a hold,
+   * strength sets, reps and a weight.
+   */
+  return rows.map((row) => {
+    if (row.kind === 'cardio') return { ...row, sets: undefined, reps: undefined, weightKg: undefined }
+    if (row.kind === 'timed') return { ...row, reps: undefined, distanceKm: undefined }
+    return { ...row, durationSec: undefined, distanceKm: undefined }
+  })
 }
 
 export function validateWorkoutResult(raw: unknown): WorkoutVisionResult {

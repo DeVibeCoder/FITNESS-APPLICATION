@@ -102,6 +102,33 @@ async function main() {
   const found = await db.challengeParticipants.where('[challengeId+userId]').equals(['gc_old', 'u_old']).first()
   ok('with the compound index join and leave use', found?.id === 'cp_1')
 
+  /*
+   * Timed exercises, added in Phase 16.
+   *
+   * `kind` is a plain field on a store that already carried both a set count
+   * and a duration, so a third kind needed no version bump and no upgrade
+   * function — which is exactly the claim being tested here. An exercise
+   * written by the old code reads back unchanged, one written as timed keeps
+   * both of its numbers, and the store the old code created holds both.
+   */
+  console.log('\n— Timed exercises are additive —\n')
+  await db.loggedExercises.bulkAdd([
+    { id: 'lex_old_strength', sessionId: 's_old', order: 0, name: 'Back squat', kind: 'strength', sets: 3, reps: 12, weightKg: 60 },
+    { id: 'lex_old_cardio', sessionId: 's_old', order: 1, name: 'Treadmill', kind: 'cardio', durationSec: 600, distanceKm: 1.2 },
+  ])
+  await db.loggedExercises.add(
+    { id: 'lex_timed', sessionId: 's_old', order: 2, name: 'Plank', kind: 'timed', sets: 3, durationSec: 45 },
+  )
+  const rows = await db.loggedExercises.where('sessionId').equals('s_old').sortBy('order')
+  ok('an exercise written by the old code still reads', rows[0]?.name === 'Back squat')
+  ok('with its sets, reps and weight', rows[0]?.sets === 3 && rows[0]?.reps === 12 && rows[0]?.weightKg === 60)
+  ok('a cardio row is untouched', rows[1]?.durationSec === 600 && rows[1]?.distanceKm === 1.2)
+  ok('a timed row keeps its set count', rows[2]?.sets === 3)
+  ok('and its hold', rows[2]?.durationSec === 45)
+  ok('all three kinds live in the one store', rows.length === 3,
+    rows.map((row) => row.kind).join(', '))
+  ok('no version bump was needed for them', db.verno === 7, `version ${db.verno}`)
+
   console.log(`\n${failures === 0 ? 'Upgrade is safe.' : `${failures} check(s) failed.`}\n`)
   process.exit(failures === 0 ? 0 : 1)
 }

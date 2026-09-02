@@ -211,7 +211,7 @@ function asExercises(value: unknown): ScannedExercise[] {
     return [
       {
         name,
-        kind: row.kind === 'cardio' ? 'cardio' : 'strength',
+        kind: row.kind === 'cardio' ? 'cardio' : row.kind === 'timed' ? 'timed' : 'strength',
         sets: asCount(row.sets),
         reps: asCount(row.reps),
         weightKg: asCount(row.weightKg),

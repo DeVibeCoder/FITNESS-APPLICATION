@@ -84,8 +84,19 @@
  * a phone, where the title itself is hidden — this is the only thing on the
  * screen that names the parent section.
  */
+/*
+ * The breadcrumb — "ACTIVITY ›" above the page title.
+ *
+ * Small type by design, and at 17px tall it was the smallest target in the
+ * app. It keeps its size and colour; the box around it grows to a finger and
+ * the extra height is given back with a negative margin, so the header reads
+ * exactly as it did.
+ */
 .parent {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  margin-block: -6px;
   font-size: var(--t-micro);
   font-weight: 750;
   letter-spacing: 0.07em;

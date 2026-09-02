@@ -63,6 +63,16 @@ export interface ScanResult {
   fromCache: boolean
 }
 
+/**
+ * Where a scan currently is, as far as the browser can honestly tell.
+ *
+ * Only two of these are the browser's own work; the third is one request that
+ * the server answers after doing several things inside it. There is
+ * deliberately no invented "checking nutrition" step timed off a stopwatch —
+ * a progress bar that is really a clock is a lie about what is happening.
+ */
+export type ScanStage = 'preparing' | 'analyzing'
+
 export class ScanError extends Error {
   readonly canRetry: boolean
 
@@ -134,7 +144,12 @@ export const foodScanService = {
    */
   async analyzeImage(
     file: File,
-    options: { signal?: AbortSignal; forceRefresh?: boolean } = {},
+    options: {
+      signal?: AbortSignal
+      forceRefresh?: boolean
+      /** Called as the flow moves between the stages it can actually see. */
+      onStage?: (stage: ScanStage) => void
+    } = {},
   ): Promise<ScanResult> {
     this.validate(file)
 
@@ -147,8 +162,13 @@ export const foodScanService = {
     }
 
     // Shrunk before it leaves the device: cheaper, faster, and no more of the
-    // photo travels than the analysis needs.
+    // photo travels than the analysis needs. On an older phone with a 12 MP
+    // camera this is a second or two of real work, and it is the one part the
+    // browser can name while it happens.
+    options.onStage?.('preparing')
     const prepared = await prepareImageForUpload(file)
+
+    options.onStage?.('analyzing')
 
     let response: Response
     try {

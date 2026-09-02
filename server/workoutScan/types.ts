@@ -28,10 +28,15 @@ export type ReadWorkoutKind = 'strength' | 'cardio' | 'general'
  * `kind` decides which numbers the review form asks about, and is derived from
  * which ones were actually read rather than asked of the model, so it cannot
  * disagree with the row it labels.
+ *
+ * `timed` is the row that used to lose a number. "Plank 3 x 45 sec" carries a
+ * set count like a strength row and a clock like a cardio one; classified as
+ * either, the other's figure was thrown away on the way in. It is its own
+ * shape now, and the only one that keeps both.
  */
 export interface ReadExercise {
   name: string
-  kind: 'strength' | 'cardio'
+  kind: 'strength' | 'timed' | 'cardio'
   sets?: number
   reps?: number
   weightKg?: number

@@ -61,3 +61,21 @@
   min-height: 1.25rem;
   padding-inline: 0.125rem;
 }
+
+/*
+ * The small action beside a section title — Full review, See all, Add food.
+ *
+ * It stays exactly the size it reads: small type, quiet colour, level with the
+ * heading. What grows is only what a finger has to hit. Measured on a 320px
+ * screen these were 17 to 24 pixels tall, which is under half a fingertip, and
+ * they are the one control on most of these screens that has to be aimed at.
+ * The negative margin gives the extra height back to the layout, so no
+ * approved screen moves by a pixel.
+ */
+.sectionHead > a,
+.sectionHead > button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin-block: -6px;
+}

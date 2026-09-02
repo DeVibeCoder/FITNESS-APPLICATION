@@ -15,6 +15,7 @@ import type {
 } from '@/models'
 import { todayKey } from '@/utils/date'
 import { duration, parseDuration } from '@/utils/format'
+import { holdValue, parseHold } from './exerciseSummary'
 import { summarise } from './exerciseSummary'
 import styles from './ManualWorkoutForm.module.css'
 
@@ -441,7 +442,9 @@ function ExerciseEditor({
         label="Exercise"
         value={exercise.name}
         autoFocus
-        placeholder={exercise.kind === 'cardio' ? 'Treadmill run' : 'Back squat'}
+        placeholder={
+          exercise.kind === 'cardio' ? 'Treadmill run' : exercise.kind === 'timed' ? 'Plank' : 'Back squat'
+        }
         onChange={(event) => onChange({ name: event.target.value })}
       />
 
@@ -450,20 +453,49 @@ function ExerciseEditor({
         value={exercise.kind}
         options={[
           { value: 'strength', label: 'Sets & reps' },
+          { value: 'timed', label: 'Sets & time' },
           { value: 'cardio', label: 'Time & distance' },
         ]}
         onChange={(next) =>
-          // Switching clears the other shape's numbers rather than carrying
-          // them along invisibly to be saved on a row they do not belong to.
+          /*
+           * Switching keeps what the new shape can hold and drops what it
+           * cannot, rather than carrying numbers along invisibly to be saved
+           * on a row they do not belong to. A plank mistyped as strength and
+           * corrected to timed keeps its three sets; only the reps go.
+           */
           onChange(
             next === 'cardio'
               ? { kind: next, sets: undefined, reps: undefined, weightKg: undefined }
-              : { kind: next, durationSec: undefined, distanceKm: undefined },
+              : next === 'timed'
+                ? { kind: next, reps: undefined, distanceKm: undefined }
+                : { kind: next, durationSec: undefined, distanceKm: undefined },
           )
         }
       />
 
-      {exercise.kind === 'strength' ? (
+      {exercise.kind === 'timed' ? (
+        <div className={styles.pair}>
+          <Field
+            label="Sets"
+            type="number"
+            inputMode="numeric"
+            min={0}
+            value={exercise.sets ?? ''}
+            placeholder="3"
+            onChange={(event) => onChange({ sets: numeric(event.target.value) })}
+          />
+          <Field
+            label="Hold"
+            inputMode="numeric"
+            value={exercise.durationSec ? holdValue(exercise.durationSec) : ''}
+            placeholder="45 sec"
+            hint="Seconds, or mm:ss"
+            onChange={(event) =>
+              onChange({ durationSec: parseHold(event.target.value) ?? undefined })
+            }
+          />
+        </div>
+      ) : exercise.kind === 'strength' ? (
         <div className={styles.triple}>
           <Field
             label="Sets"

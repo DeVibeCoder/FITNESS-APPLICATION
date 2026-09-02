@@ -2,6 +2,13 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
+  /*
+   * A finger's worth of height. The link is small type on purpose — it is the
+   * way back, not the thing to do — but at its natural 28px it was the one
+   * control in these sheets that had to be aimed at. The padding grows, not
+   * the type.
+   */
+  min-height: 36px;
   gap: 0.1875rem;
   margin-top: -0.25rem;
   padding: 0.25rem 0.5rem 0.25rem 0.25rem;
