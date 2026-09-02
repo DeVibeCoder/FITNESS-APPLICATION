@@ -1602,6 +1602,8 @@ async function main() {
     fuelSource.includes('to="/activity/nutrition"') && !fuelSource.includes("open('water')"))
 
   console.log('\n— Take a photo opens the camera —\n')
+  const foodScanServiceSource = await readFile(
+    new URL('../src/services/foodScanService.ts', import.meta.url), 'utf8')
   const scannerSource = await readFile(
     new URL('../src/components/nutrition/FoodScanner.tsx', import.meta.url), 'utf8')
   ok('the scanner opens the real camera component',
@@ -1615,7 +1617,25 @@ async function main() {
     ok(`the chooser offers "${route}"`, sheetSource.includes(route))
   }
   ok('choosing the camera starts the scanner in the camera',
-    sheetSource.includes("startScan('camera')") && sheetSource.includes("startScan('library')"))
+    sheetSource.includes("startScan('camera')"))
+  /*
+   * The gallery is opened by the tap itself, from an input that lives beside
+   * the option rather than inside the scanner. Opening it a render later — the
+   * shape this used to have — loses the user gesture that entitles it to open,
+   * and a browser that refuses leaves somebody looking at a screen that did
+   * nothing and tapping the camera instead.
+   */
+  ok('choosing the gallery opens a file input straight from the tap',
+    sheetSource.includes('libraryInput.current?.click()') &&
+      sheetSource.includes('type="file"'))
+  ok('and the scanner is handed the chosen photo rather than re-picking it',
+    sheetSource.includes('initialFile={picked') && scannerSource.includes('initialFile'))
+  ok('the file input asks for a broad image type, not a MIME list',
+    foodScanServiceSource.includes("accept: 'image/*'"))
+  ok('no food input anywhere uses capture, which is what turned a picker into a camera',
+    !/capture=/.test(scannerSource) && !/capture=/.test(sheetSource))
+  ok('and the scanner opens on the chooser or the camera, nothing else',
+    scannerSource.includes("export type ScanStart = 'choose' | 'camera'"))
 
   console.log('\n— The picture survives a failed scan —\n')
   const failedBranch = scannerSource.slice(
@@ -1656,6 +1676,206 @@ async function main() {
   // Card photography is presentation only. The claim under test: an image URL
   // reaches an <img src> and nothing else — no table, no service, no upload.
   // ---------------------------------------------------------------------
+
+  // ---------------------------------------------------------------------
+  // Phase 14 — one record, every screen.
+  //
+  // Not a tour of the services: a single workout is written, changed and
+  // deleted, and after each step every surface that claims to know about it is
+  // asked again. The claim under test is that there is one set of records and
+  // everything else is a reading of it — so nothing can be edited in one place
+  // and left stale in another.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— A workout, through everything that counts it —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  await challengeService.ensureWeek(today)
+
+  const readEverything = async () => {
+    const [week, snapshot, progress] = await Promise.all([
+      progressService.weeklySummary('u_ahmed', today),
+      progressService.dailySnapshot('u_ahmed', today),
+      challengeService.progress(today),
+    ])
+    return {
+      weekWorkouts: week.workouts,
+      weekSeconds: week.durationSec,
+      todaySessions: snapshot!.completedSessions.length,
+      challenge: progress?.contributions.find((row) => row.userId === 'u_ahmed')?.value ?? null,
+      challengeMetric: progress?.challenge.metric ?? null,
+    }
+  }
+
+  const before14 = await readEverything()
+  const loggedSession = await workoutService.logManual({
+    userId: 'u_ahmed', date: today, kind: 'strength', name: 'Integration session',
+    durationSec: 1800, caloriesKcal: 300,
+    exercises: [{ name: 'Back squat', sets: 3, reps: 8, weightKg: 60 }],
+  })
+  const afterLog = await readEverything()
+
+  check('the week counts it', afterLog.weekWorkouts, before14.weekWorkouts + 1)
+  check('and its minutes', afterLog.weekSeconds, before14.weekSeconds + 1800)
+  check('today shows it', afterLog.todaySessions, before14.todaySessions + 1)
+  if (afterLog.challengeMetric === 'workouts') {
+    check('and the challenge counts it', afterLog.challenge, (before14.challenge ?? 0) + 1)
+  } else {
+    ok('this week the challenge measures something else, and a workout leaves it alone',
+      afterLog.challenge === before14.challenge, String(afterLog.challengeMetric))
+  }
+
+  // Editing is an update of the same row, never a second workout.
+  await workoutService.logManual({
+    sessionId: loggedSession.id,
+    userId: 'u_ahmed', date: today, kind: 'strength', name: 'Integration session',
+    durationSec: 2400, caloriesKcal: 300,
+    exercises: [{ name: 'Back squat', sets: 4, reps: 8, weightKg: 60 }],
+  })
+  const afterEdit = await readEverything()
+  check('editing does not add a second workout', afterEdit.weekWorkouts, afterLog.weekWorkouts)
+  check('but the minutes follow the edit', afterEdit.weekSeconds, before14.weekSeconds + 2400)
+  check('and today still shows one of it', afterEdit.todaySessions, afterLog.todaySessions)
+
+  await workoutService.removeSession(loggedSession.id)
+  const afterDelete = await readEverything()
+  check('deleting returns the week', afterDelete.weekWorkouts, before14.weekWorkouts)
+  check('and the minutes', afterDelete.weekSeconds, before14.weekSeconds)
+  check('and today', afterDelete.todaySessions, before14.todaySessions)
+  check('and the challenge', afterDelete.challenge, before14.challenge)
+  check('leaving no set results behind',
+    await db.setResults.where('sessionId').equals(loggedSession.id).count(), 0)
+  check('and no logged exercises',
+    await db.loggedExercises.where('sessionId').equals(loggedSession.id).count(), 0)
+
+  console.log('\n— A mark stands on evidence that still exists —\n')
+  /*
+   * The seeded account that has never logged anything. It doubles as the
+   * new-user check: everything below starts from genuinely empty, not from a
+   * fixture pretending to be empty.
+   */
+  const freshAccount = (await userService.getByHandle('leila'))!
+  await authService.setPassword(freshAccount.id, DEMO_PASSWORD)
+  await authService.signIn('leila', DEMO_PASSWORD)
+
+  const emptyDay = await progressService.dailySnapshot(freshAccount.id, today)
+  check('a new account has no workouts today', emptyDay!.completedSessions.length, 0)
+  check('no steps', emptyDay!.steps, 0)
+  check('no calories', emptyDay!.nutrition.kcal, 0)
+  check('no water', emptyDay!.waterMl, 0)
+  ok('but a real calorie target, computed from their profile', emptyDay!.energy.target > 0)
+  ok('and no marks unlocked out of nowhere',
+    (await achievementService.listForUser(freshAccount.id)).every((m) => !m.unlockedAt))
+  const firstSession = await workoutService.logManual({
+    userId: freshAccount.id, date: today, kind: 'cardio', name: 'One and only',
+    durationSec: 900, exercises: [],
+  })
+  await achievementService.evaluate(freshAccount.id, { announce: false })
+  ok('the first workout unlocks its mark',
+    Boolean((await achievementService.listForUser(freshAccount.id))
+      .find((m) => m.key === 'first_workout')?.unlockedAt))
+
+  await workoutService.removeSession(firstSession.id)
+  await achievementService.evaluate(freshAccount.id, { announce: false })
+  const afterWithdraw = await achievementService.listForUser(freshAccount.id)
+  const firstWorkoutMark = afterWithdraw.find((m) => m.key === 'first_workout')!
+  ok('deleting the only workout takes the mark back', firstWorkoutMark.unlockedAt === undefined)
+  ok('and it reads as unearned rather than full', (firstWorkoutMark.progress?.pct ?? 0) < 100)
+  ok('the row is gone, not merely hidden',
+    !(await db.achievements.where('userId').equals(freshAccount.id).toArray())
+      .some((row) => row.achievementKey === 'first_workout'))
+  ok('no mark ever shows more progress than its own target',
+    afterWithdraw.every((m) => !m.progress || m.progress.current <= m.progress.target))
+
+  // Nutrition counts toward the same marks, and stops counting when deleted.
+  const foodRows = []
+  for (let day = 0; day < 7; day += 1) {
+    foodRows.push(await nutritionService.addFood({
+      userId: freshAccount.id, date: addDays(today, -day), meal: 'lunch', name: 'Test meal',
+      quantity: 1, unit: 'serving', portion: '1 serving',
+      kcal: 500, proteinG: 30, carbsG: 50, fatG: 15, source: 'manual',
+    }))
+  }
+  await achievementService.evaluate(freshAccount.id, { announce: false })
+  ok('seven days of food unlocks the nutrition mark',
+    Boolean((await achievementService.listForUser(freshAccount.id))
+      .find((m) => m.key === 'nutrition_7')?.unlockedAt))
+  await nutritionService.removeFood(foodRows[0].id)
+  await achievementService.evaluate(freshAccount.id, { announce: false })
+  ok('and deleting one of those days takes it back',
+    (await achievementService.listForUser(freshAccount.id))
+      .find((m) => m.key === 'nutrition_7')?.unlockedAt === undefined)
+
+  /*
+   * Streaks and the weight journey are the deliberate exception. A streak ends
+   * every time somebody rests, and "moved five kilos" was true on the day it
+   * was true; withdrawing those would be the app punishing rest.
+   */
+  await db.achievements.add({
+    id: 'ua_streak_test', userId: freshAccount.id, achievementKey: 'streak_7',
+    unlockedAt: new Date().toISOString(),
+  })
+  await achievementService.evaluate(freshAccount.id, { announce: false })
+  ok('a streak mark survives the streak ending',
+    Boolean((await achievementService.listForUser(freshAccount.id))
+      .find((m) => m.key === 'streak_7')?.unlockedAt))
+
+  console.log('\n— Steps have one source —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  await stepsService.set({ userId: 'u_ahmed', date: today, steps: 12_345 })
+  const [stepSnapshot, stepWeek, stepMarks] = await Promise.all([
+    progressService.dailySnapshot('u_ahmed', today),
+    progressService.weeklySummary('u_ahmed', today),
+    achievementService.listForUser('u_ahmed'),
+  ])
+  check('Activity reads the row that was written', stepSnapshot!.steps, 12_345)
+  ok('the week includes it', stepWeek.steps >= 12_345)
+  const bestDay = stepMarks.find((m) => m.key === 'steps_10k_day')
+  ok('and the 10k mark sees the same day',
+    Boolean(bestDay?.unlockedAt) || (bestDay?.progress?.current ?? 0) >= 10_000)
+  check('setting steps replaces rather than appends',
+    await db.steps.where('[userId+date]').equals(['u_ahmed', today]).count(), 1)
+
+  console.log('\n— Nutrition and water land in one place —\n')
+  const beforeFuel = await progressService.dailySnapshot('u_ahmed', today)
+  const fuelRow = await nutritionService.addFood({
+    userId: 'u_ahmed', date: today, meal: 'snacks', name: 'Integration snack',
+    quantity: 1, unit: 'serving', portion: '1 serving',
+    kcal: 210, proteinG: 20, carbsG: 5, fatG: 9, source: 'manual',
+  })
+  await nutritionService.addWater('u_ahmed', today, 250)
+  const afterFuel = await progressService.dailySnapshot('u_ahmed', today)
+  const afterFuelDay = await nutritionService.dayNutrition('u_ahmed', today)
+  check('Activity calories include the meal', afterFuel!.nutrition.kcal, beforeFuel!.nutrition.kcal + 210)
+  check('and protein', afterFuel!.nutrition.proteinG, beforeFuel!.nutrition.proteinG + 20)
+  check('and water', afterFuel!.waterMl, beforeFuel!.waterMl + 250)
+  check('the nutrition page reads the same calories', afterFuelDay.totals.kcal, afterFuel!.nutrition.kcal)
+  check('and the same water', afterFuelDay.waterMl, afterFuel!.waterMl)
+  ok('the weekly review reads those same records',
+    (await reviewService.weeklyReview('u_ahmed', today)).waterMl >= afterFuel!.waterMl)
+
+  await nutritionService.removeFood(fuelRow.id)
+  const afterFuelDelete = await progressService.dailySnapshot('u_ahmed', today)
+  check('deleting the meal returns Activity to where it was',
+    afterFuelDelete!.nutrition.kcal, beforeFuel!.nutrition.kcal)
+
+  console.log('\n— And the group still hears none of it —\n')
+  const feed14 = await updateService.recent(40)
+  /*
+   * Every food name in the database, checked against every update. A workout
+   * may name itself — somebody chose that name for it — but nothing the
+   * kitchen knows is allowed to reach the group feed on its own.
+   */
+  const everyFoodName = [...new Set((await db.foods.toArray()).map((row) => row.name))]
+  const leaked14 = feed14.filter((update) =>
+    everyFoodName.some((name) => update.text.toLowerCase().includes(name.toLowerCase())))
+  ok('nutrition updates say that it happened, never what was eaten',
+    leaked14.length === 0, leaked14.map((u) => u.text).join(' | ') ||
+      `${everyFoodName.length} food names checked against ${feed14.length} updates`)
+
+  authService.signOut()
+  await resetDatabase()
+  await ensureSeeded()
+  await authService.signIn('ahmed', DEMO_PASSWORD)
 
   console.log('\n— Card images are presentation, not data —\n')
 

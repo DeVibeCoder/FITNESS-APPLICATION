@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ChevronLeft, Camera, ImageUp, PencilLine } from 'lucide-react'
 import { Sheet } from '@/components/ui/Sheet'
 import { FoodEntryForm } from './FoodEntryForm'
 import { FoodScanner, type ScanStart } from './FoodScanner'
+import { foodScanService } from '@/services/foodScanService'
 import type { FoodEntry, MealSlot } from '@/models'
 import styles from './AddFoodSheet.module.css'
 
@@ -30,9 +31,15 @@ const TITLES: Record<Mode, string> = {
  * quick-log sheet render this, so there is one form and one scanner in the app.
  *
  * Three ways in, named for what they actually do. Taking a photo opens the
- * camera, choosing from the device opens the picker, and typing it in opens the
- * same form an edit opens — a "camera" that was really the gallery, and a
+ * camera, choosing from the device opens the gallery, and typing it in opens
+ * the same form an edit opens — a "camera" that was really the gallery, and a
  * gallery that was really the camera, were the same button twice.
+ *
+ * The file input lives here rather than inside the scanner, and it is opened
+ * straight from the tap that asked for it. A picker opened later — from an
+ * effect, after a render — has lost the user gesture that entitles it to open
+ * at all, and a browser that refuses it leaves somebody looking at a screen
+ * that did nothing.
  *
  * Split from its Sheet wrapper so the quick-log sheet can host the flow inside
  * the sheet it already has open, rather than stacking a second one on top.
@@ -55,6 +62,9 @@ export function AddFoodFlow({
   const [mode, setModeState] = useState<Mode>(entry ? 'manual' : startIn)
   /** Which door the scanner opens on. Only meaningful while mode is 'scan'. */
   const [scanStart, setScanStart] = useState<ScanStart>('choose')
+  /** A photo chosen from the gallery, handed to the scanner as it opens. */
+  const [picked, setPicked] = useState<File | null>(null)
+  const libraryInput = useRef<HTMLInputElement>(null)
 
   const setMode = (next: Mode) => {
     setModeState(next)
@@ -62,13 +72,26 @@ export function AddFoodFlow({
   }
 
   const startScan = (from: ScanStart) => {
+    setPicked(null)
     setScanStart(from)
+    setMode('scan')
+  }
+
+  /** The gallery hands back a file; the scan begins with it already in hand. */
+  const onPicked = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    // Reset, so picking the same photo twice in a row still fires.
+    event.target.value = ''
+    if (!file) return // Cancelled the picker: stay where we are.
+    setPicked(file)
+    setScanStart('choose')
     setMode('scan')
   }
 
   useEffect(() => {
     setModeState(entry ? 'manual' : startIn)
     setScanStart('choose')
+    setPicked(null)
   }, [entry, startIn])
 
   const onClose = onDone
@@ -96,13 +119,13 @@ export function AddFoodFlow({
             </button>
           </li>
           <li>
-            <button className={styles.option} onClick={() => startScan('library')}>
+            <button className={styles.option} onClick={() => libraryInput.current?.click()}>
               <span className={styles.icon}>
                 <ImageUp size={19} strokeWidth={1.9} />
               </span>
               <span className={styles.text}>
                 <span className={styles.label}>Choose from device</span>
-                <span className={styles.hint}>Use a photo you already took</span>
+                <span className={styles.hint}>Pick a photo from your gallery</span>
               </span>
             </button>
           </li>
@@ -128,10 +151,25 @@ export function AddFoodFlow({
         <FoodScanner
           date={date}
           start={scanStart}
+          initialFile={picked ?? undefined}
           onManual={() => setMode('manual')}
           onDone={onClose}
         />
       ) : null}
+
+      {/*
+        Always mounted, even while the chooser is showing: the tap on "Choose
+        from device" opens it in the same breath, with no render in between.
+        `accept` is a broad image type on purpose — see foodScanService.
+      */}
+      <input
+        ref={libraryInput}
+        type="file"
+        accept={foodScanService.accept}
+        className={styles.file}
+        onChange={onPicked}
+        aria-label="Choose a food photo from your device"
+      />
     </>
   )
 }

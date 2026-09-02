@@ -15,7 +15,7 @@ import { Field, SelectField } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
 import { useTempImage } from '@/hooks/useTempImage'
-import { nutritionService } from '@/services'
+import { achievementService, nutritionService } from '@/services'
 import { MEAL_SLOTS } from '@/services/nutritionService'
 import { foodScanService, ScanError, scanTotals, type ScanItem, type ScanResult } from '@/services/foodScanService'
 import type { MealSlot } from '@/models'
@@ -26,8 +26,14 @@ import styles from './FoodScanner.module.css'
 
 type Stage = 'choose' | 'analyzing' | 'review' | 'failed'
 
-/** Where this flow opens: the chooser, the camera, or the device's picker. */
-export type ScanStart = 'choose' | 'camera' | 'library'
+/**
+ * Where this flow opens: on the chooser, or straight into the camera.
+ *
+ * There is deliberately no 'library' door. A gallery has to be opened by the
+ * tap that asked for it, so the picker lives in the chooser above this and
+ * hands the chosen photo down as `initialFile` — see AddFoodSheet.
+ */
+export type ScanStart = 'choose' | 'camera'
 
 /**
  * A row on the review list.
@@ -66,7 +72,8 @@ function blankItem(): ReviewItem {
  *
  *   The picture appears immediately. "Take a photo" opens the camera itself
  *   through `getUserMedia` rather than a file input wearing a camera label,
- *   and what it hands back is on screen before any analysis is attempted.
+ *   and a photo chosen from the gallery arrives here as `initialFile`. Either
+ *   way it is on screen before any analysis is attempted.
  *
  *   The picture survives failure. Every unhappy path keeps it visible and
  *   offers a way forward — try again, retake, or type the meal in.
@@ -80,12 +87,15 @@ export function FoodScanner({
   onDone,
   onManual,
   start = 'choose',
+  initialFile,
 }: {
   date?: string
   onDone: () => void
   /** Hands the flow to the manual form, keeping one food form in the app. */
   onManual?: () => void
   start?: ScanStart
+  /** A photo already chosen from the gallery, scanned as this opens. */
+  initialFile?: File
 }) {
   const { user } = useAuth()
   const { show, guard } = useToast()
@@ -102,20 +112,27 @@ export function FoodScanner({
   const [failure, setFailure] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [saving, setSaving] = useState(false)
   const [slow, setSlow] = useState(false)
+  /*
+   * The latest `accept`, for the mount effect below. The effect must run after
+   * the first render (when a handed-in file arrives), and `accept` is defined
+   * further down where it can read the props it needs.
+   */
+  const acceptRef = useRef<(file: File | undefined) => void>(() => {})
 
   useEffect(() => () => abortRef.current?.abort(), [])
 
   /*
-   * Opening straight into the device's picker.
+   * A photo chosen upstairs in the gallery, scanned as this opens.
    *
-   * The tap that chose "Choose from device" is still the current user
-   * gesture when this effect runs, which is what lets the input open. If a
-   * browser refuses, the chooser is already on screen behind it — a blocked
-   * picker costs one more tap rather than stranding anybody.
+   * Keyed on the file itself, so a re-render never re-analyses the same photo
+   * and a second choice always does. Deliberately no "already started" ref:
+   * one would make a remount skip the restart after the abort that a remount
+   * also triggers, leaving the scan spinning at a request that no longer
+   * exists — which is exactly what it did.
    */
   useEffect(() => {
-    if (start === 'library') inputRef.current?.click()
-  }, [start])
+    if (initialFile) acceptRef.current(initialFile)
+  }, [initialFile])
 
   // The server may quietly retry a stalled call. The browser cannot observe
   // that, so rather than claim a retry we simply stop pretending it is quick.
@@ -188,6 +205,8 @@ export function FoodScanner({
     void analyze(file)
   }
 
+  acceptRef.current = accept
+
   const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     // Reset, so choosing the same file twice in a row still fires.
@@ -230,6 +249,8 @@ export function FoodScanner({
           source: item.manual ? 'manual' : 'photo',
         })
       }
+      // Counts toward the marks exactly as a typed meal does.
+      await achievementService.evaluate(user.id)
       // `guard` says "it failed" with `undefined`, so success has to say
       // something. Without this the meal saved and the sheet stayed open with
       // the photo still held.

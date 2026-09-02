@@ -258,9 +258,10 @@ export function WorkoutPlayer() {
         bodyWeightKg: weightForEstimate,
       })
       await achievementService.evaluate(user.id)
+      return true
     })
     setSaving(false)
-    if (done !== undefined) {
+    if (done) {
       show('Session saved. Chain intact.', 'success')
       navigate('/workout', { replace: true })
     }

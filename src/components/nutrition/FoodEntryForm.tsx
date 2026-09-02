@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, SelectField } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { nutritionService } from '@/services'
+import { achievementService, nutritionService } from '@/services'
 import { MEAL_SLOTS } from '@/services/nutritionService'
 import type { FoodEntry, MealSlot } from '@/models'
 import { FOOD_UNITS, formatPortion, macrosLookOff, type FoodUnit } from '@/utils/nutrition'
@@ -102,6 +102,9 @@ export function FoodEntryForm({ entry, meal, date, onDone }: FoodEntryFormProps)
           ...payload,
         })
       }
+      // Days logged is one of the things the marks are counted from, the same
+      // way a workout counts. Nutrition was writing rows nothing looked at.
+      await achievementService.evaluate(user.id)
       return true
     })
     setSaving(false)
@@ -116,6 +119,9 @@ export function FoodEntryForm({ entry, meal, date, onDone }: FoodEntryFormProps)
     setSaving(true)
     const result = await guard(async () => {
       await nutritionService.removeFood(entry.id)
+      // Quietly: a mark that no longer stands is withdrawn, and nobody needs
+      // an announcement about deleting a meal.
+      await achievementService.evaluate(user.id, { announce: false })
       return true
     })
     setSaving(false)

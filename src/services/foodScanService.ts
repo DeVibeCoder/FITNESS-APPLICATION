@@ -100,7 +100,21 @@ export function suggestMeal(at: Date = new Date()): MealSlot {
 }
 
 export const foodScanService = {
-  accept: ACCEPTED.join(','),
+  /**
+   * What the file input asks for.
+   *
+   * `image/*`, deliberately, rather than the list of types this service can
+   * actually read. A specific MIME list makes Android Chrome fall back to the
+   * generic intent chooser — which offers the camera — instead of the system
+   * photo picker, so "Choose from device" opened a camera. The broad type
+   * opens the gallery; anything unreadable is caught by `validate` below and
+   * refused with a sentence, which is a far better trade than a picker that
+   * launches the wrong thing.
+   */
+  accept: 'image/*',
+
+  /** The types the pipeline can actually read, for validation and for tests. */
+  readable: ACCEPTED.join(','),
 
   validate(file: { type: string; size: number }): void {
     if (!ACCEPTED.includes(file.type)) {

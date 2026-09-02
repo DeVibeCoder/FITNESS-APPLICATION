@@ -155,6 +155,25 @@ function earnedFrom(m: Measures): Record<string, boolean> {
 }
 
 /**
+ * Marks that are kept once earned, whatever happens next.
+ *
+ * A streak is a thing that happened on particular days; it ends every time
+ * somebody takes a week off, and taking the badge back for that would be
+ * punishing rest. The weight marks are the same kind of claim — "you have
+ * moved five kilos toward your goal" was true when it was true, and a kilo
+ * back the other way next month does not unmake it.
+ *
+ * Everything else stands on evidence that is still in the database — sessions,
+ * step rows, days with food logged — and is withdrawn if that evidence is
+ * deleted, because an award for ten workouts sitting above four workouts is
+ * the app disagreeing with itself.
+ */
+const KEPT_ONCE_EARNED = new Set([
+  'streak_3', 'streak_7', 'streak_14', 'streak_30', 'streak_60', 'streak_90',
+  'first_kg', 'three_kg', 'five_kg', 'ten_kg', 'goal_reached',
+])
+
+/**
  * How far along each measurable mark is.
  *
  * Keys missing from this map are the ones with nothing honest to show a
@@ -266,8 +285,9 @@ export const achievementService = {
   },
 
   /**
-   * Re-derives everything the user has earned and unlocks what is new. Safe to
-   * call after any write; already-unlocked keys are left alone.
+   * Re-derives everything the user has earned: unlocks what is new, and takes
+   * back anything whose evidence has since been deleted. Safe to call after
+   * any write, and the thing to call after a delete.
    */
   async evaluate(
     userId: ID,
@@ -280,7 +300,19 @@ export const achievementService = {
     if (!measures) return []
 
     const earned = earnedFrom(measures)
-    const already = new Set(existing.map((e) => e.achievementKey))
+
+    /*
+     * Withdraw first, so a mark whose record has just been deleted does not
+     * sit unlocked above a number that no longer reaches it. Only evidence
+     * marks are eligible; see KEPT_ONCE_EARNED.
+     */
+    const withdrawn = existing.filter(
+      (row) => !KEPT_ONCE_EARNED.has(row.achievementKey) && !earned[row.achievementKey],
+    )
+    if (withdrawn.length) await db.achievements.bulkDelete(withdrawn.map((row) => row.id))
+    const standing = existing.filter((row) => !withdrawn.includes(row))
+
+    const already = new Set(standing.map((e) => e.achievementKey))
     const newlyUnlocked: AchievementDef[] = []
     const rows: UserAchievement[] = []
 

@@ -187,12 +187,16 @@ function StepsForm({ onDone }: { onDone: () => void }) {
       return
     }
     setSaving(true)
+    // `guard` reports failure as `undefined`, so success has to return
+    // something of its own — without it the steps saved and the sheet sat
+    // there as though the button had done nothing.
     const result = await guard(async () => {
       await stepsService.set({ userId: user.id, date: today, steps })
       await achievementService.evaluate(user.id)
+      return true
     })
     setSaving(false)
-    if (result !== undefined) {
+    if (result) {
       show('Steps updated.', 'success')
       onDone()
     }

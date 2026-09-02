@@ -113,9 +113,10 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
           note: note.trim() || undefined,
         })
         await achievementService.evaluate(user.id)
+        return true
       })
       setSaving(false)
-      if (result !== undefined) {
+      if (result) {
         show('Weigh-in updated.', 'success')
         onDone()
       }
@@ -146,9 +147,15 @@ export function WeightEntryForm({ entry, onDone }: WeightEntryFormProps) {
   const remove = async () => {
     if (!entry) return
     setSaving(true)
-    const result = await guard(() => weightService.remove(entry.id))
+    const result = await guard(async () => {
+      await weightService.remove(entry.id)
+      // What is left is what the marks are judged on, so they are re-read
+      // rather than adjusted.
+      await achievementService.evaluate(user.id, { announce: false })
+      return true
+    })
     setSaving(false)
-    if (result !== undefined) {
+    if (result) {
       show('Weigh-in deleted.')
       onDone()
     }

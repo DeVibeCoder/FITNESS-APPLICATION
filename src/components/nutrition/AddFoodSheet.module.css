@@ -81,3 +81,8 @@ button.option:active {
   font-size: var(--t-small);
   color: var(--ink-3);
 }
+
+/* The gallery input is never seen; the option in front of it is. */
+.file {
+  display: none;
+}
