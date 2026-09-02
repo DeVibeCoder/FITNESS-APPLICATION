@@ -43,12 +43,22 @@
   min-width: 0;
 }
 
+/*
+ * The whole screenshot, at the shape it was taken in.
+ *
+ * `max-width` and `max-height` with both dimensions auto: the picture is
+ * fitted, never cropped, so a tall phone screenshot and a wide tablet one both
+ * arrive complete. Taller than it was — a phone screenshot is mostly vertical
+ * and the question being answered is "does this say what I think it says",
+ * which needs the numbers to be readable, not merely present.
+ */
 .shotImage {
   display: block;
   max-width: 100%;
-  max-height: min(34vh, 18rem);
+  max-height: min(46vh, 26rem);
   width: auto;
   height: auto;
+  object-fit: contain;
   border-radius: var(--r);
   border: 1px solid var(--line);
   background: var(--bg-sunk);

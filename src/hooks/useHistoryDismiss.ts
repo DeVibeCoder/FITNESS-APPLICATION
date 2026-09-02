@@ -40,6 +40,23 @@ const stack: symbol[] = []
  */
 let selfPops = 0
 
+/**
+ * The pop events already accounted for.
+ *
+ * `popstate` is one event delivered to every mounted listener, and the count
+ * above was being spent by whichever listener happened to run first: with a
+ * sheet, a sub-screen and a camera all open, the sheet's listener swallowed
+ * the camera's own pop and the sub-screen's listener — next in line, and by
+ * then top of the stack — read the same pop as a Back and closed itself. One
+ * photograph taken inside the workout import therefore landed two screens
+ * further out than it left, with the picture gone.
+ *
+ * Marking the event rather than only counting it makes every listener agree
+ * about a single pop: the first one spends the credit, the rest see that it
+ * has been spent and leave the event alone.
+ */
+const accountedFor = new WeakSet<Event>()
+
 export function useHistoryDismiss(onDismiss: () => void): void {
   const dismiss = useRef(onDismiss)
   dismiss.current = onDismiss
@@ -71,10 +88,14 @@ export function useHistoryDismiss(onDismiss: () => void): void {
       pushed = true
     })
 
-    const onPopState = () => {
-      // A pop this module asked for, not one the user made. Swallow it.
+    const onPopState = (event: PopStateEvent) => {
+      // Already recognised as ours by whichever listener heard it first.
+      if (accountedFor.has(event)) return
+      // A pop this module asked for, not one the user made. Swallow it, and
+      // say so on the event so the listeners after this one agree.
       if (selfPops > 0) {
         selfPops--
+        accountedFor.add(event)
         return
       }
       // Somebody is above us; the Back belongs to them.

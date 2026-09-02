@@ -1,19 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useHistoryDismiss } from '@/hooks/useHistoryDismiss'
-import { AlertTriangle, ImageUp, Info, PencilLine, RefreshCw, ScanLine, X } from 'lucide-react'
+import { ImageUp, Info, PencilLine, ScanLine } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { useTempImage } from '@/hooks/useTempImage'
 import { achievementService, challengeService, workoutService } from '@/services'
 import { DIFFICULTY_OPTIONS } from '@/services/workoutService'
-import {
-  scanCoverage,
-  workoutScanService,
-  WorkoutScanError,
-  type WorkoutScan,
-} from '@/services/workoutScanService'
 import { WORKOUT_APPS } from '@/data/workoutApps'
 import { ManualWorkoutForm } from './ManualWorkoutForm'
 import { WorkoutImportFlow } from './WorkoutImportFlow'
@@ -22,17 +15,7 @@ import { todayKey } from '@/utils/date'
 import { duration, parseDuration } from '@/utils/format'
 import styles from './LogWorkoutForm.module.css'
 
-type Stage = 'choose' | 'analyzing' | 'failed' | 'form' | 'manual' | 'import'
-
-/** Field names as the server reports them, and what to call them out loud. */
-const FIELD_LABEL: Record<string, string> = {
-  planName: 'Plan',
-  dayNumber: 'Day',
-  workoutName: 'Workout name',
-  durationSec: 'Duration',
-  caloriesKcal: 'Calories',
-  exerciseCount: 'Exercises',
-}
+type Stage = 'choose' | 'form' | 'manual' | 'import'
 
 /**
  * Logging a workout done somewhere else.
@@ -43,14 +26,16 @@ const FIELD_LABEL: Record<string, string> = {
  * session is to photograph that screen and correct whatever did not come
  * through, rather than to retype six fields that are already on the phone.
  *
- * The screenshot route is therefore the primary action and typing is the
- * secondary one. Neither is removed: the manual form is one tap away and is
- * also where every scan lands, because nothing is saved without a person
- * looking at it.
+ * There are two ways in and this screen is only the fork between them.
+ * Reading a screenshot belongs to `WorkoutImportFlow`, writing one down
+ * belongs to `ManualWorkoutForm`, and both end in the same editor and the same
+ * save. This file used to carry a second, unreachable copy of the screenshot
+ * reader that filled its own summary fields through its own save path; it is
+ * gone. One import route, one editor per record.
  *
- * The screenshot itself never becomes a record. It is held as an object URL
- * while the review is on screen and released on save, on cancel and on
- * unmount; the saved session carries structured fields only.
+ * The summary form below is not that second route. It is how an *existing*
+ * external log is edited — a record with a workout's totals and no exercise
+ * list, which is the shape those sessions actually have.
  */
 export function LogWorkoutForm({
   session,
@@ -62,9 +47,6 @@ export function LogWorkoutForm({
 }) {
   const { user } = useAuth()
   const { show, guard } = useToast()
-  const preview = useTempImage()
-  const fileInput = useRef<HTMLInputElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
 
   /*
    * Editing an existing log has nothing to scan, so it opens on a form — and
@@ -75,10 +57,6 @@ export function LogWorkoutForm({
   const [stage, setStage] = useState<Stage>(
     session ? (session.loggedVia === 'manual' ? 'manual' : 'form') : 'choose',
   )
-  const [scan, setScan] = useState<WorkoutScan | null>(null)
-  const [failure, setFailure] = useState<{ message: string; canRetry: boolean } | null>(null)
-  const [slow, setSlow] = useState(false)
-
   const [source, setSource] = useState<WorkoutSource>('home_workout')
   const [sourceName, setSourceName] = useState('')
   const [planName, setPlanName] = useState('')
@@ -134,101 +112,11 @@ export function LogWorkoutForm({
     }
   }, [user, session, prefilled])
 
-  // Abandoning the sheet mid-analysis must not leave a request running.
-  useEffect(() => () => abortRef.current?.abort(), [])
-
-  // The server may quietly retry a stalled call. The browser cannot observe
-  // that, so rather than claim a retry we simply stop pretending it is quick.
-  useEffect(() => {
-    if (stage !== 'analyzing') {
-      setSlow(false)
-      return
-    }
-    const timer = window.setTimeout(() => setSlow(true), 6000)
-    return () => window.clearTimeout(timer)
-  }, [stage])
-
   if (!user) return null
 
   const durationSec = parseDuration(durationText)
   const durationBad = durationText.trim().length > 0 && durationSec === null
   const valid = (name.trim() || planName.trim()) && durationSec !== null && durationSec > 0
-
-  /**
-   * Copies a reading into the form.
-   *
-   * Only fields the screenshot actually showed are written. Anything absent
-   * keeps whatever the defaults put there, which is why a missing day number
-   * still arrives sensibly filled from last time rather than blank.
-   */
-  const applyScan = (result: WorkoutScan) => {
-    if (result.app) setSource(result.app)
-    if (result.appName) setSourceName(result.appName)
-    if (result.planName) setPlanName(result.planName)
-    if (result.dayNumber) setDayNumber(String(result.dayNumber))
-    if (result.workoutName) setName(result.workoutName)
-    if (result.exerciseCount) setExerciseCount(String(result.exerciseCount))
-    if (result.durationSec) setDurationText(duration(result.durationSec))
-    if (result.caloriesKcal) setCalories(String(result.caloriesKcal))
-    // A screenshot cannot know how it felt, and the note is the user's own.
-  }
-
-  const analyze = async (file: File) => {
-    // Only one reading in flight: starting a new scan abandons the old one so
-    // a second request is never paid for or raced against.
-    abortRef.current?.abort()
-    const controller = new AbortController()
-    abortRef.current = controller
-
-    setStage('analyzing')
-    setFailure(null)
-    try {
-      const result = await workoutScanService.analyzeScreenshot(file, {
-        signal: controller.signal,
-      })
-      if (controller.signal.aborted) return
-      setScan(result)
-      applyScan(result)
-      setStage('form')
-    } catch (error) {
-      if (controller.signal.aborted) return
-      setFailure({
-        message:
-          error instanceof WorkoutScanError
-            ? error.message
-            : 'Screenshot reading is temporarily unavailable.',
-        canRetry: error instanceof WorkoutScanError ? error.canRetry : true,
-      })
-      setStage('failed')
-    }
-  }
-
-  const onPick = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    // Clearing the input means picking the same file again still fires change.
-    event.target.value = ''
-    if (!file) return // Picker cancelled — nothing to clean up.
-
-    try {
-      workoutScanService.validate(file)
-    } catch (error) {
-      show(
-        error instanceof WorkoutScanError ? error.message : "That image couldn't be used.",
-        'error',
-      )
-      return
-    }
-
-    preview.set(file)
-    void analyze(file)
-  }
-
-  const discardScan = () => {
-    abortRef.current?.abort()
-    abortRef.current = null
-    preview.release()
-    setScan(null)
-  }
 
   const save = async () => {
     if (!valid || durationSec === null) return
@@ -256,23 +144,10 @@ export function LogWorkoutForm({
     setSaving(false)
 
     if (result !== undefined) {
-      // The screenshot never outlives the form. Nothing is written anywhere.
-      preview.release()
       show(session ? 'Workout updated.' : 'Workout logged. Nice one.', 'success')
       onDone()
     }
   }
-
-  const hiddenInput = (
-    <input
-      ref={fileInput}
-      type="file"
-      accept={workoutScanService.accept}
-      className="sr-only"
-      onChange={onPick}
-      aria-label="Choose a workout screenshot"
-    />
-  )
 
   /*
    * One history entry per sub-screen.
@@ -365,114 +240,10 @@ export function LogWorkoutForm({
     )
   }
 
-  // --- Analysing -----------------------------------------------------------
-  if (stage === 'analyzing') {
-    return (
-      <div className={styles.working}>
-        {subScreen ? <StageBack onBack={() => { discardScan(); setStage('choose') }} /> : null}
-        {preview.url ? (
-          <img className={styles.workingShot} src={preview.url} alt="" />
-        ) : null}
-        <span className={styles.spinner} aria-hidden="true" />
-        <p className={styles.workingTitle}>Reading your screenshot…</p>
-        <p className={styles.workingHint}>
-          {slow ? 'Still going. A slow first request usually settles down.' : 'This takes a moment.'}
-        </p>
-        <Button
-          variant="ghost"
-          onClick={() => {
-            discardScan()
-            setStage('choose')
-          }}
-        >
-          Cancel
-        </Button>
-      </div>
-    )
-  }
-
-  // --- Failed --------------------------------------------------------------
-  if (stage === 'failed') {
-    return (
-      <div className={styles.failed}>
-        {subScreen ? <StageBack onBack={() => { discardScan(); setStage('choose') }} /> : null}
-        <span className={styles.failedIcon} aria-hidden="true">
-          <AlertTriangle size={20} strokeWidth={2} />
-        </span>
-        <p className={styles.failedTitle}>We couldn't read that one</p>
-        <p className={styles.failedBody}>{failure?.message}</p>
-
-        {/*
-          Two ways out, and both of them work. Nothing here guesses at the
-          workout — an unreadable screenshot means the fields stay empty and
-          the user fills them in, which is the manual route they already had.
-        */}
-        {failure?.canRetry ? (
-          <Button
-            block
-            icon={<RefreshCw size={16} strokeWidth={2.2} />}
-            onClick={() => {
-              discardScan()
-              fileInput.current?.click()
-            }}
-          >
-            Try again
-          </Button>
-        ) : null}
-        <Button
-          variant="secondary"
-          block
-          icon={<PencilLine size={16} strokeWidth={2.2} />}
-          onClick={() => {
-            discardScan()
-            setStage('form')
-          }}
-        >
-          Enter manually
-        </Button>
-        {hiddenInput}
-      </div>
-    )
-  }
-
-  // --- Review / manual entry -----------------------------------------------
-  const coverage = scan ? scanCoverage(scan) : null
-
+  // --- The summary form ------------------------------------------------------
   return (
     <>
       {subScreen ? <StageBack onBack={() => setStage('choose')} /> : null}
-      {scan ? (
-        <div className={styles.scanBanner}>
-          {preview.url ? (
-            <img className={styles.scanShot} src={preview.url} alt="The screenshot you added" />
-          ) : null}
-          <div className={styles.scanText}>
-            <p className={styles.scanTitle}>
-              Read {coverage!.read} of {coverage!.total} fields
-            </p>
-            <p className={styles.scanHint}>
-              {scan.missing.length > 0
-                ? `Not visible: ${scan.missing
-                    .map((field) => FIELD_LABEL[field] ?? field)
-                    .join(', ')}. Fill those in below.`
-                : 'Check the values below, then save.'}
-            </p>
-            {scan.source === 'mock' ? (
-              <p className={styles.scanMock}>Development mock — this is not your screenshot.</p>
-            ) : null}
-          </div>
-          <button className={styles.scanDrop} onClick={discardScan} aria-label="Remove screenshot">
-            <X size={15} strokeWidth={2.4} />
-          </button>
-        </div>
-      ) : session ? null : (
-        <button className={styles.scanOffer} onClick={() => fileInput.current?.click()}>
-          <ImageUp size={15} strokeWidth={2.2} />
-          Add a workout screenshot instead
-        </button>
-      )}
-
-      {hiddenInput}
 
       <fieldset className={styles.apps}>
         <legend className={styles.legend}>Which app?</legend>

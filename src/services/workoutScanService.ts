@@ -90,7 +90,21 @@ const MESSAGES: Record<string, string> = {
 }
 
 export const workoutScanService = {
-  accept: ACCEPTED.join(','),
+  /**
+   * What the file input asks for.
+   *
+   * `image/*`, not the list of types this service can actually read. A
+   * specific MIME list makes Android Chrome fall back to the generic intent
+   * chooser — camera included — instead of the system photo picker, so
+   * "Choose from device" could open a camera. The broad type opens the
+   * gallery; anything unreadable is caught by `validate` below and refused
+   * with a sentence, which is a far better trade than a picker that launches
+   * the wrong thing. The food scanner made the same move for the same reason.
+   */
+  accept: 'image/*',
+
+  /** The types the reader can actually handle, for validation and for tests. */
+  readable: ACCEPTED.join(','),
 
   validate(file: { type: string; size: number }): void {
     if (!ACCEPTED.includes(file.type)) {

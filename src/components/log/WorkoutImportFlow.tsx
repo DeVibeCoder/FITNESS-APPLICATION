@@ -171,6 +171,32 @@ export function WorkoutImportFlow({
     />
   )
 
+  /**
+   * Retake, replace, remove — available wherever the picture is.
+   *
+   * Not only on the review screen, which is where they used to live. A
+   * screenshot that turns out to be the wrong one is discovered while looking
+   * at it, and that happens while it is being read and again when the reading
+   * fails; having to wait for a result before being allowed to change the
+   * picture is the flow arguing with the person using it.
+   */
+  const tools = (
+    <div className={styles.shotTools}>
+      <button className={styles.shotTool} onClick={() => setCameraOpen(true)}>
+        <Camera size={14} strokeWidth={2.2} />
+        Retake
+      </button>
+      <button className={styles.shotTool} onClick={() => fileInput.current?.click()}>
+        <ImageUp size={14} strokeWidth={2.2} />
+        Replace
+      </button>
+      <button className={`${styles.shotTool} ${styles.shotToolDanger}`} onClick={clear}>
+        <Trash2 size={14} strokeWidth={2.2} />
+        Remove
+      </button>
+    </div>
+  )
+
   const cameraSheet = cameraOpen ? (
     <CameraCapture
       /* Stills only. This phase reads screens, and a video of one would be a
@@ -235,6 +261,7 @@ export function WorkoutImportFlow({
     return (
       <>
         {picture}
+        {tools}
         <div className={styles.working}>
           <span className={styles.spinner} aria-hidden="true" />
           <p className={styles.workingTitle}>Reading workout…</p>
@@ -246,6 +273,7 @@ export function WorkoutImportFlow({
           Cancel
         </Button>
         {fileField}
+        {cameraSheet}
       </>
     )
   }
@@ -289,10 +317,9 @@ export function WorkoutImportFlow({
         >
           Enter it myself
         </Button>
-        <Button variant="ghost" icon={<Trash2 size={15} strokeWidth={2.1} />} onClick={clear}>
-          Use a different picture
-        </Button>
+        {tools}
         {fileField}
+        {cameraSheet}
       </>
     )
   }
@@ -304,20 +331,7 @@ export function WorkoutImportFlow({
       <ReviewBack onBack={clear} />
 
       {formStep === 'details' ? picture : null}
-      <div className={formStep === 'details' ? styles.shotTools : styles.hidden}>
-        <button className={styles.shotTool} onClick={() => setCameraOpen(true)}>
-          <Camera size={14} strokeWidth={2.2} />
-          Retake
-        </button>
-        <button className={styles.shotTool} onClick={() => fileInput.current?.click()}>
-          <ImageUp size={14} strokeWidth={2.2} />
-          Replace
-        </button>
-        <button className={`${styles.shotTool} ${styles.shotToolDanger}`} onClick={clear}>
-          <Trash2 size={14} strokeWidth={2.2} />
-          Remove
-        </button>
-      </div>
+      {formStep === 'details' ? tools : null}
 
       {scan && formStep === 'details' ? <ReadingSummary scan={scan} /> : null}
 

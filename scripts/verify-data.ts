@@ -1877,6 +1877,151 @@ async function main() {
   await ensureSeeded()
   await authService.signIn('ahmed', DEMO_PASSWORD)
 
+  // ---------------------------------------------------------------------
+  // Phase 15 — the workout screenshot, and the two doors into it.
+  //
+  // The same claim the food picker had to earn: the button that says gallery
+  // opens a gallery, the button that says camera opens a camera, and the
+  // picture survives everything that can go wrong in between.
+  // ---------------------------------------------------------------------
+
+  console.log('\n— Choose from device opens a gallery —\n')
+  const importSource = await readFile(
+    new URL('../src/components/log/WorkoutImportFlow.tsx', import.meta.url), 'utf8')
+  const workoutScanSource = await readFile(
+    new URL('../src/services/workoutScanService.ts', import.meta.url), 'utf8')
+  const logFormSource = await readFile(
+    new URL('../src/components/log/LogWorkoutForm.tsx', import.meta.url), 'utf8')
+
+  ok('the screenshot input asks for any image, not a MIME list',
+    workoutScanSource.includes("accept: 'image/*'"))
+  ok('and the reader still only accepts what it can actually read',
+    workoutScanSource.includes("const ACCEPTED = ['image/jpeg'"))
+  ok('every picked file is validated after selection',
+    importSource.includes('workoutScanService.validate(chosen)'))
+  ok('no capture attribute anywhere in the import flow', !/capture=/.test(importSource))
+  ok('the gallery opens straight from the tap that asked for it',
+    importSource.includes('onClick={() => fileInput.current?.click()}'))
+  ok('and the camera is the real one, not a file input wearing its name',
+    importSource.includes('<CameraCapture') && importSource.includes('allowVideo={false}'))
+
+  console.log('\n— One import route, one editor —\n')
+  ok('the import flow ends in the manual editor',
+    importSource.includes('<ManualWorkoutForm'))
+  ok('and nothing else reads a screenshot any more',
+    !logFormSource.includes('analyzeScreenshot') && !logFormSource.includes('workoutScanService'))
+  ok('the log sheet is now only the fork between the two routes',
+    logFormSource.includes('<WorkoutImportFlow') && logFormSource.includes('<ManualWorkoutForm'))
+  ok('an imported workout is saved by the same call a typed one uses',
+    importSource.includes('<ManualWorkoutForm') &&
+      (await readFile(new URL('../src/components/log/ManualWorkoutForm.tsx', import.meta.url), 'utf8'))
+        .includes('workoutService.logManual'))
+
+  console.log('\n— The picture survives, and is never stored —\n')
+  const importCss = await readFile(
+    new URL('../src/components/log/WorkoutImportFlow.module.css', import.meta.url), 'utf8')
+  ok('the preview is fitted rather than cropped',
+    importCss.includes('object-fit: contain') && !/\.shotImage \{[^}]*object-fit: cover/.test(importCss))
+  ok('and keeps its own proportions', importCss.includes('max-width: 100%') &&
+    importCss.includes('width: auto') && importCss.includes('height: auto'))
+  for (const stage of ["stage === 'reading'", "stage === 'failed'"]) {
+    const from = importSource.indexOf(`if (${stage})`)
+    const to = importSource.indexOf('// ---', from + 10)
+    const branch = importSource.slice(from, to)
+    ok(`${stage.replace("stage === ", '')} keeps the picture on screen`, branch.includes('{picture}'))
+    ok(`${stage.replace("stage === ", '')} offers retake, replace and remove`, branch.includes('{tools}'))
+  }
+  ok('the failure offers a retry and a way to type it in',
+    importSource.includes('Try reading it again') && importSource.includes('Enter it myself'))
+  ok('the object URL is released on remove, cancel and unmount',
+    importSource.includes('shot.release()') && importSource.includes('useTempImage'))
+
+  console.log('\n— An imported workout is an ordinary workout —\n')
+  await authService.signIn('ahmed', DEMO_PASSWORD)
+  const importDay = today
+  const beforeImport = await progressService.weeklySummary('u_ahmed', importDay)
+  const beforeSessions = (await workoutService.sessionsForDay('u_ahmed', importDay)).length
+
+  // What the flow does with a reading: fill the manual editor, save once.
+  const importedSession = await workoutService.logManual({
+    userId: 'u_ahmed', date: importDay, kind: 'strength', name: 'Imported summary',
+    durationSec: 1500, caloriesKcal: 260,
+    exercises: [
+      { name: 'Push-ups', sets: 3, reps: 15 },
+      { name: 'Plank', sets: 3, durationSec: 45 },
+    ],
+  })
+  await achievementService.evaluate('u_ahmed', { announce: false })
+
+  check('one import creates exactly one session',
+    (await workoutService.sessionsForDay('u_ahmed', importDay)).length, beforeSessions + 1)
+  const importedExercises = await workoutService.exercisesFor(importedSession.id)
+  check('with the exercises it read', importedExercises.length, 2)
+  check('named as they were read', importedExercises[0].name, 'Push-ups')
+  check('and the reps kept', importedExercises[0].reps, 15)
+  check('the week counts it', (await progressService.weeklySummary('u_ahmed', importDay)).workouts,
+    beforeImport.workouts + 1)
+  check('and its minutes', (await progressService.weeklySummary('u_ahmed', importDay)).durationSec,
+    beforeImport.durationSec + 1500)
+  ok('Activity sees it',
+    (await progressService.dailySnapshot('u_ahmed', importDay))!.completedSessions
+      .some((session) => session.id === importedSession.id))
+  ok('and the history sees it',
+    (await workoutService.sessionsForUser('u_ahmed')).some((s) => s.id === importedSession.id))
+
+  // Editing it is an update of that row, exercises and all.
+  await workoutService.logManual({
+    sessionId: importedSession.id,
+    userId: 'u_ahmed', date: importDay, kind: 'strength', name: 'Imported summary, corrected',
+    durationSec: 1800, caloriesKcal: 260,
+    exercises: [
+      { name: 'Push-ups', sets: 4, reps: 15 },
+      { name: 'Plank', sets: 3, durationSec: 45 },
+    ],
+  })
+  check('editing does not create a second session',
+    (await workoutService.sessionsForDay('u_ahmed', importDay)).length, beforeSessions + 1)
+  const editedExercises = await workoutService.exercisesFor(importedSession.id)
+  check('and does not duplicate the exercises', editedExercises.length, 2)
+  check('the correction is in the row', editedExercises[0].sets, 4)
+  check('and the week follows it',
+    (await progressService.weeklySummary('u_ahmed', importDay)).durationSec,
+    beforeImport.durationSec + 1800)
+
+  await workoutService.removeSession(importedSession.id)
+  await achievementService.evaluate('u_ahmed', { announce: false })
+  check('deleting removes the session',
+    (await workoutService.sessionsForDay('u_ahmed', importDay)).length, beforeSessions)
+  check('and its exercises with it',
+    (await workoutService.exercisesFor(importedSession.id)).length, 0)
+  check('the week returns',
+    (await progressService.weeklySummary('u_ahmed', importDay)).workouts, beforeImport.workouts)
+  check('and so do the minutes',
+    (await progressService.weeklySummary('u_ahmed', importDay)).durationSec,
+    beforeImport.durationSec)
+  ok('while every other workout is untouched',
+    (await workoutService.sessionsForUser('u_ahmed')).length > 0)
+
+  console.log('\n— And no screenshot bytes anywhere —\n')
+  const importLeaks: string[] = []
+  for (const table of db.tables) {
+    for (const row of await table.toArray()) {
+      for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+        if (value instanceof Blob || value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
+          importLeaks.push(`${table.name}.${key} holds binary`)
+        }
+        if (typeof value === 'string' && /^(data:|blob:)/i.test(value)) {
+          importLeaks.push(`${table.name}.${key} holds an image reference`)
+        }
+        if (typeof value === 'string' && value.length > 4000) {
+          importLeaks.push(`${table.name}.${key} is ${value.length} chars`)
+        }
+      }
+    }
+  }
+  ok('no blob, buffer, data URI or base64 payload in any table', importLeaks.length === 0,
+    importLeaks.join('; ') || 'swept every row of every table')
+
   console.log('\n— Card images are presentation, not data —\n')
 
   const cardImageSource = await readFile(
