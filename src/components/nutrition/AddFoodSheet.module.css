@@ -53,10 +53,6 @@ button.option:active {
   transform: scale(0.985);
 }
 
-.disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .icon {
   display: grid;

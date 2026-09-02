@@ -80,7 +80,7 @@ export function MeasurementSection({ entries }: { entries: BodyMeasurement[] }) 
                     <span className={styles.arrow} aria-hidden="true">
                       →
                     </span>
-                    <span className={styles.to}>
+                    <span>
                       <span className="tnum">{num(change!.latest, 1)}</span> {unit}
                     </span>
                   </span>

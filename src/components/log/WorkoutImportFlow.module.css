@@ -234,10 +234,3 @@
   }
 }
 
-/*
- * Out of the way for the final summary, not unmounted — keeping the controls
- * in the tree means stepping back from the review does not rebuild them.
- */
-.hidden {
-  display: none;
-}

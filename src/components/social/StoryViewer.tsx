@@ -415,7 +415,7 @@ export function StoryViewer({
         would be two more things covering the picture.
       */}
       <button
-        className={`${styles.step} ${styles.stepBack}`}
+        className={styles.step}
         onClick={() => hasPerson(-1) && settle(-1, true)}
         aria-label="Previous person"
       >
@@ -588,7 +588,7 @@ export function StoryViewer({
       </div>
 
       <button
-        className={`${styles.step} ${styles.stepNext}`}
+        className={styles.step}
         onClick={() => hasPerson(1) && settle(1, true)}
         aria-label="Next person"
       >

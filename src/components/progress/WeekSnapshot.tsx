@@ -71,7 +71,7 @@ export function WeekSnapshot({
 
       <div className={styles.parts}>
         {consistency.parts.map((part) => (
-          <div key={part.label} className={styles.part}>
+          <div key={part.label}>
             <div className={styles.partHead}>
               <span>{part.label}</span>
               <span className="tnum">
