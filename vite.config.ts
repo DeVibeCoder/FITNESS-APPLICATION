@@ -89,6 +89,26 @@ export default defineConfig(({ mode }) => {
           // The scan endpoints must always hit the network; nothing about a
           // photo or its analysis belongs in a cache.
           navigateFallbackDenylist: [/^\/api\//],
+          /*
+           * The app shell is precached as `/`, not as `index.html`.
+           *
+           * Cloudflare Pages answers `/index.html` with a 308 to `/`, and a
+           * redirected response cannot be written to the Cache API — so the
+           * install step threw, no cache was ever committed, and the installed
+           * app did not open offline in production even though the worker
+           * registered and activated. Asking for the URL Pages actually serves
+           * is the whole fix; the file, its revision and every other entry are
+           * untouched.
+           */
+          navigateFallback: '/',
+          manifestTransforms: [
+            (entries) => ({
+              manifest: entries.map((entry) =>
+                entry.url === 'index.html' ? { ...entry, url: '/' } : entry,
+              ),
+              warnings: [],
+            }),
+          ],
         },
         devOptions: { enabled: false },
       }),
