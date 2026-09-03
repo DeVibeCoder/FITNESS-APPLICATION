@@ -53,10 +53,36 @@
   touch-action: none;
 }
 
+/*
+ * What zoom moves.
+ *
+ * The transform lives here rather than on the media so the caption stays put
+ * while the picture travels underneath it — a caption that slides off with a
+ * pan is a caption you cannot read at the moment you most want to.
+ *
+ * `will-change` only while it is actually zoomed: promoting every fitted
+ * photograph to its own layer costs memory on exactly the devices that have
+ * least of it, for a transform that is not running.
+ */
 .holder {
   display: flex;
   min-height: 0;
   max-width: 100%;
+  transform-origin: center;
+}
+
+.zoomed {
+  will-change: transform;
+  cursor: grab;
+}
+
+/*
+ * Nothing to select or drag-ghost while a finger is panning the picture.
+ */
+.holder img {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
 }
 
 /*
@@ -181,6 +207,40 @@
 
 .close:hover {
   background: rgba(255, 255, 255, 0.26);
+}
+
+.caption,
+.close {
+  transition:
+    opacity var(--fast) var(--ease),
+    background var(--fast) var(--ease);
+}
+
+/*
+ * Chrome out of the way, so the photograph gets the whole viewer.
+ *
+ * Faded and lifted rather than unmounted: the tap that brings it back should
+ * bring back the same panel, scrolled and folded as it was, and a caption
+ * somebody had expanded to read should not be re-folded for having glanced at
+ * the picture underneath it. `visibility` finishes the job `opacity` starts,
+ * so a hidden caption cannot be tabbed into or read aloud — and it is declared
+ * after the rule above so its own timing survives.
+ */
+.away {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--fast) var(--ease),
+    visibility 0s linear var(--fast);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caption,
+  .close,
+  .away {
+    transition: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
