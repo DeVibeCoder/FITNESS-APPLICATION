@@ -123,16 +123,26 @@ export function MediaLightbox({
    * Keeps the picture's own edges outside the frame it fills.
    *
    * At rest the media exactly fits, so there is nothing to pan and the offset
-   * is pinned to zero. Zoomed in, the slack is however much the picture grew
-   * — half of it in each direction, because it scales about its centre. Past
-   * that the user would be dragging the photograph off into the black, which
-   * is the one thing a pan should never be able to do.
+   * is pinned to zero. Zoomed in, the slack is whatever the picture overhangs
+   * the screen by — half of it in each direction, because it scales about its
+   * centre.
+   *
+   * Measured against the window rather than against the picture's own box.
+   * Those are not the same thing: a photograph almost never fills the viewer
+   * exactly, so there are already bands of black beside it or above it. Using
+   * its own box as the limit let a pan slide the picture around inside those
+   * bands — dragging a 2.5× photo to its stop opened a strip of empty black
+   * down one side, and on an axis where the enlarged picture was still
+   * shorter than the screen it could be shoved up and down for no reason at
+   * all. Against the window, an axis with nothing to see simply does not pan,
+   * and one that does pan stops exactly when its edge reaches the edge of the
+   * screen.
    */
   const contain = (scale: number, x: number, y: number) => {
     const el = holderRef.current
     if (!el) return { scale, x: 0, y: 0 }
-    const slackX = Math.max(0, (el.clientWidth * scale - el.clientWidth) / 2)
-    const slackY = Math.max(0, (el.clientHeight * scale - el.clientHeight) / 2)
+    const slackX = Math.max(0, (el.clientWidth * scale - window.innerWidth) / 2)
+    const slackY = Math.max(0, (el.clientHeight * scale - window.innerHeight) / 2)
     return {
       scale,
       x: Math.min(slackX, Math.max(-slackX, x)),
