@@ -57,7 +57,8 @@ export function AwardDetail({
 
   return createPortal(
     <div className={styles.root}>
-      <button className={styles.scrim} onClick={onClose} aria-label="Close" tabIndex={-1} />
+      {/* Decorative click target; the header Close is the announced one. */}
+      <button className={styles.scrim} onClick={onClose} aria-hidden="true" tabIndex={-1} />
 
       <div
         className={styles.panel}

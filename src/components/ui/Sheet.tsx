@@ -79,7 +79,15 @@ function OpenSheet({ onClose, title, subtitle, children, footer }: Omit<SheetPro
 
   return createPortal(
     <div className={styles.root}>
-      <button className={styles.scrim} onClick={onClose} aria-label="Close" tabIndex={-1} />
+      {/*
+        The ground is a click target, not a control.
+
+        It was a labelled button, so assistive tech announced a second "Close"
+        the size of the whole screen beside the real one in the header — two
+        controls doing one job, one of which cannot be seen or tabbed to.
+        Hidden from the tree and left exactly as clickable as it was.
+      */}
+      <button className={styles.scrim} onClick={onClose} aria-hidden="true" tabIndex={-1} />
       <div
         ref={panelRef}
         className={styles.panel}

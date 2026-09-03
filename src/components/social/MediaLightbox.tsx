@@ -326,7 +326,7 @@ export function MediaLightbox({
         The ground is the close control too — tapping beside the picture is
         how everybody expects to get out of one of these.
       */}
-      <button className={styles.scrim} onClick={onClose} aria-label="Close" tabIndex={-1} />
+      <button className={styles.scrim} onClick={onClose} aria-hidden="true" tabIndex={-1} />
 
       <button
         className={[styles.close, chrome ? '' : styles.away].filter(Boolean).join(' ')}
