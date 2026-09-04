@@ -1,0 +1,55 @@
+# Cloudflare configuration for the Circuit backend.
+#
+# Backend Phase 2: development resources only. The production D1 database and
+# production R2 bucket are deliberately NOT declared here, because they do not
+# exist yet and nothing should be able to reach them by accident.
+#
+# Pages requires every binding to sit under an environment. There are no
+# top-level bindings on purpose: a binding written at the top level applies to
+# every environment at once, which is exactly the mistake this file exists to
+# make impossible.
+#
+# Secrets are never written here. See `.dev.vars.example` for local values and
+# `wrangler pages secret put` for deployed ones.
+
+name = "fitness-application"
+pages_build_output_dir = "dist"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+# --- Development / preview -----------------------------------------------
+#
+# `preview` is the environment every Pages deployment that is not the
+# production branch runs in, and the one `wrangler pages dev` uses locally.
+
+[env.preview.vars]
+ENVIRONMENT = "development"
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "circuit-dev"
+database_id = "722c4aba-d51f-4040-af0e-752916df3f0d"
+
+# R2 is not yet enabled on this Cloudflare account, so the bucket could not be
+# created and this binding stays commented out — a binding pointing at a
+# bucket that does not exist fails the deploy rather than degrading quietly.
+#
+# To finish this: enable R2 once in the Cloudflare dashboard, run
+#   wrangler r2 bucket create circuit-media-dev
+# and uncomment the three lines below.
+#
+# [[env.preview.r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "circuit-media-dev"
+
+# --- Production -----------------------------------------------------------
+#
+# The live application. It carries no database and no bucket yet, which is
+# accurate: production still runs entirely on Dexie in the browser, and the
+# only server code it uses is the Gemini and USDA analysis path.
+#
+# ENVIRONMENT is set here so server code and tooling can recognise production
+# and refuse to seed it. Creating the production D1 database is a later phase.
+
+[env.production.vars]
+ENVIRONMENT = "production"

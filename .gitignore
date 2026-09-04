@@ -29,3 +29,7 @@ dist-ssr
 
 # Wrangler local build cache and emulator state
 .wrangler
+
+# Cloudflare local development secrets. Never committed — see .dev.vars.example.
+.dev.vars
+.wrangler/

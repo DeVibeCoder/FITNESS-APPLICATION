@@ -1,0 +1,28 @@
+# Local development values for `wrangler pages dev`.
+#
+# Copy to `.dev.vars` and fill in. `.dev.vars` is gitignored and must stay
+# that way — nothing in this file is a real secret, and nothing real belongs
+# in source control.
+#
+# Deployed environments get these through `wrangler pages secret put <NAME>`
+# or the Cloudflare dashboard, never through this file.
+
+# Which database this process believes it is pointed at. Anything other than
+# "development" — including leaving it unset — refuses fixture seeding.
+ENVIRONMENT=development
+
+# Existing AI and nutrition integration. Server-side only; these must never be
+# prefixed VITE_ or they would be bundled into the browser.
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.6-flash
+FDC_API_KEY=
+
+# Development-only stand-ins for the vision providers. Both are additionally
+# refused when NODE_ENV is production, in server/*/handler.ts.
+WORKOUT_SCAN_MOCK=0
+FOOD_SCAN_MOCK=0
+
+# --- Not used yet; added when Backend Phase 3 builds authentication -------
+# AUTH_SECRET=
+# GOOGLE_CLIENT_ID=
+# GOOGLE_CLIENT_SECRET=
