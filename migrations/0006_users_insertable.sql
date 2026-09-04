@@ -16,6 +16,21 @@
 
 PRAGMA foreign_keys = OFF;
 
+/*
+ * legacy_alter_table is what makes the rename below safe.
+ *
+ * Without it, SQLite helpfully rewrites every foreign key that referenced
+ * `users` to reference `users_old` instead — all twenty-eight of them. The
+ * new table is then created, the old one dropped, and every one of those
+ * references points at a table that no longer exists. Nothing complains
+ * until the first insert, which fails with "no such table: main.users_old"
+ * and looks nothing like a migration bug.
+ *
+ * With it on, the rename is exactly a rename and the references stay pointed
+ * at `users`, which is where the new table lands.
+ */
+PRAGMA legacy_alter_table = ON;
+
 ALTER TABLE users RENAME TO users_old;
 
 CREATE TABLE users (
@@ -70,6 +85,8 @@ SELECT
 FROM users_old;
 
 DROP TABLE users_old;
+
+PRAGMA legacy_alter_table = OFF;
 
 CREATE UNIQUE INDEX idx_users_handle ON users(LOWER(handle)) WHERE handle IS NOT NULL;
 CREATE UNIQUE INDEX idx_users_email ON users(LOWER(email)) WHERE email IS NOT NULL;
