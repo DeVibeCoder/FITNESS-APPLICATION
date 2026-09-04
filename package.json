@@ -20,7 +20,8 @@
     "db:check:auth": "tsx --tsconfig tsconfig.app.json scripts/check-auth.ts",
     "db:check:ai": "tsx --tsconfig tsconfig.app.json scripts/check-ai-endpoints.ts",
     "db:check:authcfg": "tsx --tsconfig tsconfig.app.json scripts/check-auth-config.ts",
-    "db:check:e2e": "tsx --tsconfig tsconfig.app.json scripts/check-auth-e2e.ts"
+    "db:check:e2e": "tsx --tsconfig tsconfig.app.json scripts/check-auth-e2e.ts",
+    "db:check:link": "tsx --tsconfig tsconfig.app.json scripts/check-identity-link.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.2",
