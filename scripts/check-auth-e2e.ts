@@ -50,11 +50,23 @@ async function call(path: string, init: RequestInit & { cookie?: string } = {}):
     ...(init.headers as Record<string, string>),
   }
   if (init.cookie) headers.Cookie = init.cookie
-  const response = await fetch(`${BASE}${path}`, { ...init, headers, redirect: 'manual' })
+  // wrangler's dev server drops idle keep-alive sockets, and undici reuses
+  // them, so an otherwise fine request occasionally dies as "other side
+  // closed". One retry on a transport error only — nothing about the
+  // assertions changes.
+  let response: Response
+  try {
+    response = await fetch(`${BASE}${path}`, { ...init, headers, redirect: 'manual' })
+  } catch {
+    await new Promise((r) => setTimeout(r, 250))
+    response = await fetch(`${BASE}${path}`, { ...init, headers, redirect: 'manual' })
+  }
   const text = await response.text()
   let body: Record<string, unknown> = {}
   try {
-    body = text ? (JSON.parse(text) as Record<string, unknown>) : {}
+    // get-session answers a bare `null` for no session, and null is not
+    // an object to read `.user` off.
+    body = text ? ((JSON.parse(text) as Record<string, unknown> | null) ?? {}) : {}
   } catch {
     body = { raw: text.slice(0, 120) }
   }

@@ -47,7 +47,7 @@ const env = { DB, GEMINI_API_KEY: undefined, FDC_API_KEY: undefined } as never
 const post = (token: string | undefined, body: string) =>
   new Request('https://circuit.test/api/scan', {
     method: 'POST',
-    headers: token ? { Cookie: `circuit.session=${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+    headers: token ? { Cookie: `circuit.session_token=${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
     body,
   })
 

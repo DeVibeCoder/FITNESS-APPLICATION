@@ -69,7 +69,7 @@ const env: AuthEnv = {
 const withCookie = (token?: string, extra: Record<string, string> = {}) =>
   new Request('https://circuit.test/api/workout-scan', {
     method: 'POST',
-    headers: token ? { Cookie: `circuit.session=${token}`, ...extra } : extra,
+    headers: token ? { Cookie: `circuit.session_token=${token}`, ...extra } : extra,
   })
 
 const refusal = async (fn: () => Promise<unknown>): Promise<string> => {
@@ -104,7 +104,7 @@ async function main() {
   // --- Identity cannot be asserted by the client --------------------------
   const forged = new Request('https://circuit.test/api/food-scan', {
     method: 'POST',
-    headers: { Cookie: 'circuit.session=t_pending', 'X-User-Id': 'u5', 'X-Role': 'admin' },
+    headers: { Cookie: 'circuit.session_token=t_pending', 'X-User-Id': 'u5', 'X-Role': 'admin' },
     body: JSON.stringify({ userId: 'u5', role: 'admin', status: 'approved' }),
   })
   check('Q. a body/header claiming another user changes nothing', (await refusal(() => requireApprovedUser(forged, env))) === 'pending')
@@ -129,7 +129,7 @@ async function main() {
   check("another person's row is refused", otherRefused)
 
   // --- Cookie parsing -----------------------------------------------------
-  const multi = new Request('https://circuit.test/', { headers: { Cookie: 'theme=dark; circuit.session=abc123; other=1' } })
+  const multi = new Request('https://circuit.test/', { headers: { Cookie: 'theme=dark; circuit.session_token=abc123.sig; other=1' } })
   check('the session cookie is found among others', sessionTokenFrom(multi) === 'abc123')
   check('no cookie header yields no token', sessionTokenFrom(new Request('https://circuit.test/')) === null)
 

@@ -53,13 +53,33 @@ export interface D1Database {
   }
 }
 
-/** Reads the session token out of the cookie header. */
-export function sessionTokenFrom(request: Request, cookieName = 'circuit.session'): string | null {
+/**
+ * Reads the session token out of the cookie header.
+ *
+ * Two details that are easy to get wrong and silently authenticate nobody:
+ *
+ * The cookie is named `<prefix>.session_token`, not `<prefix>.session` — the
+ * prefix in the Better Auth config is only the first half of the name.
+ *
+ * And its value is `<token>.<signature>`, while `auth_sessions.token` holds
+ * the token alone. Looking the whole cookie value up in the database matches
+ * no row, which fails exactly like an expired session and is far harder to
+ * read. The signature is the library's to verify; the part before the first
+ * dot is what identifies the row.
+ */
+export function sessionTokenFrom(
+  request: Request,
+  cookieName = 'circuit.session_token',
+): string | null {
   const header = request.headers.get('Cookie')
   if (!header) return null
   for (const part of header.split(';')) {
     const [name, ...rest] = part.trim().split('=')
-    if (name === cookieName) return decodeURIComponent(rest.join('=')) || null
+    if (name !== cookieName) continue
+    const value = decodeURIComponent(rest.join('='))
+    if (!value) return null
+    const [token] = value.split('.')
+    return token || null
   }
   return null
 }
