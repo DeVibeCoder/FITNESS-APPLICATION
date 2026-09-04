@@ -53,6 +53,31 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    /*
+     * Authentication needs D1, which only exists inside a Worker, so /api/auth
+     * is proxied to one running beside this server:
+     *
+     *   npx wrangler pages dev .wrangler/api-only --port 8788      *     --d1 DB=<database id> --compatibility-date 2026-08-22      *     --compatibility-flags nodejs_compat
+     *
+     * Pointed at an empty directory on purpose. Asked to serve the built
+     * bundle as well, wrangler took twenty seconds a file and then fell over;
+     * given only the functions it is stable, and Vite is far better at the
+     * other job anyway.
+     *
+     * Proxying rather than talking to port 8788 directly is what keeps the
+     * session cookie working: the browser only ever sees this origin, so the
+     * cookie is same-origin and needs no CORS and no SameSite relaxation.
+     * Nothing about production changes — there, one Pages deployment serves
+     * both halves already.
+     */
+    server: {
+      proxy: {
+        '/api/auth': {
+          target: process.env.API_ORIGIN ?? 'http://127.0.0.1:8788',
+          changeOrigin: false,
+        },
+      },
+    },
     plugins: [
       react(),
       devApiPlugin(),
