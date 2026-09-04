@@ -42,7 +42,13 @@ interface Reply {
 }
 
 async function call(path: string, init: RequestInit & { cookie?: string } = {}): Promise<Reply> {
-  const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(init.headers as Record<string, string>) }
+  // A browser always sends Origin on a same-origin POST, and Better Auth
+  // checks it. Omitting it here would test something no real client does.
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Origin: BASE,
+    ...(init.headers as Record<string, string>),
+  }
   if (init.cookie) headers.Cookie = init.cookie
   const response = await fetch(`${BASE}${path}`, { ...init, headers, redirect: 'manual' })
   const text = await response.text()

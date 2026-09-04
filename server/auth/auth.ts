@@ -56,9 +56,22 @@ export function createAuth(env: AuthEnvironment, request?: Request) {
     baseURL,
     basePath: '/api/auth',
 
-    // Our table names, from migrations 0001 and 0005.
+    /*
+     * Our table AND column names.
+     *
+     * Better Auth addresses columns by its own camelCase field names — it
+     * does not convert to snake_case — so every column whose name differs
+     * has to be mapped. Without this, signup fails on "table users has no
+     * column named emailVerified", which is the schema and the library each
+     * being internally consistent and disagreeing with each other.
+     */
     user: {
       modelName: 'users',
+      fields: {
+        emailVerified: 'email_verified',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
       additionalFields: {
         // Approval state and role live on the user row and are read
         // server-side. They are not in the session cookie, so a stale cookie
@@ -68,9 +81,38 @@ export function createAuth(env: AuthEnvironment, request?: Request) {
         handle: { type: 'string', required: false, input: false },
       },
     },
-    session: { modelName: 'auth_sessions', expiresIn: 60 * 60 * 24 * SESSION_DAYS, updateAge: 60 * 60 * 24 * SESSION_REFRESH_DAYS },
-    account: { modelName: 'auth_accounts' },
-    verification: { modelName: 'auth_verification_tokens' },
+    session: {
+      modelName: 'auth_sessions',
+      fields: {
+        userId: 'user_id',
+        expiresAt: 'expires_at',
+        ipAddress: 'ip_address',
+        userAgent: 'user_agent',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
+      expiresIn: 60 * 60 * 24 * SESSION_DAYS,
+      updateAge: 60 * 60 * 24 * SESSION_REFRESH_DAYS,
+    },
+    account: {
+      modelName: 'auth_accounts',
+      fields: {
+        userId: 'user_id',
+        accountId: 'account_id',
+        providerId: 'provider_id',
+        accessToken: 'access_token',
+        refreshToken: 'refresh_token',
+        idToken: 'id_token',
+        accessTokenExpiresAt: 'access_token_expires_at',
+        refreshTokenExpiresAt: 'refresh_token_expires_at',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      },
+    },
+    verification: {
+      modelName: 'auth_verification_tokens',
+      fields: { expiresAt: 'expires_at', createdAt: 'created_at', updatedAt: 'updated_at' },
+    },
 
     emailAndPassword: {
       enabled: true,
