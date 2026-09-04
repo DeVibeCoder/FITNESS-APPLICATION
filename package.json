@@ -23,7 +23,8 @@
     "db:check:e2e": "tsx --tsconfig tsconfig.app.json scripts/check-auth-e2e.ts",
     "db:check:link": "tsx --tsconfig tsconfig.app.json scripts/check-identity-link.ts",
     "dev:api": "wrangler pages dev .wrangler/api-only --port 8788 --ip 127.0.0.1 --d1 DB=722c4aba-d51f-4040-af0e-752916df3f0d --compatibility-date 2026-08-22 --compatibility-flags nodejs_compat",
-    "check:browser-link": "node scripts/browser-link-e2e.mjs"
+    "check:browser-link": "node scripts/browser-link-e2e.mjs",
+    "db:migrate:prod": "wrangler d1 migrations apply circuit-prod --env production --remote"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

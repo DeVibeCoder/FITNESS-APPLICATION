@@ -98,3 +98,104 @@ from the same catalogues the interface reads, so the two cannot drift.
 Everything in `src/data/seed.ts` is a fixture and reaches no server. The
 barrier is in `scripts/guard-environment.ts` and needs two independent things
 to be true at once — see the phase report.
+
+---
+
+## 4. Production infrastructure (Backend Phase 11)
+
+### Databases
+
+| | Development | Production |
+|---|---|---|
+| D1 name | `circuit-dev` | `circuit-prod` |
+| D1 id | `722c4aba-…` | `9247acf9-…` |
+| R2 bucket | `circuit-media-dev` *(blocked)* | `circuit-media-prod` *(blocked)* |
+
+Different names **and** different ids on purpose, so a copied command line
+cannot quietly point one environment at the other's data.
+
+Production was created empty and initialised from the committed migrations
+alone. It holds 24 exercises and 31 achievement definitions — facts about the
+application, not about any person — and zero users, accounts, sessions,
+workouts, meals, posts, stories, messages, groups, updates or notifications.
+
+Checked with the same assertions the development database gets:
+
+```
+DB_NAME=circuit-prod DB_ENV=production npx tsx --tsconfig tsconfig.app.json \
+  scripts/check-dev-db.ts
+```
+
+### R2 — blocked, not worked around
+
+`wrangler r2 bucket create` fails for both environments with:
+
+> A request to the Cloudflare API (/accounts/…/r2/buckets) failed.
+> Please enable R2 through the Cloudflare Dashboard. [code: 10042]
+
+R2 has never been enabled on this account, which is a dashboard action with
+billing terms attached — not something to automate around. Both bindings are
+written into `wrangler.toml` and commented out, with the command needed to
+finish. A binding naming a bucket that does not exist fails the deploy, so
+they stay commented rather than shipping broken.
+
+### Secrets
+
+Set in production (values never printed, never in source):
+
+- `GEMINI_API_KEY` — encrypted, in use by the analysis endpoints
+- `FDC_API_KEY` — encrypted, in use by the nutrition lookup
+
+Deliberately **not** set, so a premature deploy cannot switch authentication
+on before the frontend is ready — `/api/auth` answers 503 without it, which
+is the safe state:
+
+- `AUTH_SECRET` — generate with `openssl rand -base64 32`, then
+  `wrangler pages secret put AUTH_SECRET --project-name fitness-application`
+
+Not available yet, and not faked:
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` — no OAuth client exists
+- password-reset email — no provider chosen; the reset hook throws rather
+  than pretending to send
+
+`.dev.vars` is local-only and gitignored. It is never copied to production.
+
+### Promoting the first admin
+
+There is no admin account and no admin credential anywhere in the codebase.
+After authentication is deployed:
+
+1. The person signs up through the real application like anybody else. They
+   arrive `pending`, as everyone does.
+2. Promote them once, out of band, against the production database:
+
+   ```
+   wrangler d1 execute circuit-prod --env production --remote --command \
+     "UPDATE users SET status='approved', role='admin' WHERE email='<their email>';"
+   ```
+
+3. Confirm exactly one row changed:
+
+   ```
+   wrangler d1 execute circuit-prod --env production --remote --command \
+     "SELECT id, email, role, status FROM users WHERE role='admin';"
+   ```
+
+Every admin after the first is promoted through the admin screen, which reads
+`role` from the session's own user row server-side. Nothing here trusts a
+client-supplied role, and no privileged credential is ever stored.
+
+### Google OAuth — not production-ready
+
+The provider is configured in code and switches on only when both credentials
+are present. Before it can work, an OAuth 2.0 Web application client must be
+created and this exact callback registered:
+
+```
+https://fitness-application-7vt.pages.dev/api/auth/callback/google
+```
+
+The authorised JavaScript origin is the same URL without the path. **If the
+production domain ever changes, this callback must change with it** or sign-in
+fails at the redirect with a mismatch error.

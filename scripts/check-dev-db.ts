@@ -11,12 +11,19 @@
 import { execSync } from 'node:child_process'
 import { currentEnvironment, seedableReason } from './guard-environment'
 
-const DB = 'circuit-dev'
+/*
+ * Which database to inspect. Defaults to development; the production check
+ * passes DB=circuit-prod ENV=production, so one script serves both and the
+ * two cannot drift apart in what they assert.
+ */
+const DB = process.env.DB_NAME ?? 'circuit-dev'
+const ENV = process.env.DB_ENV ?? 'preview'
+const REMOTE = process.env.DB_LOCAL === '1' ? '--local' : '--remote'
 
 function query<T>(sql: string): T[] {
   // Through a shell so this works the same on Windows and POSIX.
   const out = execSync(
-    `npx wrangler d1 execute ${DB} --env preview --remote --json --command "${sql.replace(/"/g, '\\"')}"`,
+    `npx wrangler d1 execute ${DB} --env ${ENV} ${REMOTE} --json --command "${sql.replace(/"/g, '\\"')}"`,
     { encoding: 'utf8', maxBuffer: 8 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] },
   )
   const parsed = JSON.parse(out.slice(out.indexOf('['))) as { results?: T[] }[]
@@ -53,6 +60,7 @@ const PERSON_TABLES = [
   'notifications', 'user_achievements',
 ]
 
+console.log(`Database: ${DB} (${ENV}, ${REMOTE.replace('--', '')})`)
 console.log(`Environment: ${currentEnvironment()}`)
 const seed = seedableReason()
 console.log(`Fixture seeding: ${seed.seedable ? 'ALLOWED' : 'refused'}`)

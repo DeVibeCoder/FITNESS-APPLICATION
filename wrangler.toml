@@ -44,12 +44,38 @@ database_id = "722c4aba-d51f-4040-af0e-752916df3f0d"
 
 # --- Production -----------------------------------------------------------
 #
-# The live application. It carries no database and no bucket yet, which is
-# accurate: production still runs entirely on Dexie in the browser, and the
-# only server code it uses is the Gemini and USDA analysis path.
+# The live application.
 #
-# ENVIRONMENT is set here so server code and tooling can recognise production
-# and refuse to seed it. Creating the production D1 database is a later phase.
+# The database exists and is empty apart from reference data: the exercise
+# catalogue and the achievement definitions, which are facts about the app
+# rather than about any person. No account has ever been created in it.
+#
+# The deployed application does not use it yet — production still runs on
+# Dexie in the browser, and the only server code it reaches is the Gemini and
+# USDA analysis path. Binding it here is what lets the next phase deploy
+# something that can.
+#
+# ENVIRONMENT is set so server code and tooling recognise production and
+# refuse to seed it.
 
 [env.production.vars]
 ENVIRONMENT = "production"
+
+# The real database. Deliberately a different name AND a different id from
+# circuit-dev, so a copied command line cannot quietly point one environment
+# at the other's data.
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "circuit-prod"
+database_id = "9247acf9-c2aa-449a-8244-cf9c8f67681c"
+
+# R2 could not be created: the account has not enabled R2, which is a
+# dashboard action with billing terms attached and not something to work
+# around. The binding is written out ready to uncomment after running
+#   wrangler r2 bucket create circuit-media-prod
+# A binding naming a bucket that does not exist fails the deploy, so it stays
+# commented rather than shipping broken.
+#
+# [[env.production.r2_buckets]]
+# binding = "MEDIA"
+# bucket_name = "circuit-media-prod"
