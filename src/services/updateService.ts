@@ -32,13 +32,26 @@ export const updateService = {
    * Correcting a weigh-in, re-finishing a session from a stale tab, or logging
    * a second meal must not produce a second post. Returns the existing update
    * untouched when the key has already been used.
+   *
+   * The look and the write are one transaction, because separately they were
+   * a race: two saves landing together — a double-tapped button, a session
+   * finished in two tabs at once — both looked, both found nothing, and both
+   * posted. The dedupe key is not a database constraint, so nothing downstream
+   * caught it and the group saw the same workout announced twice. Dexie
+   * serialises transactions over a store, so inside one the second caller
+   * cannot look until the first has finished writing, and it finds the row.
+   *
+   * Every caller posts after its own transaction has closed, so this opens a
+   * new one rather than joining theirs.
    */
   async postOnce(
     input: Omit<Update, 'id' | 'createdAt' | 'dedupeKey'> & { dedupeKey: string },
   ): Promise<Update> {
-    const existing = await db.updates.filter((row) => row.dedupeKey === input.dedupeKey).first()
-    if (existing) return existing
-    return this.post(input)
+    return db.transaction('rw', db.updates, async () => {
+      const existing = await db.updates.filter((row) => row.dedupeKey === input.dedupeKey).first()
+      if (existing) return existing
+      return this.post(input)
+    })
   },
 
   /** Full history for the Updates page, newest first. */

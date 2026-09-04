@@ -291,6 +291,32 @@ async function main() {
   await updateService.toggleReaction(feed[0].id, 'u_nadia', '🔥')
   check('same reaction toggles off', (await updateService.recent(5))[0].reactions.length, 0)
 
+  /*
+   * One real-world event, one announcement — even when two saves land together.
+   * The look and the write used to be separate awaits, so a double-tapped save
+   * or a session finished in two tabs posted the same workout twice.
+   */
+  const raced = await Promise.all([
+    updateService.postOnce({
+      userId: 'u_ahmed',
+      kind: 'workout_completed',
+      dedupeKey: 'workout:race-probe',
+      text: 'raced',
+    }),
+    updateService.postOnce({
+      userId: 'u_ahmed',
+      kind: 'workout_completed',
+      dedupeKey: 'workout:race-probe',
+      text: 'raced',
+    }),
+  ])
+  check(
+    'two saves at once post one update',
+    (await db.updates.toArray()).filter((u) => u.dedupeKey === 'workout:race-probe').length,
+    1,
+  )
+  check('and both callers get the same row back', raced[0].id, raced[1].id)
+
   const unlocked = await achievementService.evaluate('u_ahmed')
   ok('achievement evaluation is idempotent', (await achievementService.evaluate('u_ahmed')).length === 0,
     `${unlocked.length} newly unlocked on first pass`)
