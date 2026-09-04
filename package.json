@@ -18,7 +18,8 @@
     "db:check:dev": "tsx --tsconfig tsconfig.app.json scripts/check-dev-db.ts",
     "db:check:guard": "tsx --tsconfig tsconfig.app.json scripts/check-seed-guard.ts",
     "db:check:auth": "tsx --tsconfig tsconfig.app.json scripts/check-auth.ts",
-    "db:check:ai": "tsx --tsconfig tsconfig.app.json scripts/check-ai-endpoints.ts"
+    "db:check:ai": "tsx --tsconfig tsconfig.app.json scripts/check-ai-endpoints.ts",
+    "db:check:authcfg": "tsx --tsconfig tsconfig.app.json scripts/check-auth-config.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

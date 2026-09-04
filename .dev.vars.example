@@ -22,7 +22,29 @@ FDC_API_KEY=
 WORKOUT_SCAN_MOCK=0
 FOOD_SCAN_MOCK=0
 
-# --- Not used yet; added when Backend Phase 3 builds authentication -------
-# AUTH_SECRET=
-# GOOGLE_CLIENT_ID=
-# GOOGLE_CLIENT_SECRET=
+# --- Authentication -------------------------------------------------------
+#
+# Required for /api/auth to work at all. Without AUTH_SECRET the route answers
+# 503 rather than pretending: a generated secret would sign sessions that stop
+# verifying the moment the isolate is replaced.
+#
+# Generate one with:  openssl rand -base64 32
+AUTH_SECRET=
+
+# Google sign-in. Optional — the provider is simply absent when these are
+# unset, and email/password still works.
+#
+# Create an OAuth 2.0 Client ID (type: Web application) in Google Cloud
+# Console, then register these exact redirect URIs:
+#
+#   local dev    http://localhost:8788/api/auth/callback/google
+#   preview      https://<deployment>.fitness-application-7vt.pages.dev/api/auth/callback/google
+#   production   https://fitness-application-7vt.pages.dev/api/auth/callback/google
+#
+# Authorised JavaScript origins are the same URLs without the path.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Overrides the origin Better Auth builds callback URLs from. Only needed when
+# the request origin is not the public one (a tunnel, a proxy).
+# BASE_URL=http://localhost:8788

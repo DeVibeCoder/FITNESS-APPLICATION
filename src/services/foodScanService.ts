@@ -175,6 +175,9 @@ export const foodScanService = {
       response = await fetch('/api/food-scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // The endpoint costs a real Gemini call, so it requires an approved
+        // session. Same-origin fetch omits cookies unless asked.
+        credentials: 'include',
         signal: options.signal,
         body: JSON.stringify({ imageBase64: prepared.base64, mimeType: prepared.mimeType }),
       })
