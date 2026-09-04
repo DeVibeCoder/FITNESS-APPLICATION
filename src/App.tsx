@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
+import { AccountLink } from '@/pages/AccountLink'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
@@ -181,10 +182,16 @@ function AppRoutes() {
 }
 
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, ready } = useAuth()
+  const { user, ready, needsLink } = useAuth()
   const location = useLocation()
 
   if (!ready) return <LoadingScreen />
+  /*
+   * Signed in, but nobody has said whose data this is yet. Asked once, before
+   * any screen can read a profile — the alternative is an application that
+   * silently picks one, which is the mistake this screen exists to prevent.
+   */
+  if (needsLink) return <AccountLink />
   if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   return <>{children}</>
 }

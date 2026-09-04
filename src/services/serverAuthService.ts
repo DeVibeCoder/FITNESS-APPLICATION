@@ -53,7 +53,14 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   const text = await response.text()
-  const payload = text ? (JSON.parse(text) as Record<string, unknown>) : {}
+  let payload: Record<string, unknown> = {}
+  try {
+    // A bare `null` is a valid answer meaning "no session", and anything
+    // unparseable means this was never the API to begin with.
+    payload = text ? ((JSON.parse(text) as Record<string, unknown> | null) ?? {}) : {}
+  } catch {
+    throw new ServerAuthError('not_json', 'The authentication service did not answer.', response.status)
+  }
 
   if (!response.ok) {
     throw new ServerAuthError(
@@ -128,7 +135,16 @@ export const serverAuthService = {
   async available(): Promise<boolean> {
     try {
       const response = await fetch(`${BASE}/get-session`, { credentials: 'include' })
-      return response.status !== 503
+      // 503 is the route saying it exists but cannot authenticate anybody.
+      if (response.status === 503) return false
+      /*
+       * And the important case: where no Functions are deployed at all, this
+       * path falls through to the SPA and answers 200 with index.html. A
+       * status check alone reads that as a working backend, and the app then
+       * tries to parse a web page as a session. The content type is what
+       * actually distinguishes an API from the application it serves.
+       */
+      return (response.headers.get('Content-Type') ?? '').includes('json')
     } catch {
       return false
     }
