@@ -1,4 +1,5 @@
 import { handleFoodScanRequest } from '../../server/foodScan/handler'
+import { requireApprovedUser, authFailureResponse, type AuthEnv } from '../../server/auth/guard'
 
 /**
  * POST /api/food-scan, as a Cloudflare Pages Function.
@@ -13,6 +14,8 @@ import { handleFoodScanRequest } from '../../server/foodScan/handler'
  * version makes, enforced by a different mechanism.
  */
 interface Env {
+  /** Bound in wrangler.toml. Its absence means nobody can be authenticated. */
+  DB?: unknown
   GEMINI_API_KEY?: string
   GEMINI_MODEL?: string
   FDC_API_KEY?: string
@@ -22,6 +25,35 @@ export const onRequestPost = async (context: {
   request: Request
   env: Env
 }): Promise<Response> => {
+  /*
+   * Identity first, before the body is even read.
+   *
+   * This endpoint spends real money — a Gemini call per request — and until
+   * now anyone who knew the URL could spend it. The session cookie is the
+   * only thing trusted here: not a header, not a field in the body, not the
+   * frontend having decided the user looked fine.
+   *
+   * A pending, rejected or disabled account is refused the same as an
+   * anonymous one. Approval is what buys access to the expensive parts.
+   *
+   * With no database bound there is no way to check anybody, so the endpoint
+   * refuses rather than falling open. A missing binding is a deployment that
+   * is not finished, and the safe reading of that is "no".
+   */
+  try {
+    if (!context.env.DB) {
+      return Response.json(
+        { error: 'unauthenticated', message: 'Sign in to continue.' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      )
+    }
+    await requireApprovedUser(context.request, context.env as unknown as AuthEnv)
+  } catch (error) {
+    const refusal = authFailureResponse(error)
+    if (refusal) return refusal
+    throw error
+  }
+
   let body: unknown
   try {
     body = await context.request.json()
