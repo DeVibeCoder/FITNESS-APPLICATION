@@ -189,7 +189,7 @@ async function main() {
     method: 'POST',
     cookie: bob.cookie,
     headers: { 'X-User-Id': 'someone-else' },
-    body: JSON.stringify({ ...PLANK_WORKOUT, name: 'Forged', userId: 'someone-else', role: 'admin', status: 'approved' }),
+    body: JSON.stringify({ ...PLANK_WORKOUT, name: 'Forged', userId: 'someone-else', role: 'admin', accountStatus: 'approved' }),
   })
   check('a body carrying userId/role/status is still written as the caller', forged.status === 201, forged.status)
   const forgedRow = query<{ user_id: string }>(`SELECT user_id FROM workout_sessions WHERE id='${forged.body.id}';`)[0]
@@ -231,8 +231,8 @@ async function main() {
         { name: 'Two', kind: 'timed', sets: 1, durationSec: 30 },
       ],
       setResults: [
-        { setIndex: 0, reps: 1 },
-        { setIndex: 0, reps: 1 },
+        { planExerciseId: 'pe_dupe', setIndex: 0, reps: 1 },
+        { planExerciseId: 'pe_dupe', setIndex: 0, reps: 1 },
       ],
     }),
   })

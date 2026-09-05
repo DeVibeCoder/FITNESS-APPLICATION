@@ -59,6 +59,12 @@ export class InvalidWorkout extends Error {
 }
 
 const WORKOUT_KINDS: WorkoutKind[] = ['strength', 'cardio', 'general']
+/* Everything the schema's CHECK constraints allow. Validated here so a bad
+ * value is a 400 naming the field rather than a 500 carrying a SQLite
+ * constraint message, which is what happened before this existed. */
+const STATUSES = ['active', 'completed', 'abandoned']
+const DIFFICULTIES = ['hard', 'just_right', 'easy']
+const LOGGED_VIA = ['player', 'quick_log', 'manual']
 const EXERCISE_KINDS: ExerciseKind[] = ['strength', 'timed', 'cardio']
 
 /** Which fields each kind may carry. Everything else must be absent. */
@@ -121,6 +127,18 @@ export function validateWorkout(body: unknown): Required<Pick<WorkoutInput, 'dat
     throw new InvalidWorkout('kind', `Unknown workout kind "${input.kind}".`)
   }
 
+  const status = input.status ?? 'completed'
+  if (!STATUSES.includes(status)) {
+    throw new InvalidWorkout('status', `A workout cannot be "${status}".`)
+  }
+  if (input.difficulty != null && !DIFFICULTIES.includes(input.difficulty)) {
+    throw new InvalidWorkout('difficulty', `Unknown difficulty "${input.difficulty}".`)
+  }
+  const loggedVia = input.loggedVia ?? 'manual'
+  if (!LOGGED_VIA.includes(loggedVia)) {
+    throw new InvalidWorkout('loggedVia', `Unknown source "${loggedVia}".`)
+  }
+
   const exercises = Array.isArray(input.exercises)
     ? input.exercises.map((exercise, index) => validateExercise(exercise, index))
     : []
@@ -152,12 +170,12 @@ export function validateWorkout(body: unknown): Required<Pick<WorkoutInput, 'dat
     date: input.date,
     kind: input.kind,
     name: String(input.name ?? '').trim() || 'Workout',
-    status: input.status ?? 'completed',
+    status: status as WorkoutInput['status'],
     durationSec,
     caloriesKcal: Math.max(0, Number(input.caloriesKcal ?? 0)),
     difficulty: input.difficulty ?? null,
     note: typeof input.note === 'string' && input.note.trim() ? input.note.trim() : null,
-    loggedVia: input.loggedVia ?? 'manual',
+    loggedVia: loggedVia as WorkoutInput['loggedVia'],
     exercises,
     setResults,
   }

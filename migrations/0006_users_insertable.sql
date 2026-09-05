@@ -10,30 +10,33 @@
 -- `joined_at` keeps its meaning but defaults to now, which is what it always
 -- was anyway.
 --
--- Safe to rebuild: development has no users and production has no database.
--- Foreign keys are suspended for the swap because twenty tables reference
--- this one by name; after the rename they point at the new table.
+-- --------------------------------------------------------------------------
+-- Why this builds a new table instead of renaming the old one
+-- --------------------------------------------------------------------------
+--
+-- The first version of this migration did `ALTER TABLE users RENAME TO
+-- users_old`, and that quietly broke the database. SQLite treats a rename as
+-- a refactor: it rewrites every foreign key that referenced `users` to
+-- reference `users_old` instead — twenty-eight of them here. The new `users`
+-- was then created and `users_old` dropped, leaving twenty-eight tables
+-- pointing at a table that no longer existed. Nothing complained until the
+-- first insert, which failed with "no such table: main.users_old" and looked
+-- nothing like a migration fault.
+--
+-- The order below avoids the problem rather than suppressing it. Nothing ever
+-- references `users_new`, so renaming it rewrites nothing; the other tables
+-- keep saying `REFERENCES users(id)` throughout, and by the time foreign keys
+-- are switched back on that is again a table that exists.
+--
+-- `PRAGMA legacy_alter_table` would also work, but it depends on the pragma
+-- being honoured by whatever runs the migration. This does not depend on
+-- anything.
+--
+-- Safe to rebuild: development and production both hold zero users.
 
 PRAGMA foreign_keys = OFF;
 
-/*
- * legacy_alter_table is what makes the rename below safe.
- *
- * Without it, SQLite helpfully rewrites every foreign key that referenced
- * `users` to reference `users_old` instead — all twenty-eight of them. The
- * new table is then created, the old one dropped, and every one of those
- * references points at a table that no longer exists. Nothing complains
- * until the first insert, which fails with "no such table: main.users_old"
- * and looks nothing like a migration bug.
- *
- * With it on, the rename is exactly a rename and the references stay pointed
- * at `users`, which is where the new table lands.
- */
-PRAGMA legacy_alter_table = ON;
-
-ALTER TABLE users RENAME TO users_old;
-
-CREATE TABLE users (
+CREATE TABLE users_new (
   id                TEXT PRIMARY KEY,
   -- Nullable now: an email or Google account has no handle until asked.
   handle            TEXT,
@@ -46,7 +49,7 @@ CREATE TABLE users (
   status            TEXT NOT NULL DEFAULT 'pending'
                     CHECK (status IN ('pending', 'approved', 'rejected', 'disabled')),
   decided_at        TEXT,
-  decided_by        TEXT REFERENCES users(id) ON DELETE SET NULL,
+  decided_by        TEXT,
   avatar_media_id   TEXT,
   avatar_color      TEXT NOT NULL DEFAULT '#c2410c',
   birth_date        TEXT,
@@ -69,7 +72,7 @@ CREATE TABLE users (
   updated_at        TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-INSERT INTO users (
+INSERT INTO users_new (
   id, handle, name, email, email_verified, email_verified_at, image, role, status,
   decided_at, decided_by, avatar_media_id, avatar_color, birth_date, sex, height_cm,
   start_weight_kg, target_weight_kg, goal, activity_level, calorie_target_override,
@@ -82,11 +85,12 @@ SELECT
   start_weight_kg, target_weight_kg, goal, activity_level, calorie_target_override,
   step_goal, water_goal_l, workouts_per_week_goal, weigh_in_day, units, workout_apps,
   onboarded_at, joined_at, created_at, updated_at
-FROM users_old;
+FROM users;
 
-DROP TABLE users_old;
+DROP TABLE users;
 
-PRAGMA legacy_alter_table = OFF;
+-- Nothing references `users_new`, so this rewrites no foreign keys anywhere.
+ALTER TABLE users_new RENAME TO users;
 
 CREATE UNIQUE INDEX idx_users_handle ON users(LOWER(handle)) WHERE handle IS NOT NULL;
 CREATE UNIQUE INDEX idx_users_email ON users(LOWER(email)) WHERE email IS NOT NULL;
