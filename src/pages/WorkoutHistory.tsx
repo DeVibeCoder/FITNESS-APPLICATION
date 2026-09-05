@@ -8,6 +8,7 @@ import { WorkoutTabs } from '@/components/workout/WorkoutTabs'
 import { SessionCard } from '@/components/workout/SessionCard'
 import { useAuth } from '@/context/AuthContext'
 import { progressService, workoutService } from '@/services'
+import { workoutData } from '@/services/workoutData'
 import type { WorkoutSession } from '@/models'
 import {
   addDays,
@@ -36,7 +37,7 @@ export function WorkoutHistory() {
   const [selected, setSelected] = useState<string>(today)
 
   const sessions = useLiveQuery(
-    () => (user ? workoutService.sessionsForUser(user.id) : undefined),
+    () => (user ? workoutData.list(user.id) : undefined),
     [user?.id],
   )
   const week = useLiveQuery(

@@ -72,7 +72,14 @@ export default defineConfig(({ mode }) => {
      */
     server: {
       proxy: {
+        // Auth and the fitness data both need D1, so both go to the Worker.
+        // The scan endpoints stay with devApiPlugin above, which serves them
+        // from this process and needs no database.
         '/api/auth': {
+          target: process.env.API_ORIGIN ?? 'http://127.0.0.1:8788',
+          changeOrigin: false,
+        },
+        '/api/fitness': {
           target: process.env.API_ORIGIN ?? 'http://127.0.0.1:8788',
           changeOrigin: false,
         },

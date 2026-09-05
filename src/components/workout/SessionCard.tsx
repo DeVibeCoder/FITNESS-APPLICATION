@@ -10,6 +10,7 @@ import { summarise } from '@/components/log/exerciseSummary'
 import { db } from '@/lib/db'
 import type { SetResult, WorkoutSession } from '@/models'
 import type { ResolvedExercise } from '@/services/workoutService'
+import { workoutData } from '@/services/workoutData'
 import { formatClock, formatDay } from '@/utils/date'
 import { duration, num } from '@/utils/format'
 import { Sheet } from '@/components/ui/Sheet'
@@ -59,7 +60,7 @@ export function SessionCard({ session, showDate, defaultOpen = false }: SessionC
   const remove = async () => {
     setDeleting(true)
     const done = await guard(async () => {
-      await workoutService.removeSession(session.id)
+      await workoutData.remove(session.id)
       // The streak and the awards are derived from what is left, so they are
       // re-read rather than adjusted.
       await achievementService.evaluate(session.userId, { announce: false })
@@ -81,7 +82,7 @@ export function SessionCard({ session, showDate, defaultOpen = false }: SessionC
    * a player's set-by-set results — and the far more common one now. Either
    * earns the expander; neither is invented for a session that has neither.
    */
-  const logged = useLiveQuery(() => workoutService.exercisesFor(session.id), [session.id])
+  const logged = useLiveQuery(() => workoutData.exercisesFor(session.id), [session.id])
   const hasLogged = (logged?.length ?? 0) > 0
   const hasDetail = (setCount ?? 0) > 0 || hasLogged
 

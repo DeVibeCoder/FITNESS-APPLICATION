@@ -4,6 +4,7 @@ import type { User } from '@/models'
 import { authService } from '@/services'
 import { serverAuthService, type ServerUser } from '@/services/serverAuthService'
 import { identityLinkService } from '@/services/identityLinkService'
+import { workoutData } from '@/services/workoutData'
 import { storageService } from '@/services/storageService'
 import { db } from '@/lib/db'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -79,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!available) {
         // No backend to ask. Carry on as the application always has.
         setMode('local')
+        workoutData.useCloud(false)
         const current = await authService.currentUser()
         if (cancelled) return
         setResolved(current)
@@ -94,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!account) {
         // No session means signed out, whatever localStorage still holds.
+        workoutData.useCloud(false)
         await adoptLocal(null)
         setNeedsLink(false)
         setReady(true)
@@ -104,9 +107,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return
       if (resolution.kind === 'linked') {
         await adoptLocal(resolution.localUserId)
+        /*
+         * Workouts go to the cloud only for an approved account. A pending
+         * one can sign in and see its own status, but writing its training
+         * to a server that will refuse every request is worse than keeping
+         * it where it already works.
+         */
+        workoutData.useCloud(account.status === 'approved')
         setNeedsLink(false)
       } else {
         // Signed in, but nobody has said whose data this is yet.
+        workoutData.useCloud(false)
         await adoptLocal(null)
         setNeedsLink(true)
       }
@@ -133,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(() => {
     if (mode === 'server') void serverAuthService.signOut().catch(() => undefined)
+    workoutData.useCloud(false)
     void authService.signOut()
     setServerUser(null)
     setNeedsLink(false)
@@ -147,6 +159,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // The service refuses a claim on data another account already holds.
       await identityLinkService.link(serverUser.id, localUserId)
       await adoptLocal(localUserId)
+      workoutData.useCloud(serverUser.status === 'approved')
       setNeedsLink(false)
     },
     [serverUser, adoptLocal],
@@ -156,6 +169,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!serverUser) throw new Error('Not signed in.')
     const localUserId = await identityLinkService.startFresh(serverUser)
     await adoptLocal(localUserId)
+    workoutData.useCloud(serverUser.status === 'approved')
     setNeedsLink(false)
   }, [serverUser, adoptLocal])
 

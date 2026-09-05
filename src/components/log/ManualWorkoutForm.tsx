@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { useAuth } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { achievementService, challengeService, workoutService } from '@/services'
+import { achievementService, challengeService } from '@/services'
 import { DIFFICULTY_OPTIONS } from '@/services/workoutService'
+import { workoutData } from '@/services/workoutData'
 import type {
   Difficulty,
   ExerciseKind,
@@ -131,7 +132,7 @@ export function ManualWorkoutForm({
   useEffect(() => {
     if (!session || loaded) return
     let cancelled = false
-    void workoutService.exercisesFor(session.id).then((rows) => {
+    void workoutData.exercisesFor(session.id).then((rows) => {
       if (cancelled) return
       setExercises(rows.map(({ id: _id, sessionId: _s, order: _o, ...rest }) => rest))
       setLoaded(true)
@@ -177,7 +178,7 @@ export function ManualWorkoutForm({
     if (!valid || saving) return
     setSaving(true)
     const saved = await guard(async () => {
-      const record = await workoutService.logManual({
+      const record = await workoutData.save({
         sessionId: session?.id,
         userId: user.id,
         date,

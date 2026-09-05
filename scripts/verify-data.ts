@@ -1939,10 +1939,12 @@ async function main() {
     !logFormSource.includes('analyzeScreenshot') && !logFormSource.includes('workoutScanService'))
   ok('the log sheet is now only the fork between the two routes',
     logFormSource.includes('<WorkoutImportFlow') && logFormSource.includes('<ManualWorkoutForm'))
+  // Still one save path for both routes; it is `workoutData.save` now, which
+  // picks the cloud or Dexie rather than assuming Dexie.
   ok('an imported workout is saved by the same call a typed one uses',
     importSource.includes('<ManualWorkoutForm') &&
       (await readFile(new URL('../src/components/log/ManualWorkoutForm.tsx', import.meta.url), 'utf8'))
-        .includes('workoutService.logManual'))
+        .includes('workoutData.save'))
 
   console.log('\n— The picture survives, and is never stored —\n')
   const importCss = await readFile(
