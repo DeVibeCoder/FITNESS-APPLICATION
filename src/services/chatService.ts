@@ -3,6 +3,7 @@ import { now, uid } from '@/lib/id'
 import { STICKER_BY_KEY } from '@/data/stickers'
 import type { ChatMessage, ChatReaction, DateKey, ID, SharedType } from '@/models'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 import { storageService } from './storageService'
 
 /**
@@ -216,6 +217,11 @@ export const chatService = {
       stickerId: input.stickerId,
     }
     await db.messages.add(message)
+    await cloudSync.push('/chat/messages', {
+      id: message.id, text: message.text, replyToId: message.replyToId,
+      sharedType: message.sharedType, sharedDataId: message.sharedDataId,
+      stickerId: message.stickerId, createdAt: message.createdAt,
+    })
     await this.notifyMentions(message)
     return message
   },
@@ -242,9 +248,11 @@ export const chatService = {
     if (!message || message.deletedAt) return false
     if (message.pinnedAt) {
       await db.messages.update(messageId, { pinnedAt: undefined, pinnedBy: undefined })
+      await cloudSync.push('/chat/pins', { messageId, pinned: false })
       return false
     }
     await db.messages.update(messageId, { pinnedAt: now(), pinnedBy: userId })
+    await cloudSync.push('/chat/pins', { messageId, pinned: true })
     return true
   },
 
@@ -316,6 +324,9 @@ export const chatService = {
       deletedAt: now(),
     })
     await db.chatReactions.where('messageId').equals(messageId).delete()
+    // Soft on the server too: the bubble keeps its place so a reply still has
+    // something to point at, and the words themselves are cleared there.
+    await cloudSync.remove(`/chat/messages/${messageId}`)
   },
 
   /**
@@ -333,15 +344,22 @@ export const chatService = {
       .equals([messageId, userId])
       .first()
 
+    const push = (id: ID, value: string) =>
+      cloudSync.push('/chat/reactions', { id, messageId, emoji: value, createdAt: now() })
+
     if (existing?.emoji === emoji) {
       await db.chatReactions.delete(existing.id)
+      await push(existing.id, '')
       return
     }
     if (existing) {
       await db.chatReactions.update(existing.id, { emoji, createdAt: now() })
+      await push(existing.id, emoji)
       return
     }
-    await db.chatReactions.add({ id: uid('cr'), messageId, userId, emoji, createdAt: now() })
+    const row = { id: uid('cr'), messageId, userId, emoji, createdAt: now() }
+    await db.chatReactions.add(row)
+    await push(row.id, emoji)
   },
 
   // --- Sharing -------------------------------------------------------------

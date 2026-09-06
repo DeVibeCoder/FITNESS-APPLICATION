@@ -7,6 +7,7 @@ import { todayKey } from '@/utils/date'
 import { currentWeighInDate, slotFor, weeklyWeighIn, type WeeklyWeighIn } from '@/utils/weighIn'
 import { updateService } from './updateService'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 /** The weekly weigh-in is the only kind this app writes. See `WeightEntry.kind`. */
 const OFFICIAL: WeightEntry['kind'] = 'official'
@@ -29,6 +30,16 @@ export interface WeighInResult {
   /** False when this corrected a reading already taken this week. */
   created: boolean
 }
+
+/**
+ * A weigh-in as the API takes it. `kind` does not travel: every reading this
+ * application writes is the weekly official one, and D1 has no column for a
+ * distinction nothing creates.
+ */
+const weightPayload = (entry: WeightEntry) => ({
+  id: entry.id, date: entry.date, weightKg: entry.weightKg,
+  note: entry.note, createdAt: entry.createdAt,
+})
 
 export const weightService = {
   listForUser(userId: ID): Promise<WeightEntry[]> {
@@ -126,6 +137,7 @@ export const weightService = {
       createdAt: existing?.createdAt ?? now(),
     }
     await db.weights.put(entry)
+    await cloudSync.push('/nutrition/weights', weightPayload(entry))
 
     const previous = weekly
       .filter((row) => slotFor(weighInDay, row.date) < slotDate)
@@ -172,6 +184,7 @@ export const weightService = {
       createdAt: now(),
     }
     await db.weights.put(entry)
+    if (entry.kind === OFFICIAL) await cloudSync.push('/nutrition/weights', weightPayload(entry))
 
     if (input.announce === true && input.kind === OFFICIAL) {
       await this.shareWeighIn(input.userId, input.date)
@@ -233,10 +246,13 @@ export const weightService = {
   async update(id: ID, changes: Partial<Pick<WeightEntry, 'weightKg' | 'date' | 'note' | 'kind'>>) {
     assertOwnerOf(await db.weights.get(id))
     await db.weights.update(id, changes)
+    const updated = await db.weights.get(id)
+    if (updated?.kind === OFFICIAL) await cloudSync.push('/nutrition/weights', weightPayload(updated))
   },
 
   async remove(id: ID): Promise<void> {
     assertOwnerOf(await db.weights.get(id))
+    await cloudSync.remove(`/nutrition/weights/${id}`)
     await db.weights.delete(id)
   },
 }

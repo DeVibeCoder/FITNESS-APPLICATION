@@ -4,6 +4,7 @@ import type { DateKey, ID, StepEntry } from '@/models'
 import { updateService } from './updateService'
 import { num } from '@/utils/format'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 /**
  * Manual entry today. Device integrations (HealthKit, Health Connect, Fitbit)
@@ -42,6 +43,10 @@ export const stepsService = {
       createdAt: now(),
     }
     await db.steps.put(entry)
+    await cloudSync.push('/nutrition/steps', {
+      id: entry.id, date: entry.date, steps: entry.steps,
+      source: entry.source, createdAt: entry.createdAt,
+    })
 
     // Worth telling the group about when the goal is reached — once per day,
     // however many times the count is corrected afterwards.
@@ -64,5 +69,6 @@ export const stepsService = {
   async remove(id: ID): Promise<void> {
     assertOwnerOf(await db.steps.get(id))
     await db.steps.delete(id)
+    await cloudSync.remove(`/nutrition/steps/${id}`)
   },
 }

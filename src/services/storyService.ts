@@ -4,6 +4,7 @@ import type { ID, MediaAsset, Story, StoryBackground, StoryView, User } from '@/
 import { mediaService } from './mediaService'
 import type { MediaInput } from './mediaService'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 import { userService } from './userService'
 
 /**
@@ -133,6 +134,10 @@ export const storyService = {
       if (asset) await db.media.delete(asset.id)
       throw error
     }
+    await cloudSync.push('/social/stories', {
+      id: story.id, type: story.type, text: story.text,
+      background: story.background, expiresAt: story.expiresAt, createdAt: story.createdAt,
+    })
     return story
   },
 
@@ -153,6 +158,7 @@ export const storyService = {
     const viewKeys = await db.storyViews.where('storyId').equals(storyId).primaryKeys()
     await db.storyViews.bulkDelete(viewKeys)
     await db.stories.delete(storyId)
+    await cloudSync.remove(`/social/stories/${storyId}`)
     if (story.mediaId) await mediaService.releaseUnused([story.mediaId], { storyId })
   },
 
@@ -180,6 +186,7 @@ export const storyService = {
 
     const view: StoryView = { id: uid('sv'), storyId, userId: viewerId, viewedAt: now() }
     await db.storyViews.add(view)
+    await cloudSync.push('/social/story-views', { id: view.id, storyId, viewedAt: view.viewedAt })
     return true
   },
 

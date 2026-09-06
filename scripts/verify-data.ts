@@ -1282,8 +1282,14 @@ async function main() {
   check('pinning features it for this week',
     (await motivationService.featuredForWeek())?.id, newVideo!.id)
   await motivationService.unpinWeek()
+  /*
+   * That the pin is gone, not that the rotation then picks something else.
+   * The rotation is free to land on that same video on its own — it is in the
+   * rotation — and on the weeks when it did, this line failed for a reason
+   * that had nothing to do with unpinning.
+   */
   ok('unpinning hands the week back to the rotation',
-    (await motivationService.featuredForWeek())?.id !== newVideo!.id)
+    (await motivationService.isPinned()) === false)
   await motivationService.remove(newVideo!.id)
   check('removing works', await db.videos.get(newVideo!.id), undefined)
   await motivationService.unpinWeek()

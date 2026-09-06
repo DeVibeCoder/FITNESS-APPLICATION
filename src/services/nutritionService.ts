@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { uid, now } from '@/lib/id'
 import type { DateKey, FoodEntry, ID, MealSlot, WaterEntry } from '@/models'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 import { updateService } from './updateService'
 import { todayKey } from '@/utils/date'
 
@@ -31,6 +32,17 @@ export function sumMacros(entries: FoodEntry[]): MacroTotals {
   )
 }
 
+/**
+ * A food row as the API takes it. Carries no owner: the server reads that
+ * from the session, so sending one would be both useless and a lie.
+ */
+const foodPayload = (entry: FoodEntry) => ({
+  id: entry.id, date: entry.date, meal: entry.meal, name: entry.name,
+  portion: entry.portion, quantity: entry.quantity, unit: entry.unit, note: entry.note,
+  kcal: entry.kcal, proteinG: entry.proteinG, carbsG: entry.carbsG, fatG: entry.fatG,
+  source: entry.source, createdAt: entry.createdAt,
+})
+
 export const nutritionService = {
   async foodForDay(userId: ID, date: DateKey): Promise<FoodEntry[]> {
     const rows = await db.foods.where('[userId+date]').equals([userId, date]).toArray()
@@ -59,6 +71,7 @@ export const nutritionService = {
     const firstOfDay = (await this.foodForDay(input.userId, input.date)).length === 0
     const entry: FoodEntry = { ...input, id: uid('f'), createdAt: now() }
     await db.foods.add(entry)
+    await cloudSync.push('/nutrition/food', foodPayload(entry))
 
     // The group sees that nutrition was logged, never what was eaten. Posted
     // once per day so the feed does not turn into a food diary.
@@ -76,11 +89,16 @@ export const nutritionService = {
   async updateFood(id: ID, changes: Partial<Omit<FoodEntry, 'id' | 'userId'>>): Promise<void> {
     assertOwnerOf(await db.foods.get(id))
     await db.foods.update(id, changes)
+    // Sent whole rather than as a patch: the row is small, and one shape for
+    // create and correct means one thing to get right on the server.
+    const updated = await db.foods.get(id)
+    if (updated) await cloudSync.push('/nutrition/food', foodPayload(updated))
   },
 
   async removeFood(id: ID): Promise<void> {
     assertOwnerOf(await db.foods.get(id))
     await db.foods.delete(id)
+    await cloudSync.remove(`/nutrition/food/${id}`)
   },
 
   /** A day's food grouped by meal, in the order meals are eaten. */
@@ -129,6 +147,7 @@ export const nutritionService = {
     assertOwner(userId)
     const entry: WaterEntry = { id: uid('h2o'), userId, date, ml, createdAt: now() }
     await db.water.add(entry)
+    await cloudSync.push('/nutrition/water', { id: entry.id, date, ml, createdAt: entry.createdAt })
     return entry
   },
 
@@ -141,9 +160,12 @@ export const nutritionService = {
     assertOwner(userId)
     const rows = await db.water.where('[userId+date]').equals([userId, date]).toArray()
     await db.water.bulkDelete(rows.map((row) => row.id))
+    for (const row of rows) await cloudSync.remove(`/nutrition/water/${row.id}`)
     const total = Math.max(0, Math.round(ml))
     if (total > 0) {
-      await db.water.add({ id: uid('h2o'), userId, date, ml: total, createdAt: now() })
+      const entry = { id: uid('h2o'), userId, date, ml: total, createdAt: now() }
+      await db.water.add(entry)
+      await cloudSync.push('/nutrition/water', { id: entry.id, date, ml: total, createdAt: entry.createdAt })
     }
   },
 
@@ -152,6 +174,9 @@ export const nutritionService = {
     assertOwner(userId)
     const rows = await db.water.where('[userId+date]').equals([userId, date]).toArray()
     const last = rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))[0]
-    if (last) await db.water.delete(last.id)
+    if (last) {
+      await db.water.delete(last.id)
+      await cloudSync.remove(`/nutrition/water/${last.id}`)
+    }
   },
 }

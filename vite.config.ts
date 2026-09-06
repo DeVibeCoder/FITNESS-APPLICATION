@@ -83,6 +83,10 @@ export default defineConfig(({ mode }) => {
           target: process.env.API_ORIGIN ?? 'http://127.0.0.1:8788',
           changeOrigin: false,
         },
+        '/api/data': {
+          target: process.env.API_ORIGIN ?? 'http://127.0.0.1:8788',
+          changeOrigin: false,
+        },
       },
     },
     plugins: [

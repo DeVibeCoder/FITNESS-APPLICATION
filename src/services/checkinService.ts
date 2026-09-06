@@ -3,6 +3,7 @@ import { uid, now } from '@/lib/id'
 import type { DailyCheckIn, DateKey, ID } from '@/models'
 import { updateService } from './updateService'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 export const ENERGY_OPTIONS: { value: 1 | 2 | 3 | 4; label: string }[] = [
   { value: 1, label: 'Low' },
@@ -83,6 +84,10 @@ export const checkinService = {
     const existing = await this.forDay(input.userId, input.date)
     const entry: DailyCheckIn = { ...input, id: existing?.id ?? uid('ci'), createdAt: now() }
     await db.checkins.put(entry)
+    await cloudSync.push('/nutrition/checkins', {
+      id: entry.id, date: entry.date, energy: entry.energy, mood: entry.mood,
+      soreness: entry.soreness, note: entry.note, createdAt: entry.createdAt,
+    })
 
     if (!existing) {
       const mood = MOOD_OPTIONS.find((m) => m.value === input.mood)
@@ -100,5 +105,6 @@ export const checkinService = {
   async remove(id: ID): Promise<void> {
     assertOwnerOf(await db.checkins.get(id))
     await db.checkins.delete(id)
+    await cloudSync.remove(`/nutrition/checkins/${id}`)
   },
 }

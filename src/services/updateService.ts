@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { uid, now } from '@/lib/id'
 import type { ID, Reaction, Update } from '@/models'
 import { assertOwner } from './ownership'
+import { cloudSync } from './cloudSync'
 
 export interface UpdateWithReactions extends Update {
   reactions: Reaction[]
@@ -20,9 +21,41 @@ export const updateService = {
   },
 
   async post(input: Omit<Update, 'id' | 'createdAt'>): Promise<Update> {
+    const update = await this.writeLocal(input)
+    await this.announce(update)
+    return update
+  },
+
+  /** The local row, and nothing else. Safe to call inside a transaction. */
+  async writeLocal(input: Omit<Update, 'id' | 'createdAt'>): Promise<Update> {
     const update: Update = { ...input, id: uid('up'), createdAt: now() }
     await db.updates.add(update)
     return update
+  },
+
+  /**
+   * Tells the server, once the local write is finished and out of any
+   * transaction.
+   *
+   * This is separate from the write for a reason that cost an afternoon:
+   * Dexie commits a transaction as soon as its microtask queue drains, and a
+   * `fetch` does not live on that queue. Awaiting a network call inside a
+   * transaction therefore ends it early and throws PrematureCommitError on
+   * the next statement — the announcement still landed, but the caller saw an
+   * error for something that had worked. So the transaction does Dexie work
+   * only, and this runs after it has closed.
+   *
+   * `dedupe_key` is UNIQUE in D1, so the Phase 30 rules survive the move and
+   * are now enforced by the database rather than by looking first: a new
+   * workout announces once because its key is new, an edit announces nothing
+   * because it reuses the key, and a delete leaves the announcement standing
+   * because nothing removes it.
+   */
+  async announce(update: Update): Promise<void> {
+    await cloudSync.push('/social/updates', {
+      id: update.id, kind: update.kind, text: update.text,
+      meta: update.meta, dedupeKey: update.dedupeKey, createdAt: update.createdAt,
+    })
   },
 
   /**
@@ -47,11 +80,14 @@ export const updateService = {
   async postOnce(
     input: Omit<Update, 'id' | 'createdAt' | 'dedupeKey'> & { dedupeKey: string },
   ): Promise<Update> {
-    return db.transaction('rw', db.updates, async () => {
+    const { update, created } = await db.transaction('rw', db.updates, async () => {
       const existing = await db.updates.filter((row) => row.dedupeKey === input.dedupeKey).first()
-      if (existing) return existing
-      return this.post(input)
+      if (existing) return { update: existing, created: false }
+      return { update: await this.writeLocal(input), created: true }
     })
+    // Outside the transaction, for the reason `announce` explains.
+    if (created) await this.announce(update)
+    return update
   },
 
   /** Full history for the Updates page, newest first. */
@@ -70,13 +106,27 @@ export const updateService = {
 
     if (existing?.emoji === emoji) {
       await db.reactions.delete(existing.id)
+      await this.pushReaction(updateId, existing.id, '')
       return
     }
     if (existing) {
       await db.reactions.update(existing.id, { emoji, createdAt: now() })
+      await this.pushReaction(updateId, existing.id, emoji)
       return
     }
-    await db.reactions.add({ id: uid('r'), updateId, userId, emoji, createdAt: now() })
+    const row = { id: uid('r'), updateId, userId, emoji, createdAt: now() }
+    await db.reactions.add(row)
+    await this.pushReaction(updateId, row.id, emoji)
+  },
+
+  /** One shape for all three branches above: set it, change it, take it off. */
+  async pushReaction(updateId: ID, existingId: ID | undefined, emoji: string): Promise<void> {
+    await cloudSync.push('/social/update-reactions', {
+      id: existingId ?? uid('r'),
+      targetId: updateId,
+      emoji,
+      createdAt: now(),
+    })
   },
 }
 

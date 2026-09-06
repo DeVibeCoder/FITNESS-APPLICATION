@@ -23,6 +23,7 @@ import { readFileSync } from 'node:fs'
 import { ensureSeeded } from '../src/data/seed'
 import { db } from '../src/lib/db'
 import { workoutData } from '../src/services/workoutData'
+import { cloudSync } from '../src/services/cloudSync'
 import { storageService } from '../src/services/storageService'
 import { todayKey } from '../src/utils/date'
 
@@ -32,6 +33,38 @@ const check = (label: string, ok: unknown, detail?: unknown) => {
   if (!ok) failures += 1
 }
 const head = (t: string) => console.log(`\n--- ${t} ---\n`)
+
+/**
+ * Exactly what a file sends to the server, and nothing around it.
+ *
+ * A regex cannot do this: these files read and write `userId` on local rows on
+ * the lines either side of a push, and a pattern loose enough to reach the end
+ * of a multi-line call is loose enough to swallow the announcement that
+ * follows it. So the call is read by counting brackets, which is the only way
+ * to know where it actually ends. The `*Payload` builders are included too,
+ * because a push that hands its row to one is still sending what it returns.
+ */
+function outgoing(source: string): string {
+  const found: string[] = []
+  for (const marker of ['cloudSync.push(', 'cloudSync.pushProfile(']) {
+    let at = source.indexOf(marker)
+    while (at !== -1) {
+      let depth = 0
+      let end = at + marker.length - 1
+      for (; end < source.length; end += 1) {
+        if (source[end] === '(') depth += 1
+        else if (source[end] === ')') {
+          depth -= 1
+          if (depth === 0) break
+        }
+      }
+      found.push(source.slice(at, end + 1))
+      at = source.indexOf(marker, end)
+    }
+  }
+  for (const match of source.matchAll(/const \w*Payload = \([\s\S]*?\n\}\)/g)) found.push(match[0])
+  return found.join(String.fromCharCode(10))
+}
 
 async function main() {
   await ensureSeeded()
@@ -115,6 +148,47 @@ async function main() {
     .join(String.fromCharCode(10))
   check('the router has no upload or sync path', !/upload|bulkAdd|migrateAll|syncAll/i.test(code))
   check('and no local history was touched by any of this', (await db.sessions.count()) === before, before)
+
+  head('The rest of the migration routes the same way')
+  const sync = readFileSync('src/services/cloudSync.ts', 'utf8')
+  const client = readFileSync('src/services/cloudDataService.ts', 'utf8')
+  check('a fresh process syncs nothing', cloudSync.enabled() === false, cloudSync.enabled())
+  check('and has nothing waiting to send', cloudSync.pending() === 0)
+  check('cloud sync follows the same approved-account switch', /cloudSync\.useCloud\(account\.status === 'approved'/.test(auth))
+  check('signing out turns it off', /workoutData\.useCloud\(false\)\s*\n\s*cloudSync\.useCloud\(false\)/.test(auth))
+  check('an unlinked or pending session does not sync', (auth.match(/cloudSync\.useCloud\(false\)/g) ?? []).length >= 3)
+  check('the client sends the session cookie', client.includes("credentials: 'include'"))
+  check('and treats a non-JSON answer as no backend', /content-type[\s\S]{0,200}unavailable/i.test(client))
+
+  // Comments explain at length what is not uploaded; sentences are not code.
+  const syncCode = sync
+    .split(String.fromCharCode(10))
+    .filter((l) => !/^\s*(\*|\/\*|\/\/)/.test(l))
+    .join(String.fromCharCode(10))
+  check('nothing sweeps local history into the cloud', !/uploadAll|pushAll|migrateAll|syncAll/i.test(syncCode))
+  check('hydrate only reads', !/hydrate[\s\S]{0,600}cloudDataService\.post/.test(syncCode))
+  check('a failed push never breaks the caller', /async push[\s\S]{0,400}catch/.test(syncCode))
+
+  head('Nothing sent to the server claims an identity')
+  const senders = [
+    'src/services/nutritionService.ts',
+    'src/services/weightService.ts',
+    'src/services/stepsService.ts',
+    'src/services/checkinService.ts',
+    'src/services/postService.ts',
+    'src/services/storyService.ts',
+    'src/services/updateService.ts',
+    'src/services/chatService.ts',
+  ]
+  for (const file of senders) {
+    const source = readFileSync(file, 'utf8')
+    // Only the payloads. These files read and write `userId` on local rows all
+    // day, which is not the same as telling the server who to be.
+    const payloads = outgoing(source)
+    const name = file.split('/').pop()
+    check(`${name} sends no userId`, !/userId:/.test(payloads), payloads.match(/userId:[^,]*/)?.[0])
+    check(`${name} sends no role or status`, !/\brole:|\bstatus:/.test(payloads))
+  }
 
   console.log(`\n${failures === 0 ? 'Routing is correct.' : `${failures} problem(s).`}`)
   process.exit(failures === 0 ? 0 : 1)

@@ -4,6 +4,7 @@ import type { AchievementDef, ID, UserAchievement } from '@/models'
 import { ACHIEVEMENTS, ACHIEVEMENT_BY_KEY } from '@/data/achievements'
 import { currentStreak } from '@/utils/streaks'
 import { updateService } from './updateService'
+import { cloudSync } from './cloudSync'
 import { workoutService } from './workoutService'
 
 export interface AchievementView extends AchievementDef {
@@ -309,7 +310,10 @@ export const achievementService = {
     const withdrawn = existing.filter(
       (row) => !KEPT_ONCE_EARNED.has(row.achievementKey) && !earned[row.achievementKey],
     )
-    if (withdrawn.length) await db.achievements.bulkDelete(withdrawn.map((row) => row.id))
+    if (withdrawn.length) {
+      await db.achievements.bulkDelete(withdrawn.map((row) => row.id))
+      for (const row of withdrawn) await cloudSync.remove(`/social/awards/${row.id}`)
+    }
     const standing = existing.filter((row) => !withdrawn.includes(row))
 
     const already = new Set(standing.map((e) => e.achievementKey))
@@ -324,6 +328,11 @@ export const achievementService = {
 
     if (rows.length) {
       await db.achievements.bulkAdd(rows)
+      for (const row of rows) {
+        await cloudSync.push('/social/awards', {
+          id: row.id, achievementKey: row.achievementKey, unlockedAt: row.unlockedAt,
+        })
+      }
       // Seeding evaluates silently: the group does not need a burst of posts
       // for achievements that were earned by history rather than just now.
       if (options.announce !== false) {

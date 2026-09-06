@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { now } from '@/lib/id'
 import type { AppNotification, ID } from '@/models'
 import { assertOwner } from './ownership'
+import { cloudSync } from './cloudSync'
 
 /**
  * Notifications, addressed to one person.
@@ -29,6 +30,7 @@ export const notificationService = {
     const row = await db.notifications.get(notificationId)
     if (!row || row.userId !== userId || row.readAt) return
     await db.notifications.update(notificationId, { readAt: now() })
+    await cloudSync.push('/social/notifications-read', { ids: [notificationId] })
   },
 
   async markAllRead(userId: ID): Promise<number> {
@@ -38,6 +40,9 @@ export const notificationService = {
     )
     const stamp = now()
     await Promise.all(unread.map((row) => db.notifications.update(row.id, { readAt: stamp })))
+    if (unread.length > 0) {
+      await cloudSync.push('/social/notifications-read', { ids: unread.map((row) => row.id) })
+    }
     return unread.length
   },
 }

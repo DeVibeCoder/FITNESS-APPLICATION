@@ -5,6 +5,7 @@ import { authService } from '@/services'
 import { serverAuthService, type ServerUser } from '@/services/serverAuthService'
 import { identityLinkService } from '@/services/identityLinkService'
 import { workoutData } from '@/services/workoutData'
+import { cloudSync } from '@/services/cloudSync'
 import { storageService } from '@/services/storageService'
 import { db } from '@/lib/db'
 import { useLiveQuery } from 'dexie-react-hooks'
@@ -81,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // No backend to ask. Carry on as the application always has.
         setMode('local')
         workoutData.useCloud(false)
+        cloudSync.useCloud(false)
         const current = await authService.currentUser()
         if (cancelled) return
         setResolved(current)
@@ -97,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!account) {
         // No session means signed out, whatever localStorage still holds.
         workoutData.useCloud(false)
+        cloudSync.useCloud(false)
         await adoptLocal(null)
         setNeedsLink(false)
         setReady(true)
@@ -114,10 +117,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
          * it where it already works.
          */
         workoutData.useCloud(account.status === 'approved')
+        /*
+         * The same rule for everything else: an approved, linked account uses
+         * the cloud, and anything short of that carries on locally. Hydrating
+         * pulls this account's rows down into the device's cache; it never
+         * pushes the device's existing history up.
+         */
+        cloudSync.useCloud(account.status === 'approved', resolution.localUserId, account.id)
+        void cloudSync.hydrate()
         setNeedsLink(false)
       } else {
         // Signed in, but nobody has said whose data this is yet.
         workoutData.useCloud(false)
+        cloudSync.useCloud(false)
         await adoptLocal(null)
         setNeedsLink(true)
       }
@@ -145,6 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     if (mode === 'server') void serverAuthService.signOut().catch(() => undefined)
     workoutData.useCloud(false)
+    cloudSync.useCloud(false)
     void authService.signOut()
     setServerUser(null)
     setNeedsLink(false)
@@ -160,6 +173,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await identityLinkService.link(serverUser.id, localUserId)
       await adoptLocal(localUserId)
       workoutData.useCloud(serverUser.status === 'approved')
+      cloudSync.useCloud(serverUser.status === 'approved', localUserId, serverUser.id)
+      void cloudSync.hydrate()
       setNeedsLink(false)
     },
     [serverUser, adoptLocal],
@@ -170,6 +185,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const localUserId = await identityLinkService.startFresh(serverUser)
     await adoptLocal(localUserId)
     workoutData.useCloud(serverUser.status === 'approved')
+    cloudSync.useCloud(serverUser.status === 'approved', localUserId, serverUser.id)
+    void cloudSync.hydrate()
     setNeedsLink(false)
   }, [serverUser, adoptLocal])
 

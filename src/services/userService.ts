@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import type { Goal, ID, User } from '@/models'
 import { uid, now } from '@/lib/id'
 import { assertOwner } from './ownership'
+import { cloudSync } from './cloudSync'
 import { mediaService, type MediaInput } from './mediaService'
 
 export const userService = {
@@ -36,6 +37,13 @@ export const userService = {
   async update(id: ID, changes: Partial<Omit<User, 'id'>>): Promise<void> {
     assertOwner(id)
     await db.users.update(id, changes)
+    /*
+     * Only the fields the server recognises as a profile travel. `role` and
+     * `status` are not among them and are not sent — an account that could
+     * edit its own status could approve itself, so the server's writable list
+     * is the one that decides, and this side does not even try.
+     */
+    await cloudSync.pushProfile(changes)
   },
 
   async create(input: Omit<User, 'id' | 'joinedAt'>): Promise<User> {

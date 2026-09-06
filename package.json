@@ -26,7 +26,8 @@
     "check:browser-link": "node scripts/browser-link-e2e.mjs",
     "db:migrate:prod": "wrangler d1 migrations apply circuit-prod --env production --remote",
     "db:check:fitness": "tsx --tsconfig tsconfig.app.json scripts/check-fitness-api.ts",
-    "db:check:routing": "tsx --tsconfig tsconfig.app.json scripts/check-workout-routing.ts"
+    "db:check:routing": "tsx --tsconfig tsconfig.app.json scripts/check-workout-routing.ts",
+    "db:check:data": "tsx --tsconfig tsconfig.app.json scripts/check-data-api.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

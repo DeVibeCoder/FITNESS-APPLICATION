@@ -13,6 +13,7 @@ import type {
 import { mediaService } from './mediaService'
 import type { MediaInput } from './mediaService'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 /**
  * The group feed.
@@ -151,6 +152,15 @@ export const postService = {
       if (asset) await db.media.delete(asset.id)
       throw error
     }
+    /*
+     * The picture does not travel — only the fact that there is one. Photo
+     * storage is not switched on yet (see server/data/mediaRepo), so the ref
+     * stays on this device and the post arrives as its words and its shape.
+     */
+    await cloudSync.push('/social/posts', {
+      id: post.id, type: post.type, text: post.text, visibility: post.visibility,
+      sharedType: post.sharedType, sharedDataId: post.sharedDataId, createdAt: post.createdAt,
+    })
     return post
   },
 
@@ -228,6 +238,7 @@ export const postService = {
     await db.postReactions.bulkDelete(reactionKeys)
     await db.comments.bulkDelete(commentKeys)
     await db.posts.delete(postId)
+    await cloudSync.remove(`/social/posts/${postId}`)
     await mediaService.releaseUnused(post.mediaIds, { postId })
   },
 
@@ -253,6 +264,13 @@ export const postService = {
     } else {
       await db.postReactions.add({ id: uid('pr'), postId, userId, emoji, createdAt: now() })
     }
+    // An empty emoji is how the server is told the reaction came back off.
+    await cloudSync.push('/social/post-reactions', {
+      id: existing?.id ?? uid('pr'),
+      targetId: postId,
+      emoji: existing?.emoji === emoji ? '' : emoji,
+      createdAt: now(),
+    })
     await this.recount(postId)
   },
 
@@ -275,6 +293,9 @@ export const postService = {
 
     const row: Comment = { id: uid('c'), postId, userId, text: body, createdAt: now() }
     await db.comments.add(row)
+    await cloudSync.push('/social/comments', {
+      id: row.id, postId, text: row.text, createdAt: row.createdAt,
+    })
     await this.recount(postId)
     return row
   },
@@ -284,6 +305,7 @@ export const postService = {
     const row = await db.comments.get(commentId)
     assertOwnerOf(row)
     await db.comments.delete(commentId)
+    await cloudSync.remove(`/social/comments/${commentId}`)
     if (row) await this.recount(row.postId)
   },
 
