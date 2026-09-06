@@ -6,7 +6,7 @@ import { Field } from '@/components/ui/Field'
 import { Logo } from '@/components/ui/Logo'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
-import { DEMO_PASSWORD } from '@/data/demo'
+import { demoDataEnabled } from '@/data/demoMode'
 import styles from './Login.module.css'
 
 /**
@@ -111,16 +111,26 @@ export function Login() {
             Forgot password?
           </button>
 
+          {/*
+            The demo credentials are printed only by a demo build, where they
+            are the only way into an app that has no server to ask. A
+            production build says the true thing instead, and carries no
+            password in its bundle to print.
+          */}
           {showDemo ? (
             <div className={styles.demo}>
-              <p>
-                Accounts live on this device only, so there is nothing to email you. The three
-                demo accounts are <strong>ahmed</strong>, <strong>nadia</strong> and{' '}
-                <strong>samir</strong>, all with the password <strong>{DEMO_PASSWORD}</strong>.
-              </p>
-              <p className={styles.demoNote}>
-                Real password recovery arrives with the server.
-              </p>
+              {demoDataEnabled ? (
+                <p>
+                  Accounts live on this device only, so there is nothing to email you. The three
+                  demo accounts are <strong>ahmed</strong>, <strong>nadia</strong> and{' '}
+                  <strong>samir</strong>, all with the password <strong>circuit2026</strong>.
+                </p>
+              ) : (
+                <p>
+                  This account lives on this device, so there is nothing to email you. If you
+                  have forgotten the password, set the account up again.
+                </p>
+              )}
             </div>
           ) : null}
         </form>

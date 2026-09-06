@@ -56,30 +56,47 @@ export interface D1Database {
 /**
  * Reads the session token out of the cookie header.
  *
- * Two details that are easy to get wrong and silently authenticate nobody:
+ * Three details that are easy to get wrong and each of which silently
+ * authenticates nobody:
  *
  * The cookie is named `<prefix>.session_token`, not `<prefix>.session` — the
  * prefix in the Better Auth config is only the first half of the name.
  *
- * And its value is `<token>.<signature>`, while `auth_sessions.token` holds
- * the token alone. Looking the whole cookie value up in the database matches
- * no row, which fails exactly like an expired session and is far harder to
- * read. The signature is the library's to verify; the part before the first
- * dot is what identifies the row.
+ * Its value is `<token>.<signature>`, while `auth_sessions.token` holds the
+ * token alone. Looking the whole cookie value up in the database matches no
+ * row, which fails exactly like an expired session and is far harder to read.
+ * The signature is the library's to verify; the part before the first dot is
+ * what identifies the row.
+ *
+ * And over HTTPS the name is not the name. Better Auth sets secure cookies
+ * with the `__Secure-` prefix, which browsers require to be there and which
+ * the library adds only when the connection warrants it. So the cookie is
+ * `circuit.session_token` on http://localhost and
+ * `__Secure-circuit.session_token` on the deployed site — and a guard that
+ * compares against the bare name authenticates every developer and no real
+ * user. That is exactly what happened: `/api/auth/*` kept working because the
+ * library reads its own cookie, while every route behind this function
+ * answered 401 to a perfectly valid session.
+ *
+ * Both prefixes defined by the cookie-prefix spec are accepted, because both
+ * are names the same cookie can legitimately arrive under.
  */
+const COOKIE_PREFIXES = ['', '__Secure-', '__Host-'] as const
+
 export function sessionTokenFrom(
   request: Request,
   cookieName = 'circuit.session_token',
 ): string | null {
   const header = request.headers.get('Cookie')
   if (!header) return null
+  const accepted = new Set(COOKIE_PREFIXES.map((prefix) => `${prefix}${cookieName}`))
   for (const part of header.split(';')) {
     const [name, ...rest] = part.trim().split('=')
-    if (name !== cookieName) continue
+    if (!accepted.has(name)) continue
     const value = decodeURIComponent(rest.join('='))
-    if (!value) return null
+    if (!value) continue
     const [token] = value.split('.')
-    return token || null
+    if (token) return token
   }
   return null
 }

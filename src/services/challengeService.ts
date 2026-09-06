@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { userService } from './userService'
 import { now, uid } from '@/lib/id'
 import { assertOwner } from './ownership'
+import { cloudSync } from './cloudSync'
 import type {
   ChallengeContribution,
   ChallengeProgress,
@@ -114,10 +115,22 @@ export const challengeService = {
     // on weekStart means the loser fails and re-reads rather than duplicating.
     try {
       await db.challenges.add(challenge)
-      return challenge
     } catch {
       return (await this.forWeek(date)) ?? challenge
     }
+    /*
+     * The server decides the week too, and it is idempotent on `week_start`:
+     * whoever opens the app first on a Sunday creates it and everyone else
+     * finds the same one. Two devices therefore agree on the week even though
+     * each generated its own id locally.
+     */
+    await cloudSync.push('/training/challenges', {
+      id: challenge.id, weekStart: challenge.weekStart, title: challenge.title,
+      blurb: challenge.blurb, metric: challenge.metric, target: challenge.target,
+      perMember: challenge.perMember, unit: challenge.unit, icon: challenge.icon,
+      createdAt: challenge.createdAt,
+    })
+    return challenge
   },
 
   // --- Taking part ---------------------------------------------------------
@@ -158,15 +171,17 @@ export const challengeService = {
       .first()
     if (existing) {
       if (existing.leftAt) return
-      await db.challengeParticipants.update(existing.id, { leftAt: now() })
+      const leftAt = now()
+      await db.challengeParticipants.update(existing.id, { leftAt })
+      await cloudSync.push('/training/participation', {
+        id: existing.id, challengeId, takingPart: false, joinedAt: existing.joinedAt, leftAt,
+      })
       return
     }
-    await db.challengeParticipants.add({
-      id: uid('cp'),
-      challengeId,
-      userId,
-      joinedAt: now(),
-      leftAt: now(),
+    const row = { id: uid('cp'), challengeId, userId, joinedAt: now(), leftAt: now() }
+    await db.challengeParticipants.add(row)
+    await cloudSync.push('/training/participation', {
+      id: row.id, challengeId, takingPart: false, joinedAt: row.joinedAt, leftAt: row.leftAt,
     })
   },
 
@@ -180,7 +195,11 @@ export const challengeService = {
     if (!existing) return
     // The row stays: it is the record that a choice was made, and clearing the
     // date is what puts the person back on the board.
-    await db.challengeParticipants.update(existing.id, { leftAt: undefined, joinedAt: now() })
+    const joinedAt = now()
+    await db.challengeParticipants.update(existing.id, { leftAt: undefined, joinedAt })
+    await cloudSync.push('/training/participation', {
+      id: existing.id, challengeId, takingPart: true, joinedAt, leftAt: null,
+    })
   },
 
   // --- Progress ------------------------------------------------------------

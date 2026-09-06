@@ -248,7 +248,104 @@ export const cloudSync = {
       ),
     )
 
+    await this.hydrateGroup()
+    await this.hydrateChat()
+
     return { pulled }
+  },
+
+  /**
+   * The other people in the group, as names and colours.
+   *
+   * Without this a message or a post from somebody else arrives owned by an id
+   * this device has never seen, and the screen draws a blank avatar next to an
+   * empty name. The roster carries display fields only — no email, no role, no
+   * account status — because that is all any screen needs to render somebody
+   * who is not you.
+   */
+  async hydrateGroup(): Promise<void> {
+    if (!enabled || !profileId) return
+    try {
+      const people = await cloudDataService.list<RosterRow>('/roster')
+      const others = people.filter((row) => row.id !== serverSelf)
+      if (others.length === 0) return
+
+      /*
+       * A profile this device already knows keeps everything it had — goals,
+       * units, whatever it has been told — and only takes the name and colour
+       * from the roster. Somebody arriving for the first time gets a minimal
+       * record that is enough to draw them, and nothing invented about their
+       * body or their targets.
+       */
+      const known = new Map((await db.users.toArray()).map((row) => [row.id, row]))
+      const rows = others.map((row) => {
+        const existing = known.get(row.id)
+        if (existing) {
+          return {
+            ...existing,
+            name: row.name,
+            handle: row.handle ?? existing.handle,
+            avatarColor: row.avatar_color ?? existing.avatarColor,
+            avatarMediaId: row.avatar_media_id ?? existing.avatarMediaId,
+          }
+        }
+        return {
+          id: row.id,
+          name: row.name,
+          handle: row.handle ?? row.id.slice(0, 8),
+          avatarColor: row.avatar_color ?? '#3d6ea8',
+          avatarMediaId: row.avatar_media_id ?? undefined,
+          role: 'member' as const,
+          status: 'approved' as const,
+          units: 'metric' as const,
+          stepGoal: 8000,
+          waterGoalL: 2.5,
+          workoutsPerWeekGoal: 4,
+          weighInDay: 0 as const,
+          workoutApps: [],
+          joinedAt: row.joined_at,
+          onboardedAt: row.joined_at,
+        }
+      })
+      await db.users.bulkPut(rows as never)
+    } catch {
+      // The group will be drawn from what this device already knows.
+    }
+  },
+
+  /**
+   * The conversation.
+   *
+   * Pulled rather than pushed at, and pulled again whenever the socket says
+   * something happened — which is what makes the realtime layer able to carry
+   * an event with no content in it. Messages by the signed-in account are
+   * relabelled to the local profile, exactly as workouts are, so "mine" means
+   * the same thing on this screen as everywhere else.
+   */
+  async hydrateChat(): Promise<void> {
+    if (!enabled || !profileId) return
+    const mine = profileId
+    try {
+      const rows = await cloudDataService.list<MessageRow>('/chat/messages', { limit: 300 })
+      if (rows.length === 0) return
+      await db.messages.bulkPut(
+        rows.map((row) => ({
+          id: row.id,
+          userId: row.user_id === serverSelf ? mine : row.user_id,
+          text: row.text,
+          createdAt: row.created_at,
+          replyToId: row.reply_to_id ?? undefined,
+          sharedType: (row.shared_type ?? undefined) as never,
+          sharedDataId: row.shared_data_id ?? undefined,
+          stickerId: row.sticker_id ?? undefined,
+          pinnedAt: row.pinned_at ?? undefined,
+          pinnedBy: row.pinned_by ?? undefined,
+          deletedAt: row.deleted_at ?? undefined,
+        })),
+      )
+    } catch {
+      // Offline, or no backend. The conversation on this device stands.
+    }
   },
 }
 
@@ -272,4 +369,15 @@ interface UpdateRow {
 interface NotificationRow {
   id: string; kind: string; text: string; link: string | null
   actor_id: string | null; target_id: string | null; read_at: string | null; created_at: string
+}
+
+interface RosterRow {
+  id: string; name: string; handle: string | null
+  avatar_color: string | null; avatar_media_id: string | null; joined_at: string
+}
+interface MessageRow {
+  id: string; user_id: string; text: string; created_at: string
+  reply_to_id: string | null; shared_type: string | null; shared_data_id: string | null
+  sticker_id: string | null; pinned_at: string | null; pinned_by: string | null
+  deleted_at: string | null
 }

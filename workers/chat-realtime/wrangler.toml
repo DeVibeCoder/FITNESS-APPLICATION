@@ -1,0 +1,26 @@
+# The realtime delivery Worker.
+#
+# Separate from the Pages project because Pages can bind a Durable Object but
+# cannot define one — the class has to live in a Worker script, and this is the
+# smallest script that can hold it.
+#
+# It has no routes and no custom domain on purpose. The only way in is the
+# Durable Object binding from the Pages Functions, which authenticate first.
+
+name = "circuit-chat-realtime"
+main = "src/index.ts"
+compatibility_date = "2026-08-22"
+
+# Deliberately not deployed to workers.dev: nothing should be able to reach
+# this except the application, through the binding.
+
+[[durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+
+# SQLite-backed, which is what the free plan offers and what new Durable
+# Objects are meant to use regardless. The class stores nothing — it is a
+# fan-out point, not a record — so the storage engine is a formality here.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatRoom"]

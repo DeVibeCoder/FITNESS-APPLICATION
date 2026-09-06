@@ -379,6 +379,108 @@ async function main() {
   check('and carries no email', roster.every((row) => !('email' in row)))
   check('no role and no status', roster.every((row) => !('role' in row) && !('status' in row)))
 
+  head('Training: measurements, plans, sets, the week and the videos')
+  const measurementId = uid('m')
+  await callAs(alice, '/training/measurements', {
+    method: 'POST',
+    body: JSON.stringify({ id: measurementId, date: today, waistCm: 86, chestCm: 102, bodyFatPct: 21 }),
+  })
+  const measurements = rowsOf((await callAs(alice, '/training/measurements')).body)
+  check('a measurement reads back', measurements[0]?.waist_cm === 86, measurements[0]?.waist_cm)
+  check('with the field the old schema had no column for', measurements[0]?.body_fat_pct === 21)
+  check('and Bob sees none of them', rowsOf((await callAs(bob, '/training/measurements')).body).length === 0)
+
+  const plans = rowsOf((await callAs(alice, '/training/plans')).body)
+  check('the plan catalogue is on the server', plans.length >= 1, plans.length)
+  check('and belongs to nobody', plans.every((row) => row.owner_id === null))
+  const planId = String(plans[0]?.id)
+  const planDetail = (await callAs(alice, `/training/plans?planId=${planId}`)).body
+  check('a plan has its days', ((planDetail.days ?? []) as unknown[]).length > 0)
+  check('and its exercises', ((planDetail.exercises ?? []) as unknown[]).length > 0)
+
+  const enrolled = await callAs(alice, '/training/enrollments', {
+    method: 'POST',
+    body: JSON.stringify({ id: uid('en'), planId, startDate: today, active: true }),
+  })
+  check('starting a plan is accepted', enrolled.status === 200, enrolled.status)
+  check('and reads back as hers', rowsOf((await callAs(alice, '/training/enrollments')).body).length === 1)
+  const madeUpPlan = await callAs(alice, '/training/enrollments', {
+    method: 'POST',
+    body: JSON.stringify({ id: uid('en'), planId: 'plan_does_not_exist', startDate: today, active: true }),
+  })
+  check('a plan the server does not have is refused', madeUpPlan.status === 404, madeUpPlan.status)
+
+  // A set belongs to a session, and the session decides whose it is.
+  const sessionId = uid('ws')
+  await callAs(alice, '/fitness-not-used', {}).catch(() => undefined)
+  const workoutCreated = await fetch(`${API}/api/fitness/workouts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: alice.cookie },
+    body: JSON.stringify({
+      date: today, kind: 'strength', name: 'Player session', durationSec: 600, exercises: [],
+    }),
+  })
+  const realSessionId = ((await workoutCreated.json()) as { id: string }).id
+  const setSaved = await callAs(alice, '/training/sets', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: uid('sr'), sessionId: realSessionId, workoutExerciseId: 'we_1', setIndex: 0, reps: 10, completed: true,
+    }),
+  })
+  check('a performed set is recorded', setSaved.status === 200, setSaved.status)
+  const bobSet = await callAs(bob, '/training/sets', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: uid('sr'), sessionId: realSessionId, workoutExerciseId: 'we_1', setIndex: 1, reps: 99, completed: true,
+    }),
+  })
+  check("Bob cannot add sets to Alice's workout", bobSet.status === 404, bobSet.status)
+  check('and sees none of hers', rowsOf((await callAs(bob, '/training/sets')).body).length === 0)
+  void sessionId
+
+  const week = await callAs(alice, '/training/challenges', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: uid('gc'), weekStart: '2026-09-06', title: 'Ten thousand a day', metric: 'steps',
+      target: 70000, perMember: true, unit: 'steps', icon: 'footprints',
+    }),
+  })
+  check("the week's challenge is created", week.status === 200, week.status)
+  const sameWeek = await callAs(bob, '/training/challenges', {
+    method: 'POST',
+    body: JSON.stringify({
+      id: uid('gc'), weekStart: '2026-09-06', title: 'Something else', metric: 'workouts', target: 5,
+    }),
+  })
+  check(
+    'and a second person opening the app finds the same one',
+    (sameWeek.body.row as { id: string })?.id === (week.body.row as { id: string })?.id,
+  )
+  const challengeId = (week.body.row as { id: string })?.id
+  const sittingOut = await callAs(bob, '/training/participation', {
+    method: 'POST',
+    body: JSON.stringify({ id: uid('cp'), challengeId, takingPart: false }),
+  })
+  check('sitting the week out is recorded', sittingOut.status === 200, sittingOut.status)
+  const participants = query<{ user_id: string; taking_part: number }>(
+    `SELECT user_id, taking_part FROM challenge_participants WHERE challenge_id='${challengeId}';`,
+  )
+  check('for the person who said so, and nobody else', participants.length === 1 && participants[0].user_id === bob.id, participants)
+
+  const videoId = uid('v')
+  await callAs(alice, '/training/videos', {
+    method: 'POST',
+    body: JSON.stringify({ id: videoId, title: 'Morning session', url: 'https://youtu.be/J1s5chcgL8Q', provider: 'youtube' }),
+  })
+  check('a video is added', rowsOf((await callAs(bob, '/training/videos')).body).some((row) => row.id === videoId))
+  const notHttps = await callAs(alice, '/training/videos', {
+    method: 'POST',
+    body: JSON.stringify({ id: uid('v'), title: 'Nope', url: 'javascript:alert(1)' }),
+  })
+  check('a link that is not https is refused', notHttps.status === 400, notHttps.status)
+  const bobRemoves = await callAs(bob, `/training/videos/${videoId}`, { method: 'DELETE' })
+  check("and only whoever added it may remove it", bobRemoves.status === 404, bobRemoves.status)
+
   head('Media is referenced, never embedded')
   const embedded = await callAs(alice, '/media', {
     method: 'POST',
@@ -405,6 +507,12 @@ async function main() {
   check('their food went with them', query(`SELECT id FROM food_entries WHERE id='${foodId}';`).length === 0)
   check('their posts went with them', query(`SELECT id FROM posts WHERE id='${postId}';`).length === 0)
   check('their messages went with them', query(`SELECT id FROM messages WHERE id='${messageId}';`).length === 0)
+  check('their measurements too', query(`SELECT id FROM measurements WHERE id='${measurementId}';`).length === 0)
+  check('their plan enrollment too', query(`SELECT id FROM plan_enrollments WHERE user_id='${alice.id}';`).length === 0)
+  check('and the sets went with the workout', query(`SELECT id FROM set_results WHERE session_id='${realSessionId}';`).length === 0)
+  sql(`DELETE FROM challenges WHERE week_start='2026-09-06';`)
+  sql(`DELETE FROM motivation_videos WHERE id='${videoId}';`)
+  check('the test challenge is gone', query(`SELECT id FROM challenges WHERE week_start='2026-09-06';`).length === 0)
 
   console.log(`\n${failures === 0 ? 'The data API holds.' : `${failures} problem(s).`}`)
   process.exit(failures === 0 ? 0 : 1)

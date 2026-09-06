@@ -10,7 +10,7 @@ import { Sheet } from '@/components/ui/Sheet'
 import { useAuth } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
 import { useToast } from '@/context/ToastContext'
-import { resetDatabase } from '@/data/seed'
+import { demoDataEnabled } from '@/data/demoMode'
 import { hasRole, userService } from '@/services'
 import { firstName } from '@/utils/format'
 import type { ThemePref } from '@/services/storageService'
@@ -35,9 +35,18 @@ export function More() {
 
   if (!user) return null
 
+  /*
+   * Restoring the demo group only means anything in a demo build, and the
+   * module that can do it is not in a production bundle — so the control that
+   * calls this is not rendered there either.
+   */
   const reset = async () => {
     setResetting(true)
-    const result = await guard(() => resetDatabase(), "Couldn't reset the data. Try again.")
+    const result = await guard(async () => {
+      if (!(import.meta.env.DEV || import.meta.env.VITE_DEMO_DATA === '1')) return undefined
+      const { resetDatabase } = await import('@/data/seed')
+      return resetDatabase()
+    }, "Couldn't reset the data. Try again.")
     setResetting(false)
     setConfirmReset(false)
     if (result !== undefined) show('Demo data restored.', 'success')
@@ -180,19 +189,26 @@ export function More() {
       <Section title="Data">
         <Card className={styles.dataCard}>
           <div>
-            <p className={styles.dataTitle}>Everything is on this device</p>
+            <p className={styles.dataTitle}>
+              {demoDataEnabled ? 'Everything is on this device' : 'Your data is saved to your account'}
+            </p>
             <p className={styles.dataBody}>
-              Your logs live in this browser's storage. Nothing is uploaded anywhere. When the group
-              moves to a shared server, this data comes with you.
+              {demoDataEnabled
+                ? "Your logs live in this browser's storage. Nothing is uploaded anywhere."
+                : 'Your logs are kept with your account and this device holds a copy, so they are ' +
+                  'here when you are offline and there when you sign in somewhere else.'}
             </p>
           </div>
-          <Button
-            variant="secondary"
-            icon={<RotateCcw size={15} strokeWidth={2.2} />}
-            onClick={() => setConfirmReset(true)}
-          >
-            Reset to demo data
-          </Button>
+          {/* Only a demo build has anything to restore. */}
+          {demoDataEnabled ? (
+            <Button
+              variant="secondary"
+              icon={<RotateCcw size={15} strokeWidth={2.2} />}
+              onClick={() => setConfirmReset(true)}
+            >
+              Reset to demo data
+            </Button>
+          ) : null}
         </Card>
       </Section>
 

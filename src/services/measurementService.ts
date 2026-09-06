@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { uid, now } from '@/lib/id'
 import type { BodyMeasurement, ID } from '@/models'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 export const MEASUREMENT_FIELDS: {
   key: keyof Pick<BodyMeasurement, 'waistCm' | 'chestCm' | 'hipsCm' | 'armCm' | 'thighCm'>
@@ -37,11 +38,17 @@ export const measurementService = {
       .first()
     const entry: BodyMeasurement = { ...input, id: existing?.id ?? uid('m'), createdAt: now() }
     await db.measurements.put(entry)
+    await cloudSync.push('/training/measurements', {
+      id: entry.id, date: entry.date, waistCm: entry.waistCm, chestCm: entry.chestCm,
+      hipsCm: entry.hipsCm, armCm: entry.armCm, thighCm: entry.thighCm,
+      bodyFatPct: entry.bodyFatPct, note: entry.note, createdAt: entry.createdAt,
+    })
     return entry
   },
 
   async remove(id: ID): Promise<void> {
     assertOwnerOf(await db.measurements.get(id))
     await db.measurements.delete(id)
+    await cloudSync.remove(`/training/measurements/${id}`)
   },
 }

@@ -30,6 +30,22 @@ binding = "DB"
 database_name = "circuit-dev"
 database_id = "722c4aba-d51f-4040-af0e-752916df3f0d"
 
+
+# Realtime delivery for the group chat.
+#
+# Pages can bind a Durable Object but cannot define one, so the class lives in
+# the `circuit-chat-realtime` Worker (workers/chat-realtime) and is reached
+# from here by `script_name`. That Worker has no route and no workers.dev
+# subdomain, so this binding is the only way to it — and the Function behind
+# the binding authenticates the session before forwarding anything.
+#
+# The object stores nothing. D1 is still the record; this only tells the other
+# people in the conversation that it changed.
+[[env.preview.durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+script_name = "circuit-chat-realtime"
+
 # R2 is not yet enabled on this Cloudflare account, so the bucket could not be
 # created and this binding stays commented out — a binding pointing at a
 # bucket that does not exist fails the deploy rather than degrading quietly.
@@ -68,6 +84,11 @@ ENVIRONMENT = "production"
 binding = "DB"
 database_name = "circuit-prod"
 database_id = "9247acf9-c2aa-449a-8244-cf9c8f67681c"
+
+[[env.production.durable_objects.bindings]]
+name = "CHAT_ROOM"
+class_name = "ChatRoom"
+script_name = "circuit-chat-realtime"
 
 # R2 could not be created: the account has not enabled R2, which is a
 # dashboard action with billing terms attached and not something to work

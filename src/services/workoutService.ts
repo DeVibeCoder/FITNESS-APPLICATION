@@ -21,6 +21,7 @@ import { currentStreak, longestStreak } from '@/utils/streaks'
 import { estimateWorkoutCalories } from '@/utils/calories'
 import { updateService } from './updateService'
 import { assertOwner, assertOwnerOf } from './ownership'
+import { cloudSync } from './cloudSync'
 
 export interface ResolvedExercise extends WorkoutExercise {
   exercise: Exercise
@@ -120,6 +121,9 @@ export const workoutService = {
     await Promise.all(existing.map((e) => db.enrollments.update(e.id, { active: false })))
     const enrollment: PlanEnrollment = { id: uid('en'), userId, planId, startDate, active: true }
     await db.enrollments.add(enrollment)
+    await cloudSync.push('/training/enrollments', {
+      id: enrollment.id, planId, startDate, active: true,
+    })
     return enrollment
   },
 
@@ -585,6 +589,18 @@ export const workoutService = {
       completedAt: now(),
     }
     await db.setResults.put(result)
+    /*
+     * The set is sent on its own rather than with the session: the player
+     * writes them one at a time as they are performed, and a set that reaches
+     * the server as it happens is a set that survives the phone dying mid
+     * workout.
+     */
+    await cloudSync.push('/training/sets', {
+      id: result.id, sessionId: result.sessionId, workoutExerciseId: result.workoutExerciseId,
+      setIndex: result.setIndex, reps: result.reps, durationSec: result.durationSec,
+      weightKg: result.weightKg, completed: result.completed, skipped: result.skipped,
+      completedAt: result.completedAt,
+    })
     return result
   },
 

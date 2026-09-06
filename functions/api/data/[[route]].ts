@@ -32,9 +32,18 @@ import {
   validateNotification,
   validateReaction,
 } from '../../../server/data/socialRepo'
-import { chatRepo, validateMessage } from '../../../server/data/chatRepo'
+import { chatRepo, validateMessage, CONVERSATION_ID } from '../../../server/data/chatRepo'
 import { profileRepo } from '../../../server/data/profileRepo'
+import { publish, type RealtimeEnv } from '../../../server/data/realtime'
 import { mediaRepo, validateMedia } from '../../../server/data/mediaRepo'
+import {
+  trainingRepo,
+  validateMeasurement,
+  validateEnrollment,
+  validateSetResult,
+  validateChallenge,
+  validateVideo,
+} from '../../../server/data/trainingRepo'
 
 interface Ctx {
   user: AuthenticatedUser
@@ -43,6 +52,11 @@ interface Ctx {
   /** The path segment after the resource, when there is one. */
   id: string | null
   body: () => Promise<unknown>
+  /**
+   * Bindings, for the handful of handlers that tell the room something
+   * changed after they have written it down.
+   */
+  env: RealtimeEnv
 }
 
 type Handler = (ctx: Ctx) => Promise<Response> | Response
@@ -207,19 +221,95 @@ const routes: Record<string, Record<string, Handler>> = {
     },
   },
 
+  // --- Training: measurements, plans, sets, the week, the videos ------------
+  'training/measurements': {
+    GET: async ({ db, user, url }) => json({ rows: await trainingRepo.listMeasurements(db, user.id, lim(url)) }),
+    POST: async ({ db, user, body }) => {
+      await trainingRepo.saveMeasurement(db, user.id, validateMeasurement(await body()))
+      return okay()
+    },
+    DELETE: async ({ db, user, id }) =>
+      id && (await trainingRepo.removeMeasurement(db, user.id, v.id(id))) ? okay() : gone(),
+  },
+
+  'training/plans': {
+    GET: async ({ db, url }) => {
+      const planId = url.searchParams.get('planId')
+      if (planId) {
+        const id = v.id(planId, 'planId')
+        return json({ days: await trainingRepo.planDays(db, id), exercises: await trainingRepo.planExercises(db, id) })
+      }
+      return json({ rows: await trainingRepo.listPlans(db, lim(url, 50)) })
+    },
+  },
+
+  'training/enrollments': {
+    GET: async ({ db, user }) => json({ rows: await trainingRepo.listEnrollments(db, user.id) }),
+    POST: async ({ db, user, body }) =>
+      (await trainingRepo.saveEnrollment(db, user.id, validateEnrollment(await body()))) ? okay() : gone(),
+    DELETE: async ({ db, user, id }) =>
+      id && (await trainingRepo.removeEnrollment(db, user.id, v.id(id))) ? okay() : gone(),
+  },
+
+  'training/sets': {
+    GET: async ({ db, user, url }) => json({ rows: await trainingRepo.listSetResults(db, user.id, lim(url, 1000)) }),
+    POST: async ({ db, user, body }) =>
+      (await trainingRepo.saveSetResult(db, user.id, validateSetResult(await body()))) ? okay() : gone(),
+  },
+
+  'training/challenges': {
+    GET: async ({ db, url }) => json({ rows: await trainingRepo.listChallenges(db, lim(url, 60)) }),
+    // Creating the week is idempotent, so this reads as much as it writes:
+    // whoever opens the app first on a Sunday makes it, everybody else finds it.
+    POST: async ({ db, body }) =>
+      json({ row: await trainingRepo.ensureChallenge(db, validateChallenge(await body())) }),
+  },
+
+  'training/participation': {
+    GET: async ({ db, url }) => json({ rows: await trainingRepo.listParticipants(db, lim(url, 500)) }),
+    POST: async ({ db, user, body }) => {
+      const raw = v.body(await body())
+      const done = await trainingRepo.setParticipation(db, user.id, {
+        id: v.id(raw.id),
+        challengeId: v.id(raw.challengeId, 'challengeId'),
+        takingPart: v.boolean(raw.takingPart, 'takingPart'),
+        joinedAt: v.optionalTimestamp(raw.joinedAt, 'joinedAt') ?? new Date().toISOString(),
+        leftAt: v.optionalTimestamp(raw.leftAt, 'leftAt'),
+      })
+      return done ? okay() : gone()
+    },
+  },
+
+  'training/videos': {
+    GET: async ({ db, url }) => json({ rows: await trainingRepo.listVideos(db, lim(url, 100)) }),
+    POST: async ({ db, user, body }) => {
+      await trainingRepo.saveVideo(db, user.id, validateVideo(await body()))
+      return okay()
+    },
+    DELETE: async ({ db, user, id }) =>
+      id && (await trainingRepo.removeVideo(db, user.id, v.id(id))) ? okay() : gone(),
+  },
+
   // --- Chat -----------------------------------------------------------------
   'chat/messages': {
     GET: async ({ db, user, url }) => {
       await chatRepo.ensureMember(db, user.id)
       return json({ rows: await chatRepo.listMessages(db, lim(url, 300)) })
     },
-    POST: async ({ db, user, body }) => {
+    POST: async ({ db, user, body, env }) => {
       await chatRepo.ensureMember(db, user.id)
-      await chatRepo.saveMessage(db, user.id, validateMessage(await body()))
+      const message = validateMessage(await body())
+      await chatRepo.saveMessage(db, user.id, message)
+      // Written first, announced second. The message is saved whether or not
+      // anybody was listening.
+      await publish(env, CONVERSATION_ID, { kind: 'message', id: message.id, actorId: user.id })
       return okay()
     },
-    DELETE: async ({ db, user, id }) =>
-      id && (await chatRepo.deleteMessage(db, user.id, v.id(id))) ? okay() : gone(),
+    DELETE: async ({ db, user, id, env }) => {
+      if (!id || !(await chatRepo.deleteMessage(db, user.id, v.id(id)))) return gone()
+      await publish(env, CONVERSATION_ID, { kind: 'deleted', id: v.id(id), actorId: user.id })
+      return okay()
+    },
   },
   'chat/pins': {
     POST: async ({ db, user, body }) => {
@@ -230,7 +320,7 @@ const routes: Record<string, Record<string, Handler>> = {
   },
   'chat/reactions': {
     GET: async ({ db, url }) => json({ rows: await chatRepo.listReactions(db, lim(url, 500)) }),
-    POST: async ({ db, user, body }) => {
+    POST: async ({ db, user, body, env }) => {
       const raw = v.body(await body())
       const reacted = await chatRepo.toggleReaction(db, user.id, {
         id: v.id(raw.id),
@@ -238,7 +328,9 @@ const routes: Record<string, Record<string, Handler>> = {
         emoji: v.text(raw.emoji, 'emoji', 16, { allowEmpty: true }),
         createdAt: v.optionalTimestamp(raw.createdAt, 'createdAt') ?? new Date().toISOString(),
       })
-      return reacted ? okay() : gone()
+      if (!reacted) return gone()
+      await publish(env, CONVERSATION_ID, { kind: 'reaction', id: v.id(raw.messageId, 'messageId'), actorId: user.id })
+      return okay()
     },
   },
   'chat/members': {
@@ -268,7 +360,7 @@ const routes: Record<string, Record<string, Handler>> = {
 
 const handle = (context: {
   request: Request
-  env: { DB?: unknown }
+  env: { DB?: unknown } & RealtimeEnv
   params: { route?: string | string[] }
 }) =>
   withUser(context, async (user, db) => {
@@ -294,6 +386,7 @@ const handle = (context: {
       url: new URL(context.request.url),
       id: segments[used] ?? null,
       body: () => context.request.json(),
+      env: context.env,
     })
   })
 

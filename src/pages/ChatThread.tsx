@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { chatRealtime } from '@/services/chatRealtime'
+import { cloudSync } from '@/services/cloudSync'
 import {
   ArrowDown,
   ArrowLeft,
@@ -138,6 +140,15 @@ export function ChatThread() {
     observer.observe(dockNode)
     return () => observer.disconnect()
   }, [dockNode, pageNode])
+
+  /*
+   * Live updates, when they are available. The socket carries no content — it
+   * says the conversation changed and this pulls the change into the local
+   * cache, which is what the query below is already watching. When there is no
+   * socket the screen behaves exactly as it did: the cache updates when
+   * something on this device writes to it.
+   */
+  useEffect(() => chatRealtime.subscribe(() => void cloudSync.hydrateChat()), [])
 
   const messages = useLiveQuery(() => chatService.list(), [])
   const users = useLiveQuery(() => userService.listMembers(), [])

@@ -133,6 +133,27 @@ async function main() {
   check('the session cookie is found among others', sessionTokenFrom(multi) === 'abc123')
   check('no cookie header yields no token', sessionTokenFrom(new Request('https://circuit.test/')) === null)
 
+  /*
+   * Over HTTPS the same cookie arrives under a prefixed name, because that is
+   * what Better Auth sets for a secure cookie and what browsers require the
+   * prefix to mean. Reading only the bare name authenticates every developer
+   * on localhost and no real user on the deployed site — which is precisely
+   * how this was found, with `/api/auth/*` working and every guarded route
+   * answering 401 to a valid session.
+   */
+  const secure = new Request('https://circuit.test/', {
+    headers: { Cookie: 'theme=dark; __Secure-circuit.session_token=abc123.sig' },
+  })
+  check('a __Secure- prefixed session cookie is read', sessionTokenFrom(secure) === 'abc123')
+  const hostPrefixed = new Request('https://circuit.test/', {
+    headers: { Cookie: '__Host-circuit.session_token=abc123.sig' },
+  })
+  check('and a __Host- prefixed one', sessionTokenFrom(hostPrefixed) === 'abc123')
+  const unrelated = new Request('https://circuit.test/', {
+    headers: { Cookie: 'not-circuit.session_token=nope.sig; circuit.session_tokenish=no.sig' },
+  })
+  check('a cookie that merely resembles the name is not read', sessionTokenFrom(unrelated) === null)
+
   // --- The refusal response -----------------------------------------------
   const response = authFailureResponse(new AuthFailure('pending', 'Waiting for approval.', 403))!
   const payload = (await response.json()) as { error: string; message: string }
@@ -143,7 +164,7 @@ async function main() {
   const secret = 'correct horse battery staple'
   const hash = await hashPassword(secret)
   check('P. the stored hash does not contain the password', !hash.includes(secret))
-  check('the hash names its algorithm and cost', hash.startsWith('pbkdf2-sha256$600000$'))
+  check('the hash names its algorithm and cost', hash.startsWith('pbkdf2-sha256$6x100000$'))
   check('the right password verifies', await verifyPassword({ hash, password: secret }))
   check('a wrong password does not', !(await verifyPassword({ hash, password: 'correct horse battery stapl' })))
   const second = await hashPassword(secret)

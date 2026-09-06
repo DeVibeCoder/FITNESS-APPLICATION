@@ -1,4 +1,5 @@
 import { db } from '@/lib/db'
+import { cloudSync } from './cloudSync'
 import { uid, now } from '@/lib/id'
 import type { DateKey, ID, MotivationVideo } from '@/models'
 import { lineOfTheDay } from '@/data/messages'
@@ -57,6 +58,13 @@ export function thumbnailFor(url: string): string | undefined {
   if (parsed?.provider === 'youtube') return `https://i.ytimg.com/vi/${parsed.id}/hqdefault.jpg`
   return undefined
 }
+
+/** A video as the API takes it: a link and a card, never the video. */
+const videoPayload = (video: MotivationVideo) => ({
+  id: video.id, title: video.title, url: video.url, provider: video.provider,
+  quote: video.quote, thumbnailUrl: video.thumbnailUrl, durationSec: video.durationSec,
+  isActive: video.isActive, rotationOrder: video.rotationOrder, createdAt: video.addedAt,
+})
 
 export const motivationService = {
   /** A line that stays the same all day rather than shuffling on every render. */
@@ -174,6 +182,7 @@ export const motivationService = {
       rotationOrder: existing,
     }
     await db.videos.add(video)
+    await cloudSync.push('/training/videos', videoPayload(video))
     if (input.makeActive) await this.pinForWeek(video.id)
     return video
   },
@@ -196,6 +205,8 @@ export const motivationService = {
       patch.thumbnailUrl = thumbnailFor(changes.url)
     }
     await db.videos.update(id, patch)
+    const edited = await db.videos.get(id)
+    if (edited) await cloudSync.push('/training/videos', videoPayload(edited))
     return true
   },
 
@@ -216,5 +227,7 @@ export const motivationService = {
 
   async remove(id: ID): Promise<void> {
     await db.videos.delete(id)
+    // Refused server-side unless this is the person who added it.
+    await cloudSync.remove('/training/videos/' + id)
   },
 }

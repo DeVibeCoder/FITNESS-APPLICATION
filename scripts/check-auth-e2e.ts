@@ -106,7 +106,7 @@ async function main() {
   const accounts = sql<{ provider_id: string; password: string | null }>(
     `SELECT provider_id, password FROM auth_accounts WHERE user_id = '${user?.id}';`,
   )
-  check('the credential is stored as a PBKDF2 verifier', Boolean(accounts[0]?.password?.startsWith('pbkdf2-sha256$600000$')))
+  check('the credential is stored as a PBKDF2 verifier', Boolean(accounts[0]?.password?.startsWith('pbkdf2-sha256$6x100000$')))
   check('P. the stored verifier is not the password', !accounts[0]?.password?.includes(PASSWORD))
 
   // --- 13a. A pending user cannot reach the expensive endpoints -----------

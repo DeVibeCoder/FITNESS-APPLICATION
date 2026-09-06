@@ -17,7 +17,15 @@ import * as v from './validate'
 
 const nowIso = () => new Date().toISOString()
 
-const GOALS = ['lose_weight', 'build_muscle', 'maintain', 'improve_fitness', 'gain_weight'] as const
+/*
+ * These mirror the unions in src/models exactly. Writing them from memory is
+ * how a perfectly ordinary profile save — goal "general_fitness", which the
+ * form offers — came back a 400 from the deployed site while every local test
+ * passed. See scripts/check-unions.ts, which now compares the two.
+ */
+const GOALS = [
+  'lose_weight', 'maintain', 'gain_weight', 'build_muscle', 'improve_fitness', 'general_fitness',
+] as const
 const ACTIVITY = ['sedentary', 'light', 'moderate', 'active', 'very_active'] as const
 const UNITS = ['metric', 'imperial'] as const
 const SEXES = ['male', 'female'] as const

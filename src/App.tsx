@@ -7,7 +7,6 @@ import { ThemeProvider } from '@/context/ThemeContext'
 import { ToastProvider } from '@/context/ToastContext'
 import { AppShell } from '@/layouts/AppShell'
 import { LoadingScreen } from '@/components/ui/EmptyState'
-import { ensureSeeded } from '@/data/seed'
 import { challengeService } from '@/services'
 import { todayKey } from '@/utils/date'
 import { Login } from '@/pages/Login'
@@ -53,10 +52,24 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false
-    ensureSeeded()
+    /*
+     * The demo group is a development fixture and is loaded by an import that
+     * only exists in a demo build — see `demoDataEnabled`. A production bundle
+     * has no branch to reach it and no copy of it to reach, so a real person's
+     * first visit finds an empty app rather than three strangers and a
+     * published password.
+     */
+    const boot = async () => {
+      if (import.meta.env.DEV || import.meta.env.VITE_DEMO_DATA === '1') {
+        const { ensureSeeded } = await import('@/data/seed')
+        await ensureSeeded()
+      }
       // Creating the week here keeps every later read side-effect free,
       // which matters because the challenge is read from live queries.
-      .then(() => challengeService.ensureWeek(todayKey()))
+      await challengeService.ensureWeek(todayKey())
+    }
+
+    boot()
       .then(() => !cancelled && setStatus('ready'))
       .catch((error) => {
         console.error(error)
