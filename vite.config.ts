@@ -98,14 +98,19 @@ export default defineConfig(({ mode }) => {
       devApiPlugin(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.svg', 'icons/icon.svg', 'icons/apple-touch-icon.png'],
+        includeAssets: [
+          'icons/favicon-32.png',
+          'icons/favicon-64.png',
+          'icons/apple-touch-icon.png',
+          'icons/rally-mark.png',
+        ],
         manifest: {
-          name: 'Circuit — Fitness & Accountability',
-          short_name: 'Circuit',
+          name: 'RALLY — Rise, Act, Lift, Live, Yourself',
+          short_name: 'RALLY',
           description:
-            'Track workouts, weight, steps and meals with your group. Show up, log it, keep the chain going.',
+            'Rise, Act, Lift, Live, Yourself. Track workouts, weight, steps and meals with your group.',
           theme_color: '#14100d',
-          background_color: '#faf6f2',
+          background_color: '#14100d',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
@@ -120,7 +125,6 @@ export default defineConfig(({ mode }) => {
               type: 'image/png',
               purpose: 'maskable',
             },
-            { src: 'icons/icon.svg', sizes: 'any', type: 'image/svg+xml' },
           ],
         },
         workbox: {

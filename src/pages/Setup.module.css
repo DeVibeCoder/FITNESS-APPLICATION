@@ -70,6 +70,30 @@
   border-radius: var(--r-xl);
 }
 
+/*
+ * The brand, on the first step only. Centred within a card whose other
+ * contents are left-aligned — the mark and its meaning are a unit, and
+ * left-aligning them would leave the slogan hanging off the emblem.
+ */
+.brandBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  text-align: center;
+}
+
+.brandName {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--t-h1);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+  text-transform: uppercase;
+}
+
 .title {
   font-size: var(--t-h1);
   letter-spacing: -0.03em;

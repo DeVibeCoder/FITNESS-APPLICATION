@@ -3,7 +3,7 @@ import { Link, Navigate } from 'react-router-dom'
 import { ArrowLeft, Check } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
-import { Logo } from '@/components/ui/Logo'
+import { LogoMark, LogoSlogan } from '@/components/ui/Logo'
 import { useAuth } from '@/context/AuthContext'
 import { accountService, authService, checkPassword, userService, validateEmail } from '@/services'
 import { ACTIVITY_LEVELS, FITNESS_GOALS, ageFrom, calcEnergyPlan } from '@/utils/calories'
@@ -169,7 +169,7 @@ export function Setup() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-surface="brand">
       <div className={styles.inner}>
         <header className={styles.head}>
           {step === 0 ? (
@@ -206,7 +206,17 @@ export function Setup() {
         <div className={`glass ${styles.card}`}>
           {step === 0 ? (
             <>
-              <Logo size={26} />
+              {/*
+                The first step carries the brand, because this is where
+                somebody meets the app. The later steps do not repeat it —
+                they are a form being filled in, and a logo above every one
+                would be a banner rather than a mark.
+              */}
+              <div className={styles.brandBlock}>
+                <LogoMark size={64} />
+                <p className={styles.brandName}>RALLY</p>
+                <LogoSlogan />
+              </div>
               <div>
                 <h1 className={styles.title}>Let's set you up</h1>
                 <p className={styles.sub}>Takes about a minute.</p>

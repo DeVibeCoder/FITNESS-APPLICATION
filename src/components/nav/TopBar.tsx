@@ -27,7 +27,7 @@ const DESKTOP_LINKS = [
 
 /** Page titles for the compact mobile header. First match wins, so order. */
 const TITLES: [RegExp, string][] = [
-  [/^\/$/, 'Circuit'],
+  [/^\/$/, 'RALLY'],
   [/^\/activity\/nutrition/, 'Nutrition'],
   [/^\/activity/, 'My activity'],
   [/^\/chat/, 'Chat'],
@@ -48,7 +48,7 @@ const TITLES: [RegExp, string][] = [
 ]
 
 function titleFor(pathname: string): string {
-  return TITLES.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'Circuit'
+  return TITLES.find(([pattern]) => pattern.test(pathname))?.[1] ?? 'RALLY'
 }
 
 /**
@@ -73,11 +73,11 @@ export function TopBar() {
   return (
     <header className={`glass ${styles.bar}`}>
       <div className={styles.inner}>
-        <Link to="/" className={styles.brandDesktop} aria-label="Circuit — Today">
+        <Link to="/" className={styles.brandDesktop} aria-label="RALLY — Today">
           <Logo size={22} />
         </Link>
 
-        <Link to="/" className={styles.brandMobile} aria-label="Circuit — Today">
+        <Link to="/" className={styles.brandMobile} aria-label="RALLY — Today">
           <LogoMark size={30} />
         </Link>
 

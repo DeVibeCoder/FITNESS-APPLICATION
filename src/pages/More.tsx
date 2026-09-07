@@ -227,7 +227,7 @@ export function More() {
       </Section>
 
       <p className={styles.footer}>
-        Circuit · {firstName(user.name)}'s device · <span className="tnum">v0.1</span>
+        RALLY · {firstName(user.name)}'s device · <span className="tnum">v0.1</span>
       </p>
 
       <Sheet

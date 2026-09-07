@@ -3,7 +3,7 @@ import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Field } from '@/components/ui/Field'
-import { Logo } from '@/components/ui/Logo'
+import { LogoMark, LogoSlogan } from '@/components/ui/Logo'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { useAuth } from '@/context/AuthContext'
 import { demoDataEnabled } from '@/data/demoMode'
@@ -46,12 +46,20 @@ export function Login() {
   }
 
   return (
-    <div className={styles.page}>
+    <div className={styles.page} data-surface="brand">
       <div className={styles.inner}>
+        {/*
+          Emblem, name, meaning, then one line about what the app is for — in
+          that order, because that is the order somebody arriving for the first
+          time needs them. The heading is the brand rather than a greeting:
+          "Welcome back" told a returning user something they knew and a new
+          one nothing at all.
+        */}
         <header className={styles.head}>
-          <Logo size={30} />
-          <h1 className={styles.title}>Welcome back.</h1>
-          <p className={styles.subtitle}>Your progress starts here.</p>
+          <LogoMark size={92} />
+          <h1 className={styles.brand}>RALLY</h1>
+          <LogoSlogan />
+          <p className={styles.subtitle}>Your fitness. Your progress. Your rally.</p>
         </header>
 
         <form className={`glass ${styles.card}`} onSubmit={submit} noValidate>

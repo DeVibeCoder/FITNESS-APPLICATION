@@ -1,5 +1,5 @@
 /**
- * Circuit design tokens.
+ * RALLY design tokens.
  *
  * The palette is semantic, not decorative, and it now has exactly one accent.
  *
@@ -298,7 +298,20 @@
  * theme the user has not chosen still has to follow their system.
  * ----------------------------------------------------------------------- */
 
-:root[data-theme='dark'] {
+/*
+ * `[data-surface='brand']` joins this selector rather than copying it.
+ *
+ * The sign-in and setup screens are dark whatever theme the app is in: the
+ * emblem is a near-black tile with an orange glow, and on the light parchment
+ * it read as a sticker on paper rather than as the brand. Custom properties
+ * inherit, so setting the attribute on those pages hands every component
+ * inside them the dark palette — no component knows or needs to.
+ *
+ * Written as a second selector on the existing block, because a second copy of
+ * fifty-one colours is a second copy to keep in step, and it would not be.
+ */
+:root[data-theme='dark'],
+[data-surface='brand'] {
   --bg: #14100d;
   --bg-sunk: #0b0806;
   --surface: #201a15;
@@ -385,6 +398,20 @@
 }
 
 /* Follows the OS when the user has not made an explicit choice. */
+/*
+ * A brand surface paints itself.
+ *
+ * Redefining the tokens is not enough on its own: `color` and `background`
+ * are inherited as computed values, so the body has already resolved them
+ * against the light palette by the time this element overrides the variables.
+ * The card below went dark and the page behind it stayed parchment. Setting
+ * both here is what makes the override take effect on the surface itself.
+ */
+[data-surface='brand'] {
+  background: var(--bg);
+  color: var(--ink);
+}
+
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     --bg: #14100d;

@@ -5,19 +5,81 @@
 }
 
 /*
- * The mark carries its own shape, so it needs no tile behind it. The previous
- * version sat in a rounded square with a border, which at app-bar size read as
- * a button and invited a tap that did nothing.
+ * The mark carries its own shape and its own tile, so it needs nothing behind
+ * it. `object-fit: contain` on a square box is what guarantees the artwork is
+ * never stretched: whatever the source dimensions, it is fitted rather than
+ * filled, and a logo that has been squashed to fit a header is the one thing a
+ * brand cannot survive.
  */
 .mark {
   flex: none;
-  filter: drop-shadow(0 4px 10px color-mix(in srgb, var(--accent) 38%, transparent));
+  display: block;
+  aspect-ratio: 1;
+  object-fit: contain;
+  /*
+   * The glow is the artwork's own orange, kept faint. It lifts the tile off a
+   * dark background without adding light the emblem does not already have.
+   */
+  filter: drop-shadow(0 4px 12px color-mix(in srgb, var(--accent) 34%, transparent));
+  user-select: none;
 }
 
 .name {
   font-family: var(--font-display);
   font-size: var(--t-h2);
-  font-weight: 760;
-  letter-spacing: -0.01em;
+  font-weight: 800;
+  /*
+   * Wide rather than tight. RALLY is five letters and reads as a badge; the
+   * negative tracking that suited the old wordmark made it look cramped.
+   */
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+/*
+ * The slogan.
+ *
+ * Sized off the body scale rather than a heading, so it stays subordinate to
+ * the wordmark above it — the hierarchy is emblem, name, meaning, and a slogan
+ * that competes with the name breaks it. Wraps on a narrow screen instead of
+ * shrinking, because five words at 320px are still five readable words when
+ * they are allowed two lines.
+ */
+.slogan {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0 0.45rem;
+  font-family: var(--font-display);
+  font-size: var(--t-sm);
+  font-weight: 620;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent);
+  text-align: center;
+}
+
+/*
+ * A word and the divider that follows it, kept together. The gap between units
+ * is what the line breaks on.
+ */
+.unit {
+  white-space: nowrap;
+}
+
+.word {
+  white-space: nowrap;
+}
+
+/*
+ * The separators are decoration, not content — they are hidden from assistive
+ * technology so the slogan is announced as five words rather than as a line of
+ * pipes. Dimmed so the words carry the line.
+ */
+.divider {
+  margin-inline-start: 0.45rem;
+  color: color-mix(in srgb, var(--accent) 45%, transparent);
+  font-weight: 500;
 }

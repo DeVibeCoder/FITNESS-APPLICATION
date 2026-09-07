@@ -16,7 +16,7 @@ function feelingLabel(value?: string): string | null {
 /**
  * Today's workout, from wherever it was actually done.
  *
- * Circuit does not run the session — Home Workout and Lose Weight for Men do
+ * RALLY does not run the session — Home Workout and Lose Weight for Men do
  * that. So the empty state offers to record one rather than to start one, and
  * the finished state reads back exactly what the other app reported.
  *
