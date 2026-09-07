@@ -27,10 +27,24 @@ export class CloudDataError extends Error {
 
 const BASE = '/api/data'
 
-async function call<T>(path: string, init?: RequestInit): Promise<T> {
+/**
+ * Where a call goes.
+ *
+ * Almost everything is under `/api/data`, so that is the default. The admin
+ * routes are not — they live under `/api/admin` because they are gated by a
+ * different rule — and they still want this function's handling of cookies,
+ * of non-JSON answers and of failure. Passing the base is cheaper than a
+ * second copy of all of that.
+ */
+interface CallOptions {
+  base?: string
+}
+
+async function call<T>(path: string, init?: RequestInit, options?: CallOptions): Promise<T> {
+  const base = options?.base ?? BASE
   let response: Response
   try {
-    response = await fetch(`${BASE}${path}`, {
+    response = await fetch(`${base}${path}`, {
       ...init,
       credentials: 'include',
       headers: init?.body ? { 'Content-Type': 'application/json', ...(init.headers ?? {}) } : init?.headers,
@@ -60,7 +74,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
 const rows = async <T>(path: string): Promise<T[]> => (await call<{ rows: T[] }>(path)).rows ?? []
 
 export const cloudDataService = {
-  get: <T>(path: string) => call<T>(path),
+  get: <T>(path: string, options?: CallOptions) => call<T>(path, undefined, options),
 
   list: <T>(path: string, params?: Record<string, string | number | undefined>) => {
     const query = new URLSearchParams()
@@ -71,8 +85,8 @@ export const cloudDataService = {
     return rows<T>(`${path}${suffix}`)
   },
 
-  post: <T = { ok: true }>(path: string, payload: unknown) =>
-    call<T>(path, { method: 'POST', body: JSON.stringify(payload) }),
+  post: <T = { ok: true }>(path: string, payload: unknown, options?: CallOptions) =>
+    call<T>(path, { method: 'POST', body: JSON.stringify(payload) }, options),
 
   patch: <T = { ok: true }>(path: string, payload: unknown) =>
     call<T>(path, { method: 'PATCH', body: JSON.stringify(payload) }),

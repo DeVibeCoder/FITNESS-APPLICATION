@@ -28,7 +28,9 @@
     "db:check:fitness": "tsx --tsconfig tsconfig.app.json scripts/check-fitness-api.ts",
     "db:check:routing": "tsx --tsconfig tsconfig.app.json scripts/check-workout-routing.ts",
     "db:check:data": "tsx --tsconfig tsconfig.app.json scripts/check-data-api.ts",
-    "db:check:unions": "tsx --tsconfig tsconfig.app.json scripts/check-unions.ts"
+    "db:check:unions": "tsx --tsconfig tsconfig.app.json scripts/check-unions.ts",
+    "db:check:admin": "tsx --tsconfig tsconfig.app.json scripts/check-admin-api.ts",
+    "db:check:isolation": "tsx --tsconfig tsconfig.app.json scripts/check-isolation.ts"
   },
   "dependencies": {
     "better-auth": "^1.7.2",

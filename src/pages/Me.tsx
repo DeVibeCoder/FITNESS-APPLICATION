@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronRight, Cog, Layers, LogOut, Quote, Shield, ShieldCheck } from 'lucide-react'
@@ -6,7 +7,8 @@ import { Button } from '@/components/ui/Button'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
 import { useAuth } from '@/context/AuthContext'
-import { accountService, hasRole, postService, progressService, storyService } from '@/services'
+import { hasRole, postService, progressService, storyService } from '@/services'
+import { adminService } from '@/services/adminService'
 import { goalLabel } from '@/utils/calories'
 import { goalProfile } from '@/utils/goals'
 import { todayKey } from '@/utils/date'
@@ -37,11 +39,20 @@ export function Me() {
     async () => (user ? (await storyService.live()).filter((s) => s.userId === user.id) : undefined),
     [user?.id],
   )
-  // Only an admin ever asks for this, and only to size the badge.
-  const pendingCount = useLiveQuery(
-    () => (hasRole(user, 'admin') ? accountService.pendingCount() : undefined),
-    [user?.id, user?.role],
-  )
+  /*
+   * Only an admin ever asks for this, and only to size the badge. It comes
+   * from the server for the same reason the queue itself does: a count drawn
+   * from this device would be counting the wrong thing.
+   */
+  const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
+  const isAdminUser = hasRole(user, 'admin')
+  useEffect(() => {
+    if (!isAdminUser) {
+      setPendingCount(undefined)
+      return
+    }
+    void adminService.queue('pending').then((queue) => setPendingCount(queue.pending))
+  }, [isAdminUser])
 
   if (!user || !me) return <LoadingScreen />
 
