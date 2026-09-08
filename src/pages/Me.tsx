@@ -6,8 +6,8 @@ import { Section } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { Avatar } from '@/components/ui/Avatar'
-import { useAuth } from '@/context/AuthContext'
-import { hasRole, postService, progressService, storyService } from '@/services'
+import { useAuth, useIsAdmin } from '@/context/AuthContext'
+import { postService, progressService, storyService } from '@/services'
 import { adminService } from '@/services/adminService'
 import { goalLabel } from '@/utils/calories'
 import { goalProfile } from '@/utils/goals'
@@ -25,6 +25,12 @@ import styles from './Me.module.css'
  */
 export function Me() {
   const { user, signOut } = useAuth()
+  /*
+   * From the session, never from the local profile. Whether the Admin row is
+   * drawn is a courtesy; whether the routes behind it answer is decided by
+   * `requireAdmin` against the D1 user row, on every request.
+   */
+  const isAdmin = useIsAdmin()
   const today = todayKey()
 
   const me = useLiveQuery(
@@ -45,19 +51,17 @@ export function Me() {
    * from this device would be counting the wrong thing.
    */
   const [pendingCount, setPendingCount] = useState<number | undefined>(undefined)
-  const isAdminUser = hasRole(user, 'admin')
   useEffect(() => {
-    if (!isAdminUser) {
+    if (!isAdmin) {
       setPendingCount(undefined)
       return
     }
     void adminService.queue('pending').then((queue) => setPendingCount(queue.pending))
-  }, [isAdminUser])
+  }, [isAdmin])
 
   if (!user || !me) return <LoadingScreen />
 
   const profile = goalProfile(user.goal)
-  const isAdmin = hasRole(user, 'admin')
 
   return (
     <div className={styles.page}>

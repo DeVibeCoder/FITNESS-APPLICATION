@@ -1,0 +1,96 @@
+/* The screen an account waits on. One card, no navigation out of it. */
+.root {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--s-5);
+  background: var(--bg);
+}
+
+.card {
+  width: 100%;
+  max-width: 26rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--s-5);
+  text-align: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* Waiting is the only state that animates. Turned away and switched off are
+   settled answers, and a pulsing icon would suggest otherwise. */
+.marking {
+  animation: breathe 2.4s var(--ease) infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marking {
+    animation: none;
+  }
+}
+
+.title {
+  font-size: var(--t-h2);
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.body {
+  font-size: var(--t-body);
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.account {
+  max-width: 100%;
+  padding: var(--s-2) var(--s-3);
+  font-size: var(--t-small);
+  font-weight: 650;
+  color: var(--ink-2);
+  background: var(--bg-2, var(--bg));
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  overflow-wrap: anywhere;
+}
+
+.footnote {
+  font-size: var(--t-small);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.signOut {
+  padding: var(--s-2);
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+
+.signOut:hover {
+  color: var(--ink);
+}

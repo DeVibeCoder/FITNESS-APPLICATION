@@ -1,18 +1,25 @@
 import type { User } from '@/models'
 import { db } from '@/lib/db'
-import { storageService } from './storageService'
-import { userService } from './userService'
+import { storageService } from '@/services/storageService'
+import { userService } from '@/services/userService'
 
 /**
- * Local-only authentication for the frontend phase.
+ * The local sign-in the application used before it had a server. Fixture only.
  *
- * IMPORTANT: this is not security. Everything here runs in the browser against
- * a local database, so anyone with the device can read or replace it. The
- * digest below exists so passwords are not sitting in plain text in IndexedDB
- * and so the sign-in *experience* is real — not so the app is protected.
+ * IMPORTANT: this was never security, and it is not authentication any more.
+ * Everything here runs against a local database that the holder of the device
+ * can read or replace at will.
  *
- * Real protection arrives with a backend. When it does, only the four methods
- * below change; no screen has to move.
+ * The application no longer imports it. Real sign-in is Better Auth over
+ * `/api/auth`, the session is an httpOnly cookie, and `role` and `status` are
+ * read from the D1 user row on every protected request — see
+ * `server/auth/guard.ts`. This file survives only because `verify-data` drives
+ * four thousand assertions against the fixture group, and those assertions
+ * need a way to say "now this person is the one acting".
+ *
+ * It lives in `scripts/fixtures` for the reason the README there gives: a
+ * second way to authenticate is dangerous in proportion to how reachable it
+ * is, and nothing in `src` can reach this directory.
  */
 
 export class AuthError extends Error {

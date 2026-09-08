@@ -61,7 +61,11 @@ export type AccountStatus = 'pending' | 'approved' | 'rejected'
 export interface User {
   id: ID
   name: string
-  /** Short login handle. Auth is local-only for now; see authService. */
+  /**
+   * The short name the group sees beside what this person posts, and what
+   * `@mentions` match. Not a credential: sign-in is by email address against
+   * the server, and nothing on this row authenticates anybody.
+   */
   handle: string
   /** Primary contact and future password-recovery identity. */
   email?: string

@@ -20,8 +20,8 @@ globalThis.localStorage = {
   },
 } as Storage
 
-import { ensureSeeded, resetDatabase } from '../src/data/seed'
-import { DEMO_PASSWORD } from '../src/data/demo'
+import { ensureSeeded, resetDatabase } from './fixtures/seed'
+import { DEMO_PASSWORD } from './fixtures/demo'
 import type { WorkoutSession } from '../src/models'
 import { db } from '../src/lib/db'
 import { progressService } from '../src/services/progressService'
@@ -43,7 +43,7 @@ import { nutritionService } from '../src/services/nutritionService'
 import { stepsService } from '../src/services/stepsService'
 import { updateService } from '../src/services/updateService'
 import { achievementService } from '../src/services/achievementService'
-import { authService, AuthError } from '../src/services/authService'
+import { authService, AuthError } from './fixtures/authService'
 import { userService } from '../src/services/userService'
 import { checkinService, FEELING_OPTIONS, feelingFor } from '../src/services/checkinService'
 import {
@@ -4157,12 +4157,17 @@ async function main() {
   ok('a missing domain dot is not', !validateEmail('nadia@example').valid)
   ok('and a rejection explains itself', Boolean(validateEmail('nope').message))
 
-  ok('a seven-character password is refused', !checkPassword('abc1234').valid)
-  ok('and says why', checkPassword('abc1234').message?.includes('8') === true)
-  ok('eight characters is accepted', checkPassword('abcd1234').valid)
+  /*
+   * Ten, not eight. The minimum here has to be the server's minimum — see
+   * MIN_PASSWORD_LENGTH — or the form encourages a password that sign-up then
+   * refuses, which reads to the person as the app being broken.
+   */
+  ok('a nine-character password is refused', !checkPassword('abc123456').valid)
+  ok('and says why', checkPassword('abc123456').message?.includes('10') === true)
+  ok('ten characters is accepted', checkPassword('abcd123456').valid)
   ok('a long mixed password scores higher',
-    checkPassword('Correct-Horse-99').score > checkPassword('abcd1234').score)
-  ok('every result carries a label', Boolean(checkPassword('abcd1234').label))
+    checkPassword('Correct-Horse-99').score > checkPassword('abcd123456').score)
+  ok('every result carries a label', Boolean(checkPassword('abcd123456').label))
 
   console.log('\n— Duplicate accounts are caught —\n')
   ok('an existing handle is taken', await accountService.isHandleTaken('ahmed'))

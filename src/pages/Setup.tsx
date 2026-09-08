@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/Button'
 import { Field, OptionGroup } from '@/components/ui/Field'
 import { LogoMark, LogoSlogan } from '@/components/ui/Logo'
 import { useAuth } from '@/context/AuthContext'
-import { accountService, authService, checkPassword, userService, validateEmail } from '@/services'
+import { checkPassword, validateEmail } from '@/services'
+import { ServerAuthError } from '@/services/serverAuthService'
 import { ACTIVITY_LEVELS, FITNESS_GOALS, ageFrom, calcEnergyPlan } from '@/utils/calories'
 import { goalProfile } from '@/utils/goals'
 import { WORKOUT_APPS } from '@/data/workoutApps'
@@ -28,14 +29,45 @@ const AVATAR_TINTS = ['#3d6ea8', '#a8557a', '#5f8b4c', '#9a6bb0', '#c07a2c', '#3
 const STEPS = ['You', 'About you', 'Your goal', 'Activity', 'Preferences', 'Ready'] as const
 
 /**
- * First-run setup.
+ * What to show when sign-up is refused.
+ *
+ * Better Auth answers a duplicate address with a code rather than a sentence,
+ * and its sentence is written for a developer. Everything else stays
+ * deliberately vague: an error message that relays the server's internals is a
+ * description of the server.
+ */
+function signUpMessage(error: unknown): string {
+  if (error instanceof ServerAuthError) {
+    const code = error.code.toUpperCase()
+    if (code.includes('EXIST') || error.status === 422) {
+      return 'There is already an account using that email.'
+    }
+    if (code.includes('PASSWORD')) return 'That password was refused. Try a longer one.'
+  }
+  return 'That did not work. Check your details and try again.'
+}
+
+/**
+ * Asking to join.
  *
  * Six short screens rather than one long form: each asks for as little as it
  * can and nothing is required twice. The last screen shows what the answers
  * add up to, so setup ends with something useful rather than a save button.
+ *
+ * What changed underneath it is the point of this screen now. It used to write
+ * a user row into IndexedDB, set a local password digest and sign the person
+ * straight in — an account this device invented, that no server had heard of,
+ * already approved because there was nobody to ask. It now posts to
+ * `/api/auth/sign-up/email`, and the row that gets written is in D1 with
+ * `status = 'pending'`, a column no client can set.
+ *
+ * The profile answers do not go with it. A pending account has no profile to
+ * write them to, and this device deliberately builds none for an account that
+ * may never be let in — so they wait in `onboardingService` and are used once,
+ * at approval. See the comment there.
  */
 export function Setup() {
-  const { user, ready, signIn } = useAuth()
+  const { serverUser, ready, signUp } = useAuth()
 
   const [step, setStep] = useState(0)
   const [busy, setBusy] = useState(false)
@@ -74,7 +106,12 @@ export function Setup() {
   }, [startKg, heightCm, birthDate, sex, activityLevel, goal])
 
   if (!ready) return null
-  if (user) return <Navigate to="/" replace />
+  /*
+   * Already has an account — including one still waiting on a decision. It
+   * goes to `/`, where the gate decides what it may see. This screen must not
+   * become a way to start a second account over the top of a live session.
+   */
+  if (serverUser) return <Navigate to="/" replace />
 
   const canContinue = (): boolean => {
     switch (step) {
@@ -102,63 +139,53 @@ export function Setup() {
   }
 
   /**
-   * Creates the account and signs them straight in.
+   * Creates the account, which then waits.
    *
-   * There is no approval step. Accounts live in this browser's database, so a
-   * request could only ever be seen — and approved — on the very device that
-   * filed it; waiting on someone else was a promise the app could not keep.
+   * No local user row, no local password, no sign-in. One request, which the
+   * server answers by writing a `pending` row and setting a session cookie —
+   * enough to see your own status and nothing else. The redirect at the top of
+   * this component then sends the browser to `/`, where the gate renders the
+   * waiting screen.
+   *
+   * A duplicate address is the server's answer to give, not this form's to
+   * guess. There is no local directory to consult any more, and consulting one
+   * would only ever have described this device.
    */
   const finish = async () => {
     setBusy(true)
     setError(null)
     try {
-      const cleanHandle = handle.trim().toLowerCase()
-      const cleanEmail = email.trim().toLowerCase()
-
-      if (await accountService.isHandleTaken(cleanHandle)) {
-        setError('That username is taken. Try another.')
-        setBusy(false)
-        setStep(0)
-        return
-      }
-      if (await accountService.isEmailTaken(cleanEmail)) {
-        setError('There is already an account using that email.')
-        setBusy(false)
-        setStep(0)
-        return
-      }
-
-      const created = await userService.create({
+      await signUp({
+        email: email.trim().toLowerCase(),
+        password,
         name: name.trim(),
-        handle: cleanHandle,
-        email: cleanEmail,
-        role: 'member',
-        status: 'approved',
-        avatarColor: AVATAR_TINTS[Math.floor(Math.random() * AVATAR_TINTS.length)],
-        birthDate,
-        sex,
-        heightCm: Number(heightCm),
-        startWeightKg: startKg,
-        // Someone with no weight target still needs a number here; their own
-        // starting weight means "no change expected", which is the truth.
-        targetWeightKg: usesTarget ? targetKg : startKg,
-        goal,
-        activityLevel,
-        stepGoal: 8000,
-        waterGoalL: 2.5,
-        workoutsPerWeekGoal: 4,
-        weighInDay,
-        workoutApps: workoutApps.length ? workoutApps : ['home_workout'],
-        units,
-        onboardedAt: new Date().toISOString(),
+        onboarding: {
+          handle: handle.trim().toLowerCase(),
+          avatarColor: AVATAR_TINTS[Math.floor(Math.random() * AVATAR_TINTS.length)],
+          birthDate,
+          sex,
+          heightCm: Number(heightCm),
+          startWeightKg: startKg,
+          // Someone with no weight target still needs a number here; their own
+          // starting weight means "no change expected", which is the truth.
+          targetWeightKg: usesTarget ? targetKg : startKg,
+          goal,
+          activityLevel,
+          stepGoal: 8000,
+          waterGoalL: 2.5,
+          workoutsPerWeekGoal: 4,
+          weighInDay,
+          workoutApps: workoutApps.length ? workoutApps : ['home_workout'],
+          units,
+        },
       })
-
-      await authService.setPassword(created.id, password)
-      // Straight in: `user` lands in context and the redirect above takes over.
-      await signIn(cleanHandle, password)
+      // Nothing to navigate to: `serverUser` lands in context and the redirect
+      // above takes over.
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'Something went wrong. Try again.')
+      setError(signUpMessage(caught))
       setBusy(false)
+      // Both of the things that can go wrong were typed on the first screen.
+      setStep(0)
     }
   }
 
@@ -225,7 +252,7 @@ export function Setup() {
                 label="Your name"
                 value={name}
                 autoComplete="name"
-                placeholder="Ahmed Rahman"
+                placeholder="Your name"
                 onChange={(event) => setName(event.target.value)}
               />
               <Field
@@ -235,8 +262,8 @@ export function Setup() {
                 autoCorrect="off"
                 spellCheck={false}
                 autoComplete="username"
-                placeholder="ahmed"
-                hint="How you sign in. Lower case, no spaces."
+                placeholder="yourname"
+                hint="What the group sees beside what you post. Lower case, no spaces."
                 onChange={(event) => setHandle(event.target.value.replace(/\s+/g, ''))}
               />
               <Field
@@ -260,8 +287,8 @@ export function Setup() {
                 type="password"
                 value={password}
                 autoComplete="new-password"
-                placeholder="At least 8 characters"
-                hint={password ? checkPassword(password).message ?? `Strength: ${checkPassword(password).label}` : 'At least 8 characters.'}
+                placeholder="At least 10 characters"
+                hint={password ? checkPassword(password).message ?? `Strength: ${checkPassword(password).label}` : 'At least 10 characters.'}
                 onChange={(event) => setPassword(event.target.value)}
               />
               <Field
@@ -468,18 +495,38 @@ export function Setup() {
                   <dd>{WEEKDAYS.find((d) => d.value === weighInDay)?.label}</dd>
                 </div>
               </dl>
-              {error ? <p className={styles.error}>{error}</p> : null}
             </>
           ) : null}
+
+          {/*
+            One place for the failure, outside the steps.
+            A sign-up is refused for something typed on the first screen — a
+            duplicate address, a password the server would not take — so the
+            form goes back there to be corrected, and the message has to be
+            visible when it arrives rather than left behind on the summary.
+          */}
+          {error ? <p className={styles.error}>{error}</p> : null}
 
           {step < STEPS.length - 1 ? (
             <Button size="lg" block disabled={!canContinue()} onClick={() => setStep((s) => s + 1)}>
               Continue
             </Button>
           ) : (
-            <Button size="lg" block disabled={busy} onClick={finish}>
-              {busy ? 'Creating…' : 'Create account'}
-            </Button>
+            <>
+              {/*
+                Said before the button rather than after it. Somebody who
+                expects to land in the application and lands on a waiting
+                screen has been surprised by their own app; somebody who was
+                told is simply waiting.
+              */}
+              <p className={styles.note}>
+                An administrator has to approve your account before you can start. You will see
+                that happen without having to refresh.
+              </p>
+              <Button size="lg" block disabled={busy} onClick={finish}>
+                {busy ? 'Sending…' : 'Ask to join'}
+              </Button>
+            </>
           )}
         </div>
       </div>

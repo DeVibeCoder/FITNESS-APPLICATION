@@ -1,17 +1,12 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { AlertTriangle, ChevronRight, LogOut, Moon, RotateCcw, Sun, SunMoon } from 'lucide-react'
+import { ChevronRight, LogOut, Moon, Sun, SunMoon } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Card, Section } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
-import { Sheet } from '@/components/ui/Sheet'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth, useIsAdmin } from '@/context/AuthContext'
 import { useTheme } from '@/context/ThemeContext'
-import { useToast } from '@/context/ToastContext'
-import { demoDataEnabled } from '@/data/demoMode'
-import { hasRole, userService } from '@/services'
+import { userService } from '@/services'
 import { firstName } from '@/utils/format'
 import type { ThemePref } from '@/services/storageService'
 import styles from './More.module.css'
@@ -23,34 +18,15 @@ const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
 ]
 
 export function More() {
-  const { user, signOut } = useAuth()
+  const { user, serverUser, signOut } = useAuth()
   const { pref, setPref } = useTheme()
-  const { show, guard } = useToast()
-  const [confirmReset, setConfirmReset] = useState(false)
-  const [resetting, setResetting] = useState(false)
+  const isAdmin = useIsAdmin()
 
   // Members only. A request awaiting a decision belongs on the Admin screen,
   // which is the one place a decision can be made about it.
   const members = useLiveQuery(() => userService.listMembers(), [])
 
   if (!user) return null
-
-  /*
-   * Restoring the demo group only means anything in a demo build, and the
-   * module that can do it is not in a production bundle — so the control that
-   * calls this is not rendered there either.
-   */
-  const reset = async () => {
-    setResetting(true)
-    const result = await guard(async () => {
-      if (!(import.meta.env.DEV || import.meta.env.VITE_DEMO_DATA === '1')) return undefined
-      const { resetDatabase } = await import('@/data/seed')
-      return resetDatabase()
-    }, "Couldn't reset the data. Try again.")
-    setResetting(false)
-    setConfirmReset(false)
-    if (result !== undefined) show('Demo data restored.', 'success')
-  }
 
   return (
     <div className={styles.page}>
@@ -125,20 +101,29 @@ export function More() {
             <div className={styles.settingText}>
               <p className={styles.settingLabel}>Signed in as</p>
               <p className={styles.settingHint}>
+                {/* The address is the account's, so it is read from the account. */}
                 {user.name} · @{user.handle}
-                {user.email ? ` · ${user.email}` : ''}
+                {serverUser?.email ? ` · ${serverUser.email}` : ''}
               </p>
             </div>
-            <span className={styles.pill}>{hasRole(user, 'admin') ? 'Admin' : 'Member'}</span>
+            {/*
+              The server's answer, not the local row's. A `role` field in this
+              device's IndexedDB is a wish; the badge that reads it would be a
+              lie a person could write about themselves. This one comes back
+              from `/api/auth/get-session`, and every admin route checks it
+              again against the same column.
+            */}
+            <span className={styles.pill}>{isAdmin ? 'Admin' : 'Member'}</span>
           </div>
 
           <div className={styles.setting}>
             <div className={styles.settingText}>
               <p className={styles.settingLabel}>Sign-in security</p>
               <p className={styles.settingHint}>
-                Your password is stored on this device as a salted digest. That keeps it out
-                of plain sight, but it is not protection — anyone with this device can read
-                the database. Real security arrives with the server.
+                Your password never reaches this device. It is checked on the server against a
+                one-way verifier, and your session is a cookie this page cannot read. Whether
+                you are approved, and whether you are an administrator, are answered by the
+                server on every single request.
               </p>
             </div>
           </div>
@@ -189,26 +174,12 @@ export function More() {
       <Section title="Data">
         <Card className={styles.dataCard}>
           <div>
-            <p className={styles.dataTitle}>
-              {demoDataEnabled ? 'Everything is on this device' : 'Your data is saved to your account'}
-            </p>
+            <p className={styles.dataTitle}>Your data is saved to your account</p>
             <p className={styles.dataBody}>
-              {demoDataEnabled
-                ? "Your logs live in this browser's storage. Nothing is uploaded anywhere."
-                : 'Your logs are kept with your account and this device holds a copy, so they are ' +
-                  'here when you are offline and there when you sign in somewhere else.'}
+              Your logs are kept with your account and this device holds a copy, so they are
+              here when you are offline and there when you sign in somewhere else.
             </p>
           </div>
-          {/* Only a demo build has anything to restore. */}
-          {demoDataEnabled ? (
-            <Button
-              variant="secondary"
-              icon={<RotateCcw size={15} strokeWidth={2.2} />}
-              onClick={() => setConfirmReset(true)}
-            >
-              Reset to demo data
-            </Button>
-          ) : null}
         </Card>
       </Section>
 
@@ -229,33 +200,6 @@ export function More() {
       <p className={styles.footer}>
         RALLY · {firstName(user.name)}'s device · <span className="tnum">v0.1</span>
       </p>
-
-      <Sheet
-        open={confirmReset}
-        onClose={() => setConfirmReset(false)}
-        title="Reset to demo data?"
-        subtitle="This wipes every log on this device and restores the sample history."
-        footer={
-          <>
-            <Button variant="secondary" onClick={() => setConfirmReset(false)}>
-              Keep my data
-            </Button>
-            <Button variant="danger" onClick={reset} disabled={resetting}>
-              {resetting ? 'Resetting…' : 'Reset everything'}
-            </Button>
-          </>
-        }
-      >
-        <div className={styles.warning}>
-          <span className={styles.warningIcon}>
-            <AlertTriangle size={18} strokeWidth={2.1} />
-          </span>
-          <p>
-            Every workout, weigh-in, meal and check-in for all members on this device will be
-            replaced. There is no undo.
-          </p>
-        </div>
-      </Sheet>
     </div>
   )
 }

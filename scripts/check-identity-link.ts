@@ -21,7 +21,7 @@ globalThis.localStorage = {
   },
 } as Storage
 
-import { ensureSeeded } from '../src/data/seed'
+import { ensureSeeded } from './fixtures/seed'
 import { db } from '../src/lib/db'
 import { identityLinkService, LinkRefused } from '../src/services/identityLinkService'
 import { storageService } from '../src/services/storageService'

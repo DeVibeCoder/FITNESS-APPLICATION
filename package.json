@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "check:bundle": "tsx --tsconfig tsconfig.app.json scripts/check-bundle.ts",
     "preview": "vite preview",
     "verify": "tsx --tsconfig tsconfig.app.json scripts/verify-data.ts && tsx --tsconfig tsconfig.app.json scripts/verify-upgrade.ts",
     "icons": "node scripts/generate-icons.mjs",
@@ -30,6 +31,7 @@
     "db:check:data": "tsx --tsconfig tsconfig.app.json scripts/check-data-api.ts",
     "db:check:unions": "tsx --tsconfig tsconfig.app.json scripts/check-unions.ts",
     "db:check:admin": "tsx --tsconfig tsconfig.app.json scripts/check-admin-api.ts",
+    "db:check:approval": "tsx --tsconfig tsconfig.app.json scripts/check-approval-flow.ts",
     "db:check:isolation": "tsx --tsconfig tsconfig.app.json scripts/check-isolation.ts"
   },
   "dependencies": {

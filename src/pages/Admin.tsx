@@ -4,9 +4,8 @@ import { Check, X } from 'lucide-react'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { EmptyState, LoadingScreen } from '@/components/ui/EmptyState'
-import { useAuth } from '@/context/AuthContext'
+import { useAuth, useIsAdmin } from '@/context/AuthContext'
 import { useToast } from '@/context/ToastContext'
-import { hasRole } from '@/services'
 import { adminService, type AccountRow } from '@/services/adminService'
 import { formatDay, toDateKey } from '@/utils/date'
 import styles from './Admin.module.css'
@@ -21,13 +20,15 @@ import styles from './Admin.module.css'
  * it would show requests somebody already decided elsewhere and hide the ones
  * it has never seen.
  *
- * The role check below decides what to draw and nothing else. Every request
- * this screen makes is checked again by `requireAdmin` on the server, against
- * the role column on the user row — so a person who edits their local profile
- * to say "admin" gets this page and then a 403 from every button on it.
+ * The role check below decides what to draw and nothing else. It reads the
+ * session's role — the server's answer, from the same `users.role` column the
+ * routes consult — so there is no local field to edit into an admin. And even
+ * that is only a courtesy: every request this screen makes is authorised again
+ * by `requireAdmin`, so somebody who reached this page another way would get
+ * it, and a 403 from every button on it.
  */
 export function Admin() {
-  const { user } = useAuth()
+  const { ready } = useAuth()
   const { show, guard } = useToast()
   const [pending, setPending] = useState<AccountRow[] | undefined>(undefined)
 
@@ -36,23 +37,43 @@ export function Admin() {
     setPending(queue.accounts)
   }, [])
 
-  const isAdmin = hasRole(user, 'admin')
+  /*
+   * The session's role, read from the D1 user row. Not the local profile: that
+   * row lives in an IndexedDB the holder of the device can edit, so a screen
+   * that trusted it would open for anybody who typed "admin" into it. This one
+   * opens for anybody the server calls an admin — and every button on it is
+   * checked again by `requireAdmin` when it is pressed.
+   */
+  const isAdmin = useIsAdmin()
   useEffect(() => {
     if (isAdmin) void refresh()
   }, [isAdmin, refresh])
 
-  if (!user) return <LoadingScreen />
+  if (!ready) return <LoadingScreen />
   if (!isAdmin) return <Navigate to="/me" replace />
   if (pending === undefined) return <LoadingScreen />
 
   const decide = async (userId: string, status: 'approved' | 'rejected', name: string) => {
-    const result = await guard(() => adminService.decide(userId, status))
-    if (result !== undefined) {
-      show(status === 'approved' ? `${name} can now sign in.` : `${name}'s request was declined.`, 'success')
-      // Re-read rather than editing the list in place: the queue is the
-      // server's, and another administrator may have changed it too.
-      await refresh()
-    }
+    /*
+     * The `true` matters.
+     *
+     * `guard` returns undefined when the action throws — and `decide` returns
+     * nothing, so it returned undefined when it succeeded as well. The two were
+     * indistinguishable, the success branch never ran, and an approval that had
+     * already been written left the person still listed as waiting with no
+     * confirmation that anything had happened. Returning a value makes the two
+     * outcomes different values.
+     */
+    const done = await guard(async () => {
+      await adminService.decide(userId, status)
+      return true as const
+    })
+    if (!done) return
+
+    show(status === 'approved' ? `${name} can now sign in.` : `${name}'s request was declined.`, 'success')
+    // Re-read rather than editing the list in place: the queue is the
+    // server's, and another administrator may have changed it too.
+    await refresh()
   }
 
   return (

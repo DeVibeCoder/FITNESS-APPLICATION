@@ -2,7 +2,12 @@
  * The app talks to data only through these services. Swapping IndexedDB for a
  * real backend means rewriting the bodies here — no screen has to change.
  */
-export { authService, AuthError } from './authService'
+/*
+ * There is no local authService any more. Sign-in is Better Auth over
+ * /api/auth and the session is an httpOnly cookie; what used to live here
+ * moved to scripts/fixtures, where the verify suite can reach it and the
+ * application cannot. See src/context/AuthContext.tsx.
+ */
 export { accountService, hasRole, isApproved, validateEmail, checkPassword } from './accountService'
 export { userService } from './userService'
 export { workoutService } from './workoutService'

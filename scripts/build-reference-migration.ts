@@ -4,7 +4,7 @@
  *
  * Reference data is the one kind of row production is allowed to start with:
  * the exercise catalogue and the achievement definitions are facts about the
- * app, not facts about any person. Everything else in `src/data/seed.ts` is a
+ * app, not facts about any person. Everything else in `scripts/fixtures/seed.ts` is a
  * fixture and never reaches a server.
  *
  * Generated rather than hand-written so the migration cannot drift from the

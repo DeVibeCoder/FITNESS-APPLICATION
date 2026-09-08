@@ -53,10 +53,23 @@ export interface PasswordCheck {
   message?: string
 }
 
-/** Length first, then variety. Long beats clever, so length counts double. */
+/**
+ * Length first, then variety. Long beats clever, so length counts double.
+ *
+ * Ten, because that is `minPasswordLength` in `server/auth/auth.ts` and the
+ * server is the one that actually refuses. Advising eight here would mean a
+ * form that says "Good" and a sign-up that comes back rejected.
+ */
+export const MIN_PASSWORD_LENGTH = 10
+
 export function checkPassword(password: string): PasswordCheck {
-  if (password.length < 8) {
-    return { score: password.length > 0 ? 1 : 0, label: 'Too short', valid: false, message: 'Use at least 8 characters.' }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return {
+      score: password.length > 0 ? 1 : 0,
+      label: 'Too short',
+      valid: false,
+      message: `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+    }
   }
   let score = 1
   if (password.length >= 12) score++

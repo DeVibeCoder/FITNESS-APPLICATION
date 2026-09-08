@@ -21,6 +21,7 @@
  */
 import { db } from '@/lib/db'
 import { uid, now } from '@/lib/id'
+import { onboardingService } from './onboardingService'
 import type { ID, User } from '@/models'
 
 /** `link:<serverUserId>` → localUserId, and the reverse, so both directions
@@ -124,32 +125,44 @@ export const identityLinkService = {
   /**
    * Starts clean: a new local profile for this account, with every existing
    * one left exactly as it was.
+   *
+   * Setup's answers are used when this device still has them — the same
+   * person, the same browser, however long ago they asked to join. When it
+   * does not, the profile is created with plain defaults rather than being
+   * refused: an approval that arrives on a different device is a perfectly
+   * ordinary thing to happen, and the profile screen can change any of this.
+   *
+   * The answers are consumed here and only here. They describe a body, not a
+   * permission — nothing in them can set `role` or `status`, which are columns
+   * on the server's row and are not writable from this side at all.
    */
   async startFresh(serverUser: { id: string; name?: string | null; email?: string | null }): Promise<ID> {
     const existing = await this.linkedLocalUserId(serverUser.id)
     if (existing) throw new LinkRefused('This account already uses data on this device.')
 
+    const answers = await onboardingService.take(serverUser.id)
     const id = uid('u')
     const timestamp = now()
     const user: User = {
       id,
       name: serverUser.name?.trim() || 'New member',
-      handle: `member_${id.slice(-6)}`,
+      handle: answers?.handle ?? `member_${id.slice(-6)}`,
       email: serverUser.email ?? undefined,
-      avatarColor: '#c2410c',
-      birthDate: '1990-01-01',
-      sex: 'male',
-      heightCm: 175,
-      startWeightKg: 80,
-      targetWeightKg: 75,
-      goal: 'general_fitness',
-      activityLevel: 'moderate',
-      stepGoal: 8000,
-      waterGoalL: 2.5,
-      workoutsPerWeekGoal: 4,
-      weighInDay: 0,
-      workoutApps: [],
-      units: 'metric',
+      avatarColor: answers?.avatarColor ?? '#c2410c',
+      birthDate: answers?.birthDate ?? '1990-01-01',
+      sex: answers?.sex ?? 'male',
+      heightCm: answers?.heightCm ?? 175,
+      startWeightKg: answers?.startWeightKg ?? 80,
+      targetWeightKg: answers?.targetWeightKg ?? 75,
+      goal: answers?.goal ?? 'general_fitness',
+      activityLevel: answers?.activityLevel ?? 'moderate',
+      stepGoal: answers?.stepGoal ?? 8000,
+      waterGoalL: answers?.waterGoalL ?? 2.5,
+      workoutsPerWeekGoal: answers?.workoutsPerWeekGoal ?? 4,
+      weighInDay: answers?.weighInDay ?? 0,
+      workoutApps: answers?.workoutApps ?? [],
+      units: answers?.units ?? 'metric',
+      onboardedAt: answers ? timestamp : undefined,
       joinedAt: timestamp,
     }
 

@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { AccountLink } from '@/pages/AccountLink'
+import { Pending } from '@/pages/Pending'
+import { BackendUnavailable } from '@/pages/BackendUnavailable'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import type { ReactNode } from 'react'
 import { AuthProvider, useAuth } from '@/context/AuthContext'
@@ -8,6 +10,7 @@ import { ToastProvider } from '@/context/ToastContext'
 import { AppShell } from '@/layouts/AppShell'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { challengeService } from '@/services'
+import { installReferenceData } from '@/data/reference'
 import { todayKey } from '@/utils/date'
 import { Login } from '@/pages/Login'
 import { Home } from '@/pages/Home'
@@ -53,17 +56,21 @@ export default function App() {
   useEffect(() => {
     let cancelled = false
     /*
-     * The demo group is a development fixture and is loaded by an import that
-     * only exists in a demo build — see `demoDataEnabled`. A production bundle
-     * has no branch to reach it and no copy of it to reach, so a real person's
-     * first visit finds an empty app rather than three strangers and a
-     * published password.
+     * The catalogue, and nothing else.
+     *
+     * This used to seed a demo group: three invented people, their months of
+     * training, and a shared password the sign-in screen printed. All of that
+     * has left `src` entirely — it lives in `scripts/fixtures`, which no
+     * import path from here can reach — so there is no branch to disable and
+     * no build flag to get wrong. A first visit, in development exactly as in
+     * production, finds an empty application behind a real sign-in.
+     *
+     * What remains is the exercise catalogue and the plan templates: facts
+     * about the app, owned by nobody, which the workout screens read out of
+     * Dexie and must therefore find there.
      */
     const boot = async () => {
-      if (import.meta.env.DEV || import.meta.env.VITE_DEMO_DATA === '1') {
-        const { ensureSeeded } = await import('@/data/seed')
-        await ensureSeeded()
-      }
+      await installReferenceData()
       // Creating the week here keeps every later read side-effect free,
       // which matters because the challenge is read from live queries.
       await challengeService.ensureWeek(todayKey())
@@ -194,17 +201,45 @@ function AppRoutes() {
   )
 }
 
+/**
+ * The gate every screen in the application sits behind.
+ *
+ * The order of these checks is the security model, written out. Each one is
+ * answered from `serverUser` — what the server said, this boot and every poll
+ * since — and never from the local profile, localStorage or the URL. There is
+ * no path through here that a different address bar, a cleared storage or an
+ * edited IndexedDB row reaches; the only way past the status check is for the
+ * server to start answering differently.
+ *
+ * And it is not the boundary. It is the courtesy. Every request the screens
+ * behind it make is authorised again by `requireApprovedUser` against the D1
+ * user row, so a person who defeats all of this gets the screens and 403 from
+ * everything on them.
+ */
 function RequireAuth({ children }: { children: ReactNode }) {
-  const { user, ready, needsLink } = useAuth()
+  const { user, serverUser, ready, needsLink, backend } = useAuth()
   const location = useLocation()
 
   if (!ready) return <LoadingScreen />
+  // A deployment that cannot authenticate admits nobody, and says why.
+  if (backend === 'unavailable') return <BackendUnavailable />
+  if (!serverUser) return <Navigate to="/login" replace state={{ from: location.pathname }} />
   /*
-   * Signed in, but nobody has said whose data this is yet. Asked once, before
-   * any screen can read a profile — the alternative is an application that
-   * silently picks one, which is the mistake this screen exists to prevent.
+   * Waiting, turned away, or switched off. One screen for all three, because
+   * all three mean the same thing here: this account does not enter. It is
+   * checked before `needsLink` and before `user`, so no amount of local state
+   * can arrange to be asked a different question first.
+   */
+  if (serverUser.status !== 'approved') return <Pending />
+  /*
+   * Signed in, and this device holds history nobody has claimed. Asked once,
+   * before any screen can read a profile — the alternative is an application
+   * that silently picks one, which is the mistake this screen exists to
+   * prevent.
    */
   if (needsLink) return <AccountLink />
-  if (!user) return <Navigate to="/login" replace state={{ from: location.pathname }} />
+  // Approved, linked, and the profile row is a moment behind. Not a redirect:
+  // bouncing to /login here would sign somebody out for a slow disk read.
+  if (!user) return <LoadingScreen />
   return <>{children}</>
 }

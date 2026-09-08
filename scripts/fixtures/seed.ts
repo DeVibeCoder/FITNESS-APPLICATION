@@ -1,3 +1,15 @@
+/**
+ * The invented group, for `npm run verify` and nothing else.
+ *
+ * Three people, a shared password and months of made-up training. None of it
+ * is reachable from the application: `src` imports nothing from this
+ * directory, so no build can include it and no flag can switch it on. See the
+ * README beside this file.
+ *
+ * The exercise catalogue and the plan templates are imported from
+ * `@/data/library` rather than copied, because those are the real thing — the
+ * application installs them itself through `src/data/reference.ts`.
+ */
 import { db } from '@/lib/db'
 import { uid } from '@/lib/id'
 import type {
@@ -30,9 +42,9 @@ import type {
   MediaAsset,
   AppNotification,
 } from '@/models'
-import { PLAN_TEMPLATES, TEMPLATES, EXERCISES, slotForDay } from './library'
+import { PLAN_TEMPLATES, TEMPLATES, EXERCISES, slotForDay } from '@/data/library'
 import { achievementService } from '@/services/achievementService'
-import { authService } from '@/services/authService'
+import { authService } from './authService'
 import { challengeService } from '@/services/challengeService'
 import { DEMO_PASSWORD } from './demo'
 import { addDays, daysBetween, startOfWeek, todayKey } from '@/utils/date'

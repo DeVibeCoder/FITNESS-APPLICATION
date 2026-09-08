@@ -158,7 +158,9 @@
   color: var(--ink);
 }
 
-.demo {
+/* The panel behind "Forgot password?". It used to print three demo usernames
+   and their shared password; it now explains that resets are not wired up. */
+.helpNote {
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
@@ -168,15 +170,6 @@
   color: var(--ink-2);
   font-size: var(--t-small);
   line-height: 1.55;
-}
-
-.demo strong {
-  color: var(--ink);
-  font-weight: 650;
-}
-
-.demoNote {
-  color: var(--ink-3);
 }
 
 .newHere {

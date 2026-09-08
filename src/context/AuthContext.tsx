@@ -1,9 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { User } from '@/models'
-import { authService } from '@/services'
 import { serverAuthService, type ServerUser } from '@/services/serverAuthService'
 import { identityLinkService } from '@/services/identityLinkService'
+import { onboardingService, type OnboardingAnswers } from '@/services/onboardingService'
 import { workoutData } from '@/services/workoutData'
 import { cloudSync } from '@/services/cloudSync'
 import { storageService } from '@/services/storageService'
@@ -14,47 +14,115 @@ import { useLiveQuery } from 'dexie-react-hooks'
  * Who is signed in, and whose data that means.
  *
  * Two questions, two answers, deliberately not merged. The server says who is
- * signed in — a Better Auth session, in an httpOnly cookie this code cannot
- * read or forge. The local link says which Dexie profile that account reads
- * on this device. The second is a lookup, never a permission: every protected
+ * signed in — a Better Auth session in an httpOnly cookie this code cannot
+ * read or forge. The local link says which Dexie profile that account reads on
+ * this device. The second is a lookup, never a permission: every protected
  * request is authorised by the cookie, on the server, again.
  *
- * The old arrangement had one answer for both, and it was a value the page
- * could write. Clearing localStorage used to be a way to become somebody
- * else; now it is a way to lose nothing at all.
+ * There is now exactly one authority, and it is not this file.
  *
- * `mode` is what keeps the application running while the backend is only
- * partly deployed. When /api/auth answers, the server is the authority. When
- * it is absent — a plain `vite dev`, or the current production build, which
- * has no database bound — the app falls back to the local path it has always
- * used. That fallback is a transitional state, not a second way in: it exists
- * only where no server exists to ask, and it authenticates nothing on the
- * server, because the server does not consult it.
+ * There used to be two. When `/api/auth` did not answer, the application fell
+ * back to a local sign-in — a handle and a password checked against
+ * IndexedDB — and that fallback was a second way in that no server had ever
+ * agreed to. It is gone. `authService` moved to `scripts/fixtures`, nothing in
+ * `src` imports it, and a deployment whose backend cannot authenticate now
+ * says so and admits nobody, which is the honest answer.
+ *
+ * `status` is likewise the server's word and only the server's. A pending
+ * account resolves no profile, enables no cloud path and reaches no screen —
+ * not because a route hides one, but because this provider never hands out a
+ * `user` for it to render. Clearing localStorage or editing IndexedDB changes
+ * what this device remembers and nothing about what it is allowed to do.
  */
 interface AuthValue {
-  /** The Dexie profile whose data is shown. */
+  /** The Dexie profile whose data is shown. Only ever set for an approved account. */
   user: User | null
-  /** The authenticated account, when a server session exists. */
+  /** The authenticated account. The one thing any decision is made from. */
   serverUser: ServerUser | null
   ready: boolean
   /** True once a server session exists but no local profile is chosen yet. */
   needsLink: boolean
-  /** Which authority is in force. 'local' only where no backend answers. */
-  mode: 'server' | 'local'
-  signIn: (handle: string, password: string) => Promise<User>
-  signOut: () => void
+  /** Whether this deployment can authenticate anybody at all. */
+  backend: 'ready' | 'unavailable'
+  signIn: (email: string, password: string) => Promise<ServerUser>
+  signUp: (input: SignUpInput) => Promise<ServerUser>
+  signOut: () => Promise<void>
+  /** Re-asks the server who this is. The pending screen's only mechanism. */
+  refresh: () => Promise<void>
   linkExisting: (localUserId: string) => Promise<void>
   startFresh: () => Promise<void>
   /** True when `id` is the profile being shown — the only one editable. */
   isOwner: (id: string) => boolean
 }
 
+/**
+ * What setup sends. The credentials go to the server; the answers stay on this
+ * device until approval gives them a profile to live on.
+ */
+export interface SignUpInput {
+  email: string
+  password: string
+  name: string
+  onboarding?: OnboardingAnswers
+}
+
 const AuthContext = createContext<AuthValue | null>(null)
+
+/**
+ * How often the browser re-asks the server who it is.
+ *
+ * Fast while waiting on a decision, because that is a person watching a screen
+ * for an answer that arrives from somebody else's device. Slow once approved,
+ * because then it is only a safety net: a rejection or a disabling deletes the
+ * account's sessions server-side, so the very next API call already fails —
+ * this is what closes an idle tab's window before it makes one.
+ *
+ * Deliberately polling rather than a socket. The realtime Durable Object is
+ * the chat's, it is reached through a route that refuses anything but an
+ * approved account, and an approval is a once-per-account event — a WebSocket
+ * for it would be new infrastructure carrying one message. The important
+ * property is not the transport: it is that the client learns nothing from the
+ * signal itself and re-asks the authenticated API, which is the only thing
+ * that can actually say yes.
+ */
+const POLL_PENDING_MS = 4000
+const POLL_APPROVED_MS = 60000
+
+/**
+ * Sends a just-created profile up, once.
+ *
+ * Never throws: the local row is already correct and the person is already in
+ * the application. A failed profile push means the group roster shows a
+ * default colour until the next profile edit, which is not a reason to stop
+ * somebody entering.
+ */
+async function pushFreshProfile(localUserId: string): Promise<void> {
+  const profile = await db.users.get(localUserId)
+  if (!profile) return
+  await cloudSync.pushProfile({
+    name: profile.name,
+    handle: profile.handle,
+    avatarColor: profile.avatarColor,
+    birthDate: profile.birthDate,
+    sex: profile.sex,
+    heightCm: profile.heightCm,
+    startWeightKg: profile.startWeightKg,
+    targetWeightKg: profile.targetWeightKg,
+    goal: profile.goal,
+    activityLevel: profile.activityLevel,
+    stepGoal: profile.stepGoal,
+    waterGoalL: profile.waterGoalL,
+    workoutsPerWeekGoal: profile.workoutsPerWeekGoal,
+    weighInDay: profile.weighInDay,
+    workoutApps: profile.workoutApps,
+    units: profile.units,
+  })
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null)
   const [serverUser, setServerUser] = useState<ServerUser | null>(null)
-  const [mode, setMode] = useState<'server' | 'local'>('local')
+  const [backend, setBackend] = useState<'ready' | 'unavailable'>('ready')
   const [needsLink, setNeedsLink] = useState(false)
   const [ready, setReady] = useState(false)
   /**
@@ -70,110 +138,211 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setResolved(localUserId ? ((await db.users.get(localUserId)) ?? null) : null)
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
+  /** Everything that must be true when nobody approved is signed in. */
+  const detach = useCallback(async () => {
+    workoutData.useCloud(false)
+    cloudSync.useCloud(false)
+    setNeedsLink(false)
+    await adoptLocal(null)
+  }, [adoptLocal])
 
-    const boot = async () => {
-      // Ask the server first. Its answer, or its absence, decides everything.
-      const available = await serverAuthService.available()
-      if (cancelled) return
+  /**
+   * Asks the server who this is, and makes the whole client agree with it.
+   *
+   * `probe` is only for the first call: `available()` distinguishes a
+   * deployment with no backend from one whose session has expired, and that is
+   * a boot-time question rather than something worth re-asking every four
+   * seconds.
+   */
+  const resolveSession = useCallback(
+    async (options: { probe?: boolean } = {}): Promise<void> => {
+      if (options.probe) {
+        const available = await serverAuthService.available()
+        if (!available) {
+          setBackend('unavailable')
+          setServerUser(null)
+          await detach()
+          return
+        }
+        setBackend('ready')
+      }
 
-      if (!available) {
-        // No backend to ask. Carry on as the application always has.
-        setMode('local')
-        workoutData.useCloud(false)
-        cloudSync.useCloud(false)
-        const current = await authService.currentUser()
-        if (cancelled) return
-        setResolved(current)
-        setUserId(current?.id ?? null)
-        setReady(true)
+      const account = await serverAuthService.currentUser()
+      setServerUser(account)
+
+      // No session means signed out, whatever this device still remembers.
+      if (!account) {
+        await detach()
         return
       }
 
-      setMode('server')
-      const account = await serverAuthService.currentUser()
-      if (cancelled) return
-      setServerUser(account)
-
-      if (!account) {
-        // No session means signed out, whatever localStorage still holds.
-        workoutData.useCloud(false)
-        cloudSync.useCloud(false)
-        await adoptLocal(null)
-        setNeedsLink(false)
-        setReady(true)
+      /*
+       * Waiting, turned away or switched off. The account exists and can see
+       * its own status; it gets no profile, no cloud path and no screen. The
+       * server refuses it too — this is the client agreeing, not the client
+       * deciding.
+       */
+      if (account.status !== 'approved') {
+        await detach()
         return
       }
 
       const resolution = await identityLinkService.resolve(account)
-      if (cancelled) return
       if (resolution.kind === 'linked') {
         await adoptLocal(resolution.localUserId)
+        workoutData.useCloud(true)
         /*
-         * Workouts go to the cloud only for an approved account. A pending
-         * one can sign in and see its own status, but writing its training
-         * to a server that will refuse every request is worse than keeping
-         * it where it already works.
+         * Hydrating pulls this account's rows down into the device's cache; it
+         * never pushes the device's existing history up.
          */
-        workoutData.useCloud(account.status === 'approved')
-        /*
-         * The same rule for everything else: an approved, linked account uses
-         * the cloud, and anything short of that carries on locally. Hydrating
-         * pulls this account's rows down into the device's cache; it never
-         * pushes the device's existing history up.
-         */
-        cloudSync.useCloud(account.status === 'approved', resolution.localUserId, account.id)
+        cloudSync.useCloud(true, resolution.localUserId, account.id)
         void cloudSync.hydrate()
         setNeedsLink(false)
-      } else {
-        // Signed in, but nobody has said whose data this is yet.
-        workoutData.useCloud(false)
-        cloudSync.useCloud(false)
-        await adoptLocal(null)
-        setNeedsLink(true)
+        return
       }
-      setReady(true)
-    }
 
-    void boot()
+      /*
+       * Nothing on this device to choose between, so there is no question to
+       * ask. This is the ordinary path now that the demo group is gone: a
+       * fresh browser holds no profiles at all, and stopping to ask which of
+       * zero histories belongs to you would be a screen with one button.
+       */
+      if (resolution.localUsers.length === 0) {
+        const localUserId = await identityLinkService.startFresh(account)
+        await adoptLocal(localUserId)
+        workoutData.useCloud(true)
+        cloudSync.useCloud(true, localUserId, account.id)
+        /*
+         * Setup asked for a height, a weight and a goal before this account
+         * had anywhere to put them. Now it does. The push is one PATCH to
+         * `/profile`, which writes only the columns on its own fixed list —
+         * `role` and `status` are not on it and cannot be reached from here.
+         */
+        await pushFreshProfile(localUserId)
+        void cloudSync.hydrate()
+        setNeedsLink(false)
+        return
+      }
+
+      // Signed in, and this device holds history nobody has claimed yet.
+      workoutData.useCloud(false)
+      cloudSync.useCloud(false)
+      await adoptLocal(null)
+      setNeedsLink(true)
+    },
+    [adoptLocal, detach],
+  )
+
+  useEffect(() => {
+    let cancelled = false
+    void resolveSession({ probe: true })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setReady(true)
+      })
     return () => {
       cancelled = true
     }
-  }, [adoptLocal])
+  }, [resolveSession])
+
+  /**
+   * The re-ask, from a timer and from the tab coming back.
+   *
+   * A failure here is left alone on purpose. A dropped network is not a
+   * signing-out, and treating it as one would throw somebody out of the app
+   * for walking into a lift.
+   */
+  const refresh = useCallback(async () => {
+    try {
+      await resolveSession()
+    } catch {
+      // Transient. The next tick asks again.
+    }
+  }, [resolveSession])
+
+  /*
+   * Kept in a ref so the interval below is not torn down and rebuilt on every
+   * render — only when the polling *rate* should change.
+   */
+  const refreshRef = useRef(refresh)
+  refreshRef.current = refresh
+
+  const watching = ready && backend === 'ready' && serverUser !== null
+  const period = serverUser?.status === 'approved' ? POLL_APPROVED_MS : POLL_PENDING_MS
+
+  useEffect(() => {
+    if (!watching) return
+    const tick = () => void refreshRef.current()
+
+    const timer = setInterval(tick, period)
+    // Coming back to the tab is the moment a stale answer is most likely and
+    // most visible, so it is worth one immediate ask.
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') tick()
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', tick)
+    window.addEventListener('online', tick)
+
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', tick)
+      window.removeEventListener('online', tick)
+    }
+  }, [watching, period])
 
   // Live so profile edits show up immediately everywhere.
   const live = useLiveQuery(() => (userId ? db.users.get(userId) : undefined), [userId])
   const user = userId ? (live ?? resolved) : null
 
-  /** The legacy local sign-in. Only reachable where no server answers. */
-  const signIn = useCallback(async (handle: string, password: string) => {
-    const next = await authService.signIn(handle, password)
-    setResolved(next)
-    setUserId(next.id)
-    return next
-  }, [])
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const account = await serverAuthService.signIn({ email, password })
+      if (!account) throw new Error('Signed in, but the session could not be read back.')
+      await resolveSession()
+      return account
+    },
+    [resolveSession],
+  )
 
-  const signOut = useCallback(() => {
-    if (mode === 'server') void serverAuthService.signOut().catch(() => undefined)
-    workoutData.useCloud(false)
-    cloudSync.useCloud(false)
-    void authService.signOut()
+  const signUp = useCallback(
+    async ({ onboarding, ...credentials }: SignUpInput) => {
+      const account = await serverAuthService.signUp(credentials)
+      if (!account) throw new Error('The account was created, but could not be read back.')
+      /*
+       * Stored before the session is resolved, not after. The account arrives
+       * `pending` so nothing would read these yet — but "nothing would" is a
+       * fact about today's default, and the ordering that does not depend on
+       * it costs one line.
+       */
+      if (onboarding) await onboardingService.remember(account.id, onboarding)
+      // Pending, because the server said so. Nothing here overrides it.
+      await resolveSession()
+      return account
+    },
+    [resolveSession],
+  )
+
+  const signOut = useCallback(async () => {
+    try {
+      await serverAuthService.signOut()
+    } catch {
+      // The cookie may already be gone. Leaving anyway.
+    }
     setServerUser(null)
-    setNeedsLink(false)
-    setResolved(null)
-    setUserId(null)
-    storageService.setSessionUserId(null)
-  }, [mode])
+    await detach()
+  }, [detach])
 
   const linkExisting = useCallback(
     async (localUserId: string) => {
       if (!serverUser) throw new Error('Not signed in.')
+      if (serverUser.status !== 'approved') throw new Error('This account is not approved yet.')
       // The service refuses a claim on data another account already holds.
       await identityLinkService.link(serverUser.id, localUserId)
       await adoptLocal(localUserId)
-      workoutData.useCloud(serverUser.status === 'approved')
-      cloudSync.useCloud(serverUser.status === 'approved', localUserId, serverUser.id)
+      workoutData.useCloud(true)
+      cloudSync.useCloud(true, localUserId, serverUser.id)
       void cloudSync.hydrate()
       setNeedsLink(false)
     },
@@ -182,10 +351,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const startFresh = useCallback(async () => {
     if (!serverUser) throw new Error('Not signed in.')
+    if (serverUser.status !== 'approved') throw new Error('This account is not approved yet.')
     const localUserId = await identityLinkService.startFresh(serverUser)
     await adoptLocal(localUserId)
-    workoutData.useCloud(serverUser.status === 'approved')
-    cloudSync.useCloud(serverUser.status === 'approved', localUserId, serverUser.id)
+    workoutData.useCloud(true)
+    cloudSync.useCloud(true, localUserId, serverUser.id)
     void cloudSync.hydrate()
     setNeedsLink(false)
   }, [serverUser, adoptLocal])
@@ -196,14 +366,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       serverUser,
       ready,
       needsLink,
-      mode,
+      backend,
       signIn,
+      signUp,
       signOut,
+      refresh,
       linkExisting,
       startFresh,
       isOwner: (id: string) => id === userId,
     }),
-    [user, serverUser, ready, needsLink, mode, signIn, signOut, linkExisting, startFresh, userId],
+    [
+      user,
+      serverUser,
+      ready,
+      needsLink,
+      backend,
+      signIn,
+      signUp,
+      signOut,
+      refresh,
+      linkExisting,
+      startFresh,
+      userId,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -220,4 +405,17 @@ export function useCurrentUser(): User {
   const { user } = useAuth()
   if (!user) throw new Error('No signed-in user')
   return user
+}
+
+/**
+ * Whether the signed-in account is an administrator.
+ *
+ * Reads the server's answer, never the local profile. The local row is a
+ * cache of a person's own data and is editable by whoever holds the device —
+ * a `role` field in IndexedDB is a wish, not a fact. This only decides what to
+ * draw; `requireAdmin` decides what happens, on the server, per request.
+ */
+export function useIsAdmin(): boolean {
+  const { serverUser } = useAuth()
+  return serverUser?.role === 'admin'
 }

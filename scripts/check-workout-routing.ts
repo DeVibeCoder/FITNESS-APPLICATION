@@ -19,8 +19,8 @@ globalThis.localStorage = {
   get length() { return store.size },
 } as Storage
 
-import { readFileSync } from 'node:fs'
-import { ensureSeeded } from '../src/data/seed'
+import { existsSync, readFileSync } from 'node:fs'
+import { ensureSeeded } from './fixtures/seed'
 import { db } from '../src/lib/db'
 import { workoutData } from '../src/services/workoutData'
 import { cloudSync } from '../src/services/cloudSync'
@@ -114,10 +114,50 @@ async function main() {
 
   head('The wiring says who may use the cloud')
   const auth = readFileSync('src/context/AuthContext.tsx', 'utf8')
-  check('cloud is enabled only for an approved account', auth.includes("workoutData.useCloud(account.status === 'approved')"))
-  check('signing out turns it off', /signOut[\s\S]{0,400}workoutData\.useCloud\(false\)/.test(auth))
-  check('an unlinked session does not write to the cloud', /setNeedsLink\(true\)/.test(auth) && auth.includes('workoutData.useCloud(false)'))
-  check('no backend means local', /if \(!available\)[\s\S]{0,200}workoutData\.useCloud\(false\)/.test(auth))
+
+  /*
+   * This used to look for one expression — `useCloud(account.status ===
+   * 'approved')` — which tested the shape of a line rather than the property
+   * the line was there for. The property is now enforced by control flow: a
+   * session that is not approved leaves `resolveSession` before any code that
+   * could switch the cloud on. So that is what is checked, in two halves.
+   *
+   * First: the guard exists, and it detaches and returns rather than falling
+   * through. Second: nothing above it turns the cloud on. Together those say
+   * the same thing the old assertion meant to, and keep saying it however the
+   * approved branch below is rewritten.
+   */
+  const resolve = auth.slice(auth.indexOf('const resolveSession'), auth.indexOf('useEffect(() => {'))
+  check('resolveSession was found', resolve.length > 200, resolve.length)
+
+  const guard = /if \(account\.status !== 'approved'\) \{\s*await detach\(\)\s*return\s*\}/.test(resolve)
+  check('an account that is not approved is detached and returns', guard)
+
+  const beforeGuard = resolve.slice(0, resolve.indexOf("account.status !== 'approved'"))
+  check('and nothing before that guard turns the cloud on', !/useCloud\(true/.test(beforeGuard))
+
+  // `detach` is the single place that says what "not signed in as an approved
+  // account" means, so both switches being in it is the whole of the rule.
+  const detach = auth.slice(auth.indexOf('const detach ='), auth.indexOf('const resolveSession'))
+  check('detach turns both switches off', /workoutData\.useCloud\(false\)/.test(detach) && /cloudSync\.useCloud\(false\)/.test(detach))
+
+  check('signing out detaches', /const signOut = useCallback\([\s\S]{0,600}await detach\(\)/.test(auth))
+  check('an unlinked session does not write to the cloud', /workoutData\.useCloud\(false\)[\s\S]{0,200}setNeedsLink\(true\)/.test(resolve))
+  check('no backend means nobody is signed in at all', /if \(!available\) \{[\s\S]{0,300}await detach\(\)\s*return/.test(resolve))
+
+  /*
+   * And the fallback is gone rather than disabled. The application used to
+   * sign people in against IndexedDB when /api/auth did not answer, which was
+   * a second way in that no server had agreed to.
+   */
+  // Code only. The header comment on AuthProvider explains at length what was
+  // removed and why, and naming the thing you deleted is not importing it.
+  const authCode = auth
+    .split(String.fromCharCode(10))
+    .filter((l) => !/^\s*(\*|\/\*|\/\/)/.test(l))
+    .join(String.fromCharCode(10))
+  check('there is no local sign-in left in the app', !/authService/.test(authCode))
+  check('and none anywhere in src', !existsSync('src/services/authService.ts'))
 
   head('The cloud service never claims an identity')
   const cloud = readFileSync('src/services/cloudWorkoutService.ts', 'utf8')
@@ -154,9 +194,9 @@ async function main() {
   const client = readFileSync('src/services/cloudDataService.ts', 'utf8')
   check('a fresh process syncs nothing', cloudSync.enabled() === false, cloudSync.enabled())
   check('and has nothing waiting to send', cloudSync.pending() === 0)
-  check('cloud sync follows the same approved-account switch', /cloudSync\.useCloud\(account\.status === 'approved'/.test(auth))
+  check('cloud sync is switched by the same guard', !/useCloud\(true/.test(beforeGuard))
   check('signing out turns it off', /workoutData\.useCloud\(false\)\s*\n\s*cloudSync\.useCloud\(false\)/.test(auth))
-  check('an unlinked or pending session does not sync', (auth.match(/cloudSync\.useCloud\(false\)/g) ?? []).length >= 3)
+  check('an unlinked or pending session does not sync', (auth.match(/cloudSync\.useCloud\(false\)/g) ?? []).length >= 2)
   check('the client sends the session cookie', client.includes("credentials: 'include'"))
   check('and treats a non-JSON answer as no backend', /content-type[\s\S]{0,200}unavailable/i.test(client))
 

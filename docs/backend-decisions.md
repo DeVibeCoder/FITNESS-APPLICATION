@@ -95,9 +95,18 @@ Production starts with the exercise catalogue and the achievement definitions
 and nothing else. Both are generated into `migrations/0004_reference_data.sql`
 from the same catalogues the interface reads, so the two cannot drift.
 
-Everything in `src/data/seed.ts` is a fixture and reaches no server. The
-barrier is in `scripts/guard-environment.ts` and needs two independent things
-to be true at once — see the phase report.
+Everything in `scripts/fixtures/` is a fixture and reaches no server, and no
+browser either. There are two independent barriers and they guard different
+things:
+
+- **Against a fixture reaching a database** — `scripts/guard-environment.ts`,
+  which needs `ENVIRONMENT=development` *and* `ALLOW_SEED=1` before any script
+  will write a row. An unset environment counts as production.
+- **Against a fixture reaching a user** — the directory. `src` imports nothing
+  from `scripts/fixtures`, so Rollup's graph never arrives there: the fixture
+  group, its shared password and the local sign-in that used to check it are
+  not in a build, not behind a flag, and not one wrong branch away from being.
+  `npm run check:bundle` reads `dist` and says so.
 
 ---
 
@@ -161,30 +170,77 @@ Not available yet, and not faked:
 
 `.dev.vars` is local-only and gitignored. It is never copied to production.
 
-### Promoting the first admin
+### The administrator
 
-There is no admin account and no admin credential anywhere in the codebase.
-After authentication is deployed:
+There is no admin account and no admin credential anywhere in the codebase,
+and there is no code path that creates one. `role` defaults to `'member'` on
+the column, Better Auth is configured with `input: false` on both `role` and
+`status`, and the profile route's writable-column list names neither — so
+nothing a client can send reaches either field.
 
-1. The person signs up through the real application like anybody else. They
-   arrive `pending`, as everyone does.
-2. Promote them once, out of band, against the production database:
+The one production administrator is **flowingdeknight@gmail.com**. It was made
+the way anybody else's account is made:
+
+1. Sign up through `/api/auth/sign-up/email` with a generated password. It
+   arrives `pending` and `member`, as everyone does.
+2. Promote it once, out of band, against the production database:
 
    ```
    wrangler d1 execute circuit-prod --env production --remote --command \
      "UPDATE users SET status='approved', role='admin' WHERE email='<their email>';"
    ```
 
-3. Confirm exactly one row changed:
+3. Confirm exactly one row, and that it is the right one:
 
    ```
    wrangler d1 execute circuit-prod --env production --remote --command \
      "SELECT id, email, role, status FROM users WHERE role='admin';"
    ```
 
+The password was generated from `crypto.randomBytes`, written once to a file
+outside the repository, and never printed, logged, committed or passed on a
+command line. It is not recoverable from anything in here — if it is lost, the
+account is deleted and made again.
+
 Every admin after the first is promoted through the admin screen, which reads
-`role` from the session's own user row server-side. Nothing here trusts a
-client-supplied role, and no privileged credential is ever stored.
+`role` from the session's own user row server-side.
+
+**What being an administrator is.** It is the routes under `/api/admin`, and
+nothing else: approve, reject, disable. There is no admin route that reads or
+writes another person's workouts, meals, posts or messages, because every
+ownership-scoped route in the rest of the server resolves its owner from the
+session and takes no user id from anywhere. An admin calling a member route
+acts as themselves — not because a check forbids otherwise, but because there
+is no parameter that could ask. And an admin cannot decide about their own
+account: the `UPDATE` carries `AND id <> ?` on the acting admin, so it is
+refused by the statement rather than by remembering to.
+
+### Approval, and how a waiting screen stops waiting
+
+`status` starts `pending`, and `requireApprovedUser` refuses anything that is
+not `approved` on every protected request — reading the column, not a claim in
+a cookie, a body or a header. A pending session is real, and it can do exactly
+one thing: read its own status.
+
+A decision takes effect on the *next request*, not the next sign-in. There is
+no approval state in the session token to go stale. Rejecting or disabling
+additionally deletes that account's rows from `auth_sessions`, so an open tab
+is refused at once rather than whenever a cookie happens to expire.
+
+On the client, `AuthProvider` re-asks `/api/auth/get-session` — every four
+seconds while an account is not approved, every minute once it is, and
+immediately when the tab regains focus or the network comes back. When the
+answer changes from `pending` to `approved`, the waiting screen stops being
+rendered and the application appears, with nobody having reloaded anything.
+
+This is polling, deliberately. The Durable Object in `workers/chat-realtime` is
+the conversation's, and the route to it refuses any account that is not already
+approved — so the one event that matters here is the one event it could never
+carry. More to the point, the transport is not what makes this safe: the client
+learns nothing from a signal except *when to ask*, and the answer always comes
+from the authenticated API reading the `users` row. A socket frame saying "you
+are approved" would be a payload to trust, and there is nothing here that
+trusts one.
 
 ### Google OAuth — not production-ready
 
