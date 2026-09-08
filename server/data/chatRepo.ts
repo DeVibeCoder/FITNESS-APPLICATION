@@ -76,15 +76,23 @@ export const chatRepo = {
     return Boolean(row)
   },
 
-  async members(db: D1Database) {
+  /**
+   * Who is in the conversation, as the sheet lists them.
+   *
+   * An administrator is a participant — they have to be, or they could not
+   * read the chat — and is left out of this list for everybody but another
+   * administrator, for the same reason they are left out of the roster. Being
+   * able to read a room is not the same as being one of the people in it.
+   */
+  async members(db: D1Database, forAdmin = false) {
     const { results } = await db
       .prepare(
         `SELECT u.id, u.name, u.handle, u.avatar_color, gm.role, gm.joined_at
            FROM group_members gm JOIN users u ON u.id = gm.user_id
-          WHERE gm.group_id = ?
+          WHERE gm.group_id = ? AND (u.role <> 'admin' OR ?)
           ORDER BY gm.joined_at ASC`,
       )
-      .bind(GROUP_ID)
+      .bind(GROUP_ID, forAdmin ? 1 : 0)
       .all()
     return results ?? []
   },

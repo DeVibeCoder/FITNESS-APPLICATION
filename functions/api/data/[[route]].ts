@@ -102,7 +102,18 @@ const routes: Record<string, Record<string, Handler>> = {
     PATCH: async ({ db, user, body }) => json({ profile: await profileRepo.update(db, user.id, await body()) }),
   },
   'roster': {
-    GET: async ({ db }) => json({ users: await profileRepo.roster(db) }),
+    // `user.role` is the session's, read from the D1 row by the guard. There
+    // is no field in the request that could reach this argument.
+    /*
+     * `rows`, like every other list route.
+     *
+     * This answered `{ users: ... }`, and `cloudDataService.list` reads
+     * `body.rows` — so the roster silently hydrated to nothing on every device
+     * since the day it was written. Nobody saw a name or an avatar for anybody
+     * else, and because the failure was an empty array rather than an error,
+     * it looked like "the group is empty" rather than "the group did not load".
+     */
+    GET: async ({ db, user }) => json({ rows: await profileRepo.roster(db, user.role === 'admin') }),
   },
 
   // --- Nutrition, weight, steps, check-ins ----------------------------------
@@ -336,7 +347,7 @@ const routes: Record<string, Record<string, Handler>> = {
   'chat/members': {
     GET: async ({ db, user }) => {
       await chatRepo.ensureMember(db, user.id)
-      return json({ members: await chatRepo.members(db) })
+      return json({ rows: await chatRepo.members(db, user.role === 'admin') })
     },
   },
 

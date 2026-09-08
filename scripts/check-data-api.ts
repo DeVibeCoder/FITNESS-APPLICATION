@@ -344,7 +344,14 @@ async function main() {
   })
   const bobReads = rowsOf((await callAs(bob, '/chat/messages')).body)
   check("Bob sees Alice's message", bobReads.some((row) => row.id === messageId))
-  const members = ((await callAs(bob, '/chat/members')).body.members ?? []) as { id: string }[]
+  /*
+   * `rows`, like every other list route. These two answered `{ users }` and
+   * `{ members }`, which `cloudDataService.list` — which reads `body.rows` —
+   * silently saw as empty. The roster therefore never hydrated on any device,
+   * so nobody ever saw anybody else's name or avatar. The envelope is now the
+   * same everywhere, and this check follows it.
+   */
+  const members = ((await callAs(bob, '/chat/members')).body.rows ?? []) as { id: string }[]
   // That he is in it, not how many are — the group is shared, and a count is
   // a fact about whoever else has ever run this, not about joining.
   check('and reading the chat put him in the group', members.some((one) => one.id === bob.id))
@@ -374,7 +381,7 @@ async function main() {
   check('the status did not', after[0]?.status === before[0]?.status, after[0]?.status)
   check("and Bob's row was not the one edited", query<{ name: string }>(`SELECT name FROM users WHERE id='${bob.id}';`)[0]?.name === 'Data bob')
 
-  const roster = ((await callAs(alice, '/roster')).body.users ?? []) as Record<string, unknown>[]
+  const roster = ((await callAs(alice, '/roster')).body.rows ?? []) as Record<string, unknown>[]
   check('the roster lists approved members', roster.length >= 2, roster.length)
   check('and carries no email', roster.every((row) => !('email' in row)))
   check('no role and no status', roster.every((row) => !('role' in row) && !('status' in row)))

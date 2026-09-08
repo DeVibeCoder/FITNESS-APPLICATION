@@ -18,7 +18,7 @@ const THEMES: { value: ThemePref; label: string; icon: typeof Sun }[] = [
 ]
 
 export function More() {
-  const { user, serverUser, signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const { pref, setPref } = useTheme()
   const isAdmin = useIsAdmin()
 
@@ -101,9 +101,13 @@ export function More() {
             <div className={styles.settingText}>
               <p className={styles.settingLabel}>Signed in as</p>
               <p className={styles.settingHint}>
-                {/* The address is the account's, so it is read from the account. */}
+                {/*
+                  The name and the handle, not the email address. An email is a
+                  credential; printing it on a settings screen puts it on the
+                  screen of whoever is holding the phone, and tells the person
+                  who owns it nothing they did not know.
+                */}
                 {user.name} · @{user.handle}
-                {serverUser?.email ? ` · ${serverUser.email}` : ''}
               </p>
             </div>
             {/*

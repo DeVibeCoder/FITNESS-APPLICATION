@@ -256,17 +256,29 @@ export const postService = {
       .where('[postId+userId]')
       .equals([postId, userId])
       .first()
+    let reactionId = existing?.id
 
     if (existing?.emoji === emoji) {
       await db.postReactions.delete(existing.id)
     } else if (existing) {
       await db.postReactions.update(existing.id, { emoji, createdAt: now() })
     } else {
-      await db.postReactions.add({ id: uid('pr'), postId, userId, emoji, createdAt: now() })
+      /*
+       * Minted once, used twice.
+       *
+       * The id was generated separately for the local row and for the push, so
+       * a new reaction existed under one id here and a different one in D1.
+       * Nothing noticed until hydration started reading reactions back: the
+       * server's row arrived as a second local row for the same person on the
+       * same post, and the count doubled. Dexie has no unique index on
+       * `[postId+userId]` to have caught it.
+       */
+      reactionId = uid('pr')
+      await db.postReactions.add({ id: reactionId, postId, userId, emoji, createdAt: now() })
     }
     // An empty emoji is how the server is told the reaction came back off.
     await cloudSync.push('/social/post-reactions', {
-      id: existing?.id ?? uid('pr'),
+      id: reactionId,
       targetId: postId,
       emoji: existing?.emoji === emoji ? '' : emoji,
       createdAt: now(),

@@ -89,6 +89,17 @@ const POLL_PENDING_MS = 4000
 const POLL_APPROVED_MS = 60000
 
 /**
+ * How often an open tab re-reads the group's data.
+ *
+ * Half a minute is a compromise between a feed that feels live and twenty
+ * requests a person did not ask for. Anything somebody does on this device
+ * appears immediately regardless — the local write happens first and the
+ * screens read it through a live query — so this interval only governs how
+ * quickly *other people's* changes arrive.
+ */
+const DATA_REFRESH_MS = 30000
+
+/**
  * Sends a just-created profile up, once.
  *
  * Never throws: the local row is already correct and the person is already in
@@ -196,7 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
          * never pushes the device's existing history up.
          */
         cloudSync.useCloud(true, resolution.localUserId, account.id)
-        void cloudSync.hydrate()
+        void cloudSync.sync(true)
         setNeedsLink(false)
         return
       }
@@ -208,18 +219,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
        * zero histories belongs to you would be a screen with one button.
        */
       if (resolution.localUsers.length === 0) {
-        const localUserId = await identityLinkService.startFresh(account)
+        /*
+         * Ask the server what it already knows before inventing anything.
+         *
+         * The cloud switch goes on first because `ownProfile` reads through
+         * the same client as everything else, and it is off until told
+         * otherwise. Then:
+         *
+         *   a profile exists  → adopt it. This device is joining an account,
+         *                       not authoring one.
+         *   nothing there yet → this is the first device for a new account, so
+         *                       setup's answers go up.
+         *
+         * It used to do only the second, unconditionally, which meant signing
+         * in on a second device wrote a placeholder profile over the real one
+         * in D1 — the way a real administrator's handle became
+         * `member_c35b6e`.
+         */
+        cloudSync.useCloud(true, null, account.id)
+        const serverProfile = await cloudSync.ownProfile()
+
+        const localUserId = await identityLinkService.startFresh(account, serverProfile)
         await adoptLocal(localUserId)
         workoutData.useCloud(true)
         cloudSync.useCloud(true, localUserId, account.id)
-        /*
-         * Setup asked for a height, a weight and a goal before this account
-         * had anywhere to put them. Now it does. The push is one PATCH to
-         * `/profile`, which writes only the columns on its own fixed list —
-         * `role` and `status` are not on it and cannot be reached from here.
-         */
-        await pushFreshProfile(localUserId)
-        void cloudSync.hydrate()
+
+        // Only when the server has nothing of its own to lose.
+        if (!serverProfile || serverProfile.heightCm === undefined) {
+          await pushFreshProfile(localUserId)
+        }
+        void cloudSync.sync(true)
         setNeedsLink(false)
         return
       }
@@ -275,20 +304,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const tick = () => void refreshRef.current()
 
     const timer = setInterval(tick, period)
+
+    /*
+     * And the data, not just the session.
+     *
+     * The status poll above answers "am I still allowed in". This answers "has
+     * anything changed", which is the question a person actually has when they
+     * come back to the tab — somebody else's post, a reply in the chat, a
+     * weigh-in logged on their phone. `cloudSync.sync` throttles and joins
+     * overlapping runs, so firing it from several events is safe.
+     */
+    const pull = () => void cloudSync.sync()
+    const dataTimer = setInterval(pull, DATA_REFRESH_MS)
     // Coming back to the tab is the moment a stale answer is most likely and
     // most visible, so it is worth one immediate ask.
     const onVisible = () => {
-      if (document.visibilityState === 'visible') tick()
+      if (document.visibilityState !== 'visible') return
+      tick()
+      // Forced: coming back to the app is exactly when a stale screen is most
+      // visible, and is worth the round trips.
+      void cloudSync.sync(true)
+    }
+    const onFocus = () => {
+      tick()
+      pull()
     }
     document.addEventListener('visibilitychange', onVisible)
-    window.addEventListener('focus', tick)
-    window.addEventListener('online', tick)
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('online', onFocus)
 
     return () => {
       clearInterval(timer)
+      clearInterval(dataTimer)
       document.removeEventListener('visibilitychange', onVisible)
-      window.removeEventListener('focus', tick)
-      window.removeEventListener('online', tick)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('online', onFocus)
     }
   }, [watching, period])
 
@@ -343,7 +393,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await adoptLocal(localUserId)
       workoutData.useCloud(true)
       cloudSync.useCloud(true, localUserId, serverUser.id)
-      void cloudSync.hydrate()
+      void cloudSync.sync(true)
       setNeedsLink(false)
     },
     [serverUser, adoptLocal],
@@ -356,7 +406,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await adoptLocal(localUserId)
     workoutData.useCloud(true)
     cloudSync.useCloud(true, localUserId, serverUser.id)
-    void cloudSync.hydrate()
+    void cloudSync.sync(true)
     setNeedsLink(false)
   }, [serverUser, adoptLocal])
 

@@ -94,15 +94,30 @@ export const profileRepo = {
     return this.own(db, userId)
   },
 
-  /** Everyone in the group, as a name and a colour. Nothing more. */
-  async roster(db: D1Database) {
+  /**
+   * Everyone in the group, as a name and a colour. Nothing more.
+   *
+   * Administrators are not in it, for anybody but an administrator.
+   *
+   * An admin on this application is not a participant: they approve people and
+   * moderate accounts, and they do not train, post or weigh in. Listing them
+   * beside the people who do would put a name in the group that never appears
+   * anywhere else — no workouts, no posts, no weigh-ins — which reads as
+   * either a broken account or a silent watcher, and is the second of those.
+   *
+   * So the group sees the group. `forAdmin` is passed by the route from the
+   * session's own role, never from anything a caller sends; a member asking
+   * for the roster gets members whatever they put in the request.
+   */
+  async roster(db: D1Database, forAdmin = false) {
     const { results } = await db
       .prepare(
         `SELECT id, name, handle, avatar_color, avatar_media_id, joined_at
            FROM users
-          WHERE status = 'approved'
+          WHERE status = 'approved' AND (role <> 'admin' OR ?)
           ORDER BY joined_at ASC`,
       )
+      .bind(forAdmin ? 1 : 0)
       .all()
     return results ?? []
   },

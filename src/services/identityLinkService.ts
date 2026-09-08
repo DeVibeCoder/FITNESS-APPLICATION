@@ -136,7 +136,19 @@ export const identityLinkService = {
    * permission — nothing in them can set `role` or `status`, which are columns
    * on the server's row and are not writable from this side at all.
    */
-  async startFresh(serverUser: { id: string; name?: string | null; email?: string | null }): Promise<ID> {
+  async startFresh(
+    serverUser: { id: string; name?: string | null; email?: string | null },
+    /**
+     * What the server already knows about this person, when it knows anything.
+     *
+     * Takes precedence over both setup's answers and the defaults, because it
+     * is the record — a device linking an existing account is joining a
+     * profile, not authoring one. Without this a second device invented a
+     * placeholder and then pushed it up, replacing a real height and goal in
+     * D1 with 175cm and 80kg.
+     */
+    seed?: Partial<User> | null,
+  ): Promise<ID> {
     const existing = await this.linkedLocalUserId(serverUser.id)
     if (existing) throw new LinkRefused('This account already uses data on this device.')
 
@@ -166,7 +178,8 @@ export const identityLinkService = {
       joinedAt: timestamp,
     }
 
-    await db.users.add(user)
+    // The server's own values last, so they win over anything invented above.
+    await db.users.add({ ...user, ...(seed ?? {}), id, email: user.email })
     await this.link(serverUser.id, id)
     return id
   },

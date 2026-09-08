@@ -6,12 +6,38 @@
  * header or a token claim, so there is nothing here for a client to forge; a
  * member who calls these gets 403 whatever they send.
  *
- * Note what is NOT here. There is no route that reads or writes somebody
- * else's workouts, meals, posts or messages. An administrator moderates
- * accounts; they do not get a skeleton key to the group's training. The rest
- * of the API resolves its owner from the session exactly as before, which
- * means an admin calling a member route acts as themselves — not because a
- * check forbids otherwise, but because there is no parameter that could ask.
+ * What an administrator may do, precisely:
+ *
+ *   POST /accounts            approve, reject or disable somebody else
+ *   GET  /accounts            the queue
+ *   GET  /members             everyone, with counts
+ *   GET  /members/<id>        one member's own logs, read-only
+ *
+ * The read routes are new, and they reverse what this file used to say. There
+ * was no way to read another person's rows at all: every ownership-scoped
+ * query took its owner from the session, so no parameter existed that could
+ * ask on somebody else's behalf. That is no longer true, by request — a group
+ * that trains together wanted somebody able to see whether people are actually
+ * logging.
+ *
+ * So the reach is real, and it is bounded in ways that are structural rather
+ * than remembered:
+ *
+ * **It is one-way.** `GET` only. `onRequestPost` below dispatches to the
+ * decision handler and nothing else, so there is no admin path that writes a
+ * member's workout, meal, weight or profile — a POST or PATCH under
+ * `/members` is refused before any repository is reached. An administrator can
+ * see that somebody logged nothing this week; they cannot log it for them, and
+ * they cannot change a setting that belongs to that person.
+ *
+ * **It names one person at a time.** `adminViewRepo` has no query that returns
+ * everyone's private rows at once; the owner is still in every WHERE clause,
+ * and `scripts/check-isolation.ts` still holds this file to that.
+ *
+ * **The rest of the API is unchanged.** Every member route still resolves its
+ * owner from the session, so an admin calling `/api/data/nutrition/food` gets
+ * their own meals — not because a check forbids otherwise, but because there
+ * is still no parameter that could ask.
  */
 import {
   requireAdmin,
@@ -22,6 +48,7 @@ import {
 import { InvalidInput } from '../../../server/data/validate'
 import * as v from '../../../server/data/validate'
 import { adminRepo, validateDecision } from '../../../server/data/adminRepo'
+import { adminViewRepo } from '../../../server/data/adminViewRepo'
 import type { D1Database } from '../../../server/fitness/repo'
 
 const json = (body: unknown, status = 200) =>
@@ -78,6 +105,42 @@ const handle = (context: {
       return json({
         accounts: await adminRepo.accounts(db, status, v.limit(url.searchParams.get('limit'), 200, 1000)),
         pending: await adminRepo.pendingCount(db),
+      })
+    }
+
+    /*
+     * Everyone, with enough per-person counts to see at a glance who is using
+     * the app. Administrators are left out: an admin is not a member of the
+     * group, and listing one among the people who train would say otherwise.
+     */
+    if (resource === 'members' && segments.length === 1 && context.request.method === 'GET') {
+      return json({ members: await adminViewRepo.members(db, v.limit(url.searchParams.get('limit'), 200, 1000)) })
+    }
+
+    /*
+     * One member, in full. The id is a path segment rather than a query
+     * parameter for no reason other than legibility — either way it is a
+     * caller-supplied owner, which is exactly the thing the rest of this
+     * server refuses, and exactly what `requireAdmin` above is here to gate.
+     */
+    if (resource === 'members' && segments.length === 2 && context.request.method === 'GET') {
+      const target = v.id(segments[1], 'userId')
+      const profile = await adminViewRepo.profile(db, target)
+      if (!profile) {
+        return json({ error: 'not_found', message: 'There is no such account.' }, 404)
+      }
+      /*
+       * An administrator's own account is not a member to inspect. Refused
+       * rather than quietly returned, so the list and the detail agree about
+       * who exists.
+       */
+      if (profile.role === 'admin') {
+        return json({ error: 'not_found', message: 'There is no such account.' }, 404)
+      }
+      return json({
+        profile,
+        summary: await adminViewRepo.summary(db, target),
+        ...(await adminViewRepo.detail(db, target)),
       })
     }
 
