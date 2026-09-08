@@ -83,12 +83,27 @@ export function MeasurementForm({
   const remove = async () => {
     if (!entry) return
     setSaving(true)
-    const result = await guard(() => measurementService.remove(entry.id))
+    /*
+     * The `true` matters.
+     *
+     * `guard` returns undefined when the action throws, and `remove` returns
+     * nothing — so it returned undefined on success too, and the two were the
+     * same value. The row was deleted and then nothing happened: no
+     * confirmation, and the sheet stayed open over an entry that was already
+     * gone. Returning a value is what makes the two outcomes distinguishable.
+     *
+     * `save` above needs no such thing: it resolves to the saved measurement,
+     * which is never undefined.
+     */
+    const done = await guard(async () => {
+      await measurementService.remove(entry.id)
+      return true as const
+    })
     setSaving(false)
-    if (result !== undefined) {
-      show('Measurements deleted.')
-      onDone()
-    }
+    if (!done) return
+
+    show('Measurements deleted.')
+    onDone()
   }
 
   return (
