@@ -11,12 +11,17 @@ import type { ID, MediaAsset } from '@/models'
  *
  *  - `placeholder:<name>` — the UI draws it from CSS. Used by seed content, so
  *    the demo can show a photo post without shipping a stock photograph.
- *  - `blob:…` — a session-scoped URL for something the user just picked. Marked
- *    `temporary`, because it dies with the page and must never be mistaken for
- *    durable storage.
- *  - anything else — an object-storage key. That is the shape Cloudflare R2 or
- *    an equivalent will use, and nothing above this service changes when it
- *    arrives.
+ *  - `blob:…` — a session-scoped URL for something the user has picked but not
+ *    yet posted. Marked `temporary`. It exists for the length of a composer
+ *    and never reaches a durable row: `upload` replaces it with a key before
+ *    anything is saved.
+ *  - anything else — an R2 object key, of the shape `media/<owner>/<id>`. This
+ *    is what a saved picture is now.
+ *
+ * Nothing here ever holds the bytes. `upload` streams a `File` straight to the
+ * API and keeps the key it is given back; `src` turns a key into the
+ * authenticated URL that serves it. Between those two the picture is in R2 and
+ * nowhere else.
  */
 
 /** Refs the UI knows how to draw itself, with no network and no asset file. */
@@ -49,6 +54,25 @@ export interface MediaInput {
   durationSec?: number
 }
 
+/**
+ * Where the bytes for an asset are actually fetched from.
+ *
+ * One function, because three different screens draw media and all three used
+ * to reach for `asset.ref` — which was fine while a ref was a `blob:` URL an
+ * `<img>` could use directly, and is wrong now that it is an object key behind
+ * an authorised route.
+ *
+ * A placeholder is drawn by CSS and needs no URL. A draft's `blob:` is used
+ * as-is, because it is a local preview of a file the browser already has. A
+ * key becomes `/api/data/media/<id>`, which the session cookie authorises like
+ * every other request.
+ */
+export function mediaSrc(asset: Pick<MediaAsset, 'id' | 'ref'>): string {
+  if (isPlaceholder(asset.ref)) return ''
+  if (isTemporaryRef(asset.ref)) return asset.ref
+  return `/api/data/media/${asset.id}`
+}
+
 export const mediaService = {
   get(id: ID): Promise<MediaAsset | undefined> {
     return db.media.get(id)
@@ -61,6 +85,52 @@ export const mediaService = {
   },
 
   /**
+   * Sends the bytes to R2 and records what came back.
+   *
+   * The id is the server's, not one minted here, because the object is keyed by
+   * it — a local id would name a different object on every device. That is also
+   * why this returns the asset rather than taking one: the caller cannot know
+   * the id until the upload has happened.
+   *
+   * Throws on failure rather than falling back to a `blob:` ref. A picture that
+   * silently becomes temporary is a picture the person believes they posted and
+   * which disappears when they close the tab; the composer shows the error
+   * instead.
+   */
+  async upload(file: Blob, picked: MediaInput): Promise<MediaAsset> {
+    const query = new URLSearchParams({ kind: picked.kind, mimeType: picked.mimeType })
+    if (picked.width !== undefined) query.set('width', String(picked.width))
+    if (picked.height !== undefined) query.set('height', String(picked.height))
+    if (picked.durationSec !== undefined) query.set('durationSec', String(Math.round(picked.durationSec)))
+
+    const response = await fetch(`/api/data/media/upload?${query}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': picked.mimeType },
+      body: file,
+    })
+    if (!response.ok) {
+      const detail = (await response.json().catch(() => ({}))) as { message?: string }
+      throw new Error(detail.message ?? 'That picture could not be saved.')
+    }
+    const stored = (await response.json()) as { id: ID; key: string }
+
+    const asset: MediaAsset = {
+      id: stored.id,
+      kind: picked.kind,
+      ref: stored.key,
+      mimeType: picked.mimeType,
+      width: picked.width,
+      height: picked.height,
+      durationSec: picked.durationSec,
+      createdAt: now(),
+    }
+    // `put`, not `add`: re-uploading after a retry must converge on one row.
+    await db.media.put(asset)
+    return asset
+  },
+
+  /**
    * Records a reference. Rejects anything that looks like embedded binary —
    * a `data:` URL is exactly the mistake this abstraction exists to prevent.
    */
@@ -68,10 +138,29 @@ export const mediaService = {
     if (input.ref.startsWith('data:')) {
       throw new Error('Media must be referenced, not embedded.')
     }
+
+    /*
+     * A draft becomes an object here, and this is the only place it happens.
+     *
+     * Composers hand over a `blob:` URL for the file the person just picked —
+     * that is what the preview is drawn from, and it used to be what got
+     * stored, which is why pictures survived exactly as long as the tab. The
+     * bytes are read back out of that URL and sent to R2; what is stored is
+     * the key that comes back.
+     *
+     * Doing it here rather than in each composer means posts, stories and
+     * profile pictures all became durable at once, and a fourth thing that
+     * carries a picture gets it for free.
+     */
+    if (isTemporaryRef(input.ref)) {
+      const file = await fetch(input.ref).then((response) => response.blob())
+      return this.upload(file, input)
+    }
+
     const asset: MediaAsset = {
       ...input,
       id: uid('media'),
-      temporary: isTemporaryRef(input.ref) || undefined,
+      temporary: undefined,
       createdAt: now(),
     }
     await db.media.add(asset)

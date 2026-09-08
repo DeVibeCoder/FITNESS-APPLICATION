@@ -50,6 +50,19 @@ export function id(value: unknown, field = 'id'): string {
   return trimmed
 }
 
+/**
+ * A short list of ids, or nothing.
+ *
+ * Bounded on purpose: the only caller is a post's pictures, and a body that
+ * arrives with four thousand ids is not a post.
+ */
+export function optionalIdList(value: unknown, field: string, max: number): string[] | undefined {
+  if (value === undefined || value === null) return undefined
+  if (!Array.isArray(value)) throw new InvalidInput(field, 'That should be a list.')
+  if (value.length > max) throw new InvalidInput(field, `No more than ${max}.`)
+  return value.map((one) => id(one, field))
+}
+
 export function optionalId(value: unknown, field: string): string | null {
   if (value === undefined || value === null || value === '') return null
   return id(value, field)

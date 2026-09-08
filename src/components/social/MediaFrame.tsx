@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { ImageOff, Play } from 'lucide-react'
 import type { MediaAsset } from '@/models'
-import { isPlaceholder } from '@/services/mediaService'
+import { isPlaceholder, mediaSrc } from '@/services/mediaService'
 import { displayRatio } from '@/lib/mediaPick'
 import { duration } from '@/utils/format'
 import styles from './MediaFrame.module.css'
@@ -95,7 +95,7 @@ export function MediaFrame({
       ) : asset.kind === 'video' ? (
         <>
           <video
-            src={asset.ref}
+            src={mediaSrc(asset)}
             className={[styles.image, contain ? styles.contain : ''].filter(Boolean).join(' ')}
             /* Metadata only: enough to paint a first frame, not the whole clip. */
             preload="metadata"
@@ -121,7 +121,7 @@ export function MediaFrame({
         </>
       ) : (
         <img
-          src={asset.ref}
+          src={mediaSrc(asset)}
           alt=""
           className={[styles.image, contain ? styles.contain : ''].filter(Boolean).join(' ')}
           loading={eager ? 'eager' : 'lazy'}

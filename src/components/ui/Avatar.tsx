@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/lib/db'
+import { mediaSrc } from '@/services/mediaService'
 import type { User } from '@/models'
 import { initials } from '@/utils/format'
 import styles from './Avatar.module.css'
@@ -30,7 +31,9 @@ export function Avatar({ user, size = 'md', ring }: AvatarProps) {
     () => (user.avatarMediaId ? db.media.get(user.avatarMediaId) : undefined),
     [user.avatarMediaId],
   )
-  const src = asset?.ref ?? user.avatarUrl
+  // Through `mediaSrc`, because an avatar is now an object key behind an
+  // authorised route rather than something an <img> can fetch on its own.
+  const src = asset ? mediaSrc(asset) : user.avatarUrl
 
   return (
     <span

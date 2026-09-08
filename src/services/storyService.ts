@@ -136,6 +136,9 @@ export const storyService = {
     }
     await cloudSync.push('/social/stories', {
       id: story.id, type: story.type, text: story.text,
+      // The picture's id. Its bytes are already in R2; `stories.media_id` has
+      // been waiting for this since the column was written.
+      mediaId: story.mediaId,
       background: story.background, expiresAt: story.expiresAt, createdAt: story.createdAt,
     })
     return story

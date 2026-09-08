@@ -494,9 +494,47 @@ async function main() {
     body: JSON.stringify({ id: uid('m'), kind: 'image', ref: `data:image/png;base64,${'A'.repeat(200)}`, mimeType: 'image/png' }),
   })
   check('a data URI is refused', embedded.status === 400, embedded.status)
-  const upload = await callAs(alice, '/media/upload', { method: 'POST', body: JSON.stringify({}) })
-  check('and uploading says storage is not switched on', upload.status === 503, upload.status)
-  check('with a reason a client can branch on', upload.body.reason === 'r2_not_enabled', upload.body)
+  /*
+   * Upload now genuinely stores. What is checked is the contract around it:
+   * the bytes are accepted, what comes back is a key rather than anything
+   * resembling a payload, and a file that is not media is refused before the
+   * bucket is touched.
+   */
+  const notMedia = await callAs(alice, '/media/upload?kind=image&mimeType=text/plain', {
+    method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: 'not a picture',
+  })
+  check('a file that is not media is refused', notMedia.status === 400, notMedia.status)
+
+  // A real 2x2 PNG, so the bucket is asked to hold something valid.
+  const png = Uint8Array.from(
+    atob('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP8z4AATAxQMKwYAAAA//8DAAKrAP8DcQlYAAAAAElFTkSuQmCC'),
+    (c) => c.charCodeAt(0),
+  )
+  const upload = await callAs(alice, '/media/upload?kind=image&mimeType=image/png&width=2&height=2', {
+    method: 'POST', headers: { 'Content-Type': 'image/png' }, body: png,
+  })
+  check('a picture uploads', upload.status === 200, { status: upload.status, body: upload.body })
+  const storedKey = String(upload.body.key ?? '')
+  check('and comes back as an object key', /^media\//.test(storedKey) && storedKey.length < 200, storedKey)
+  check('never as the bytes', !/^data:/i.test(storedKey))
+
+  const mediaId = String(upload.body.id ?? '')
+  const readBack = await fetch(`${API}/api/data/media/${mediaId}`, { headers: { Cookie: alice.cookie } })
+  check('the owner can read it back', readBack.status === 200, readBack.status)
+  check('with its own content type', (readBack.headers.get('Content-Type') ?? '').includes('image/png'))
+  const bytes = new Uint8Array(await readBack.arrayBuffer())
+  check('byte for byte', bytes.length === png.length, { got: bytes.length, want: png.length })
+
+  const anon = await fetch(`${API}/api/data/media/${mediaId}`)
+  check('and an anonymous request is refused', anon.status === 401 || anon.status === 403, anon.status)
+
+  /*
+   * Unattached media is the owner's alone. Bob is an approved member of the
+   * same group and still may not read it, because nothing the group can see
+   * points at it.
+   */
+  const bobReadsMedia = await fetch(`${API}/api/data/media/${mediaId}`, { headers: { Cookie: bob.cookie } })
+  check('another member cannot read unattached media', bobReadsMedia.status === 404, bobReadsMedia.status)
 
   head('Nothing leaks in a failure')
   const broken = await callAs(alice, '/social/comments', {

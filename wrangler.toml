@@ -46,17 +46,10 @@ name = "CHAT_ROOM"
 class_name = "ChatRoom"
 script_name = "circuit-chat-realtime"
 
-# R2 is not yet enabled on this Cloudflare account, so the bucket could not be
-# created and this binding stays commented out — a binding pointing at a
-# bucket that does not exist fails the deploy rather than degrading quietly.
-#
-# To finish this: enable R2 once in the Cloudflare dashboard, run
-#   wrangler r2 bucket create circuit-media-dev
-# and uncomment the three lines below.
-#
-# [[env.preview.r2_buckets]]
-# binding = "MEDIA"
-# bucket_name = "circuit-media-dev"
+# Object storage for photos and clips. The bytes live here; D1 holds a key.
+[[env.preview.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "rally-media-dev"
 
 # --- Production -----------------------------------------------------------
 #
@@ -90,13 +83,8 @@ name = "CHAT_ROOM"
 class_name = "ChatRoom"
 script_name = "circuit-chat-realtime"
 
-# R2 could not be created: the account has not enabled R2, which is a
-# dashboard action with billing terms attached and not something to work
-# around. The binding is written out ready to uncomment after running
-#   wrangler r2 bucket create circuit-media-prod
-# A binding naming a bucket that does not exist fails the deploy, so it stays
-# commented rather than shipping broken.
-#
-# [[env.production.r2_buckets]]
-# binding = "MEDIA"
-# bucket_name = "circuit-media-prod"
+# The real bucket. Named apart from the development one on purpose, so a
+# copied command cannot write a test photograph into production.
+[[env.production.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "rally-media-prod"

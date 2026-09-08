@@ -71,6 +71,9 @@ export const userService = {
 
     const asset = await mediaService.register(media)
     await db.users.update(userId, { avatarMediaId: asset.id })
+    // `avatar_media_id` is on the profile route's writable list, so the picture
+    // follows the person to their other devices and onto everybody's roster.
+    await cloudSync.pushProfile({ avatarMediaId: asset.id })
     if (user.avatarMediaId) await mediaService.forget([user.avatarMediaId])
     return db.users.get(userId)
   },
@@ -81,6 +84,7 @@ export const userService = {
     const user = await db.users.get(userId)
     if (!user?.avatarMediaId) return
     await db.users.update(userId, { avatarMediaId: undefined })
+    await cloudSync.pushProfile({ avatarMediaId: null })
     await mediaService.forget([user.avatarMediaId])
   },
 

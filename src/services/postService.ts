@@ -153,13 +153,14 @@ export const postService = {
       throw error
     }
     /*
-     * The picture does not travel — only the fact that there is one. Photo
-     * storage is not switched on yet (see server/data/mediaRepo), so the ref
-     * stays on this device and the post arrives as its words and its shape.
+     * The ids travel; the bytes went to R2 before this, when the draft was
+     * registered. What the server stores is a row in `post_media` pointing at
+     * an object it already has.
      */
     await cloudSync.push('/social/posts', {
       id: post.id, type: post.type, text: post.text, visibility: post.visibility,
-      sharedType: post.sharedType, sharedDataId: post.sharedDataId, createdAt: post.createdAt,
+      sharedType: post.sharedType, sharedDataId: post.sharedDataId,
+      mediaIds: post.mediaIds, createdAt: post.createdAt,
     })
     return post
   },
@@ -215,6 +216,24 @@ export const postService = {
     }
 
     await db.posts.update(postId, patch)
+
+    /*
+     * And up, which it never was.
+     *
+     * Editing a post changed it on the device and nowhere else: the words, the
+     * visibility and the picture all stayed local, so the version everybody
+     * else read was whatever had first been written. The server upserts on id,
+     * so re-sending the whole row is both the create path and the edit path.
+     */
+    const edited = await db.posts.get(postId)
+    if (edited) {
+      await cloudSync.push('/social/posts', {
+        id: edited.id, type: edited.type, text: edited.text, visibility: edited.visibility,
+        sharedType: edited.sharedType, sharedDataId: edited.sharedDataId,
+        mediaIds: edited.mediaIds, createdAt: edited.createdAt,
+      })
+    }
+
     if (released.length > 0) await mediaService.releaseUnused(released, { postId })
   },
 

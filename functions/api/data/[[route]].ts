@@ -35,7 +35,7 @@ import {
 import { chatRepo, validateMessage, CONVERSATION_ID } from '../../../server/data/chatRepo'
 import { profileRepo } from '../../../server/data/profileRepo'
 import { publish, type RealtimeEnv } from '../../../server/data/realtime'
-import { mediaRepo, validateMedia } from '../../../server/data/mediaRepo'
+import { mediaRepo, validateMedia, type R2Bucket } from '../../../server/data/mediaRepo'
 import {
   trainingRepo,
   validateMeasurement,
@@ -53,10 +53,15 @@ interface Ctx {
   id: string | null
   body: () => Promise<unknown>
   /**
-   * Bindings, for the handful of handlers that tell the room something
-   * changed after they have written it down.
+   * The request itself, for the one handler that reads bytes rather than JSON.
+   * Everything else should use `body()`.
    */
-  env: RealtimeEnv
+  request: Request
+  /**
+   * Bindings, for the handful of handlers that tell the room something
+   * changed after they have written it down, and for the media bucket.
+   */
+  env: RealtimeEnv & { MEDIA?: R2Bucket }
 }
 
 type Handler = (ctx: Ctx) => Promise<Response> | Response
@@ -353,7 +358,17 @@ const routes: Record<string, Record<string, Handler>> = {
 
   // --- Media ----------------------------------------------------------------
   'media': {
-    GET: async ({ db, url }) => {
+    GET: async ({ db, url, user, id, env, request }) => {
+      /*
+       * Two shapes on one resource, split by whether an id is present:
+       *
+       *   GET /media?ids=a,b   metadata for the cards that are about to draw
+       *   GET /media/<id>      the bytes themselves, out of R2
+       *
+       * The second is the only route in the application that answers with
+       * something other than JSON, and the only one that touches the bucket.
+       */
+      if (id) return mediaRepo.serve(db, env.MEDIA, user, v.id(id), request)
       const ids = (url.searchParams.get('ids') ?? '').split(',').filter(Boolean).map((one) => v.id(one, 'ids'))
       return json({ rows: await mediaRepo.byIds(db, ids) })
     },
@@ -363,15 +378,23 @@ const routes: Record<string, Record<string, Handler>> = {
     },
   },
   'media/upload': {
-    // The contract exists; the bucket does not. See mediaRepo for what is
-    // still outstanding on the account.
-    POST: async () => mediaRepo.uploadUnavailable(),
+    /*
+     * Bytes in, a key out.
+     *
+     * The browser uploads through this Worker rather than straight to R2 with
+     * a presigned URL. Presigning needs S3 credentials — an R2 access key and
+     * secret, stored as deployment secrets and handed to the client as a
+     * signed URL — which is a second credential to manage and a second way in.
+     * The session cookie already says who this is; this route uses it and puts
+     * the object down itself.
+     */
+    POST: async ({ db, user, env, request }) => mediaRepo.upload(db, env.MEDIA, user.id, request),
   },
 }
 
 const handle = (context: {
   request: Request
-  env: { DB?: unknown } & RealtimeEnv
+  env: { DB?: unknown } & RealtimeEnv & { MEDIA?: R2Bucket }
   params: { route?: string | string[] }
 }) =>
   withUser(context, async (user, db) => {
@@ -397,6 +420,7 @@ const handle = (context: {
       url: new URL(context.request.url),
       id: segments[used] ?? null,
       body: () => context.request.json(),
+      request: context.request,
       env: context.env,
     })
   })

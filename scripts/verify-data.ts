@@ -3654,11 +3654,20 @@ async function main() {
   }
   ok('registering an embedded image is refused', refusedEmbedded)
 
-  const temp = await mediaService.register({
-    kind: 'image', ref: 'blob:http://localhost/abc', mimeType: 'image/jpeg',
+  /*
+   * A `blob:` ref no longer means "store this temporarily". It means "these
+   * bytes have not been uploaded yet", and `register` answers it by sending
+   * them to R2 and storing the key that comes back — which needs a browser and
+   * a session, and so is exercised by the production media test rather than
+   * here. What this suite still holds is the invariant either way: what lands
+   * in a row is a reference, never a payload.
+   */
+  const stored = await mediaService.register({
+    kind: 'image', ref: 'media/u_ahmed/media_abc123', mimeType: 'image/jpeg',
   })
-  ok('a blob reference is accepted but marked temporary', temp.temporary === true)
-  await db.media.delete(temp.id)
+  ok('an object key is stored as-is', stored.ref === 'media/u_ahmed/media_abc123')
+  ok('and is not marked temporary', stored.temporary === undefined)
+  await db.media.delete(stored.id)
 
   // The whole database must never contain binary or an inline payload.
   const binarySuspects: string[] = []
@@ -3753,7 +3762,7 @@ async function main() {
     text: 'Out before work',
     media: {
       kind: 'image',
-      ref: 'blob:test/story-photo',
+      ref: 'media/u_ahmed/story-photo',
       mimeType: 'image/jpeg',
       width: 1080,
       height: 1920,
@@ -3761,8 +3770,10 @@ async function main() {
   })
   check('a story carrying a picture is a photo story', photoStory.type, 'photo')
   const storyAsset = await mediaService.get(photoStory.mediaId!)
-  check('the asset holds a pointer', storyAsset?.ref, 'blob:test/story-photo')
-  ok('a session-scoped reference is marked temporary', storyAsset?.temporary === true)
+  check('the asset holds a pointer', storyAsset?.ref, 'media/u_ahmed/story-photo')
+  // Durable now: a stored ref is an R2 key, and nothing that reaches a row is
+  // session-scoped any more. See the note by the media invariants above.
+  ok('a stored reference is durable, not session-scoped', storyAsset?.temporary === undefined)
   ok(
     'and no story row holds binary',
     (await db.stories.toArray()).every((s) => !(s.text ?? '').startsWith('data:')),
@@ -3911,7 +3922,7 @@ async function main() {
     text: 'One set, filmed.',
     media: {
       kind: 'video',
-      ref: 'blob:test/story-clip',
+      ref: 'media/u_ahmed/story-clip',
       mimeType: 'video/mp4',
       width: 1080,
       height: 1920,
@@ -3932,7 +3943,7 @@ async function main() {
     userId: 'u_ahmed',
     text: 'With a picture.',
     background: 'violet',
-    media: { kind: 'image', ref: 'blob:test/ground', mimeType: 'image/jpeg' },
+    media: { kind: 'image', ref: 'media/u_ahmed/ground', mimeType: 'image/jpeg' },
   })
   ok('but a story with media never carries one', overpainted.background === undefined)
 
@@ -4438,7 +4449,7 @@ async function main() {
       kind: 'image',
       // The shape object storage will use. Nothing above the service changes
       // when this stops being a session-scoped URL.
-      ref: 'blob:test/post-photo',
+      ref: 'media/u_ahmed/post-photo',
       mimeType: 'image/jpeg',
       width: 1200,
       height: 900,
@@ -4451,7 +4462,7 @@ async function main() {
     text: 'Last set.',
     media: {
       kind: 'video',
-      ref: 'blob:test/post-clip',
+      ref: 'media/u_ahmed/post-clip',
       mimeType: 'video/mp4',
       width: 1920,
       height: 1080,
@@ -4464,8 +4475,8 @@ async function main() {
   await postService.remove(withClip.id)
   check('and references exactly one asset', withPhoto.mediaIds.length, 1)
   const postAsset = await mediaService.get(withPhoto.mediaIds[0])
-  check('the asset holds a pointer', postAsset?.ref, 'blob:test/post-photo')
-  ok('a session-scoped reference is marked temporary', postAsset?.temporary === true)
+  check('the asset holds a pointer', postAsset?.ref, 'media/u_ahmed/post-photo')
+  ok('a stored reference is durable, not session-scoped', postAsset?.temporary === undefined)
   ok('no row in media is embedded binary',
     (await db.media.toArray()).every((row) => !row.ref.startsWith('data:')))
   ok('and no post smuggles one either',
@@ -4540,7 +4551,7 @@ async function main() {
     userId: 'u_ahmed',
     text: 'Worth remembering.',
     motivation: true,
-    media: { kind: 'image', ref: 'blob:test/motivation', mimeType: 'image/jpeg' },
+    media: { kind: 'image', ref: 'media/u_ahmed/motivation', mimeType: 'image/jpeg' },
   })
   ok('a picture does not stop it being motivation', illustrated.type === 'motivation')
 

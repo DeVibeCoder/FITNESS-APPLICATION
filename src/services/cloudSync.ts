@@ -428,7 +428,14 @@ export const cloudSync = {
           id: row.id, userId: owner(row.user_id), type: row.type as never,
           text: row.text, createdAt: row.created_at,
           visibility: (row.visibility ?? 'group') as never,
-          mediaIds: local.get(row.id)?.mediaIds ?? [],
+          /*
+           * The server's list, split from `group_concat`. It is authoritative
+           * now that `post_media` is written — falling back to the local row
+           * only for a post this pull did not carry links for.
+           */
+          mediaIds: row.media_ids
+            ? row.media_ids.split(',').filter(Boolean)
+            : (local.get(row.id)?.mediaIds ?? []),
           sharedType: (row.shared_type ?? undefined) as never,
           sharedDataId: row.shared_data_id ?? undefined,
           /*
@@ -462,8 +469,7 @@ export const cloudSync = {
         found.map((row) => ({
           id: row.id, userId: owner(row.user_id), type: row.type as never,
           text: row.text ?? undefined,
-          // Same reasoning as a post's media: kept, never blanked by a pull.
-          mediaId: local.get(row.id)?.mediaId,
+          mediaId: row.media_id ?? local.get(row.id)?.mediaId,
           background: (row.background ?? undefined) as never,
           createdAt: row.created_at, expiresAt: row.expires_at,
           sharedType: (row.shared_type ?? undefined) as never,
@@ -503,6 +509,7 @@ export const cloudSync = {
       ),
     )
 
+    await this.hydrateMedia()
     await this.hydrateProfile()
     await this.hydrateWorkouts()
     await this.hydrateGroup()
@@ -538,6 +545,64 @@ export const cloudSync = {
    * D1 means "never set", and writing that over a local value would be the
    * same overwrite in the other direction.
    */
+  /**
+   * Metadata for every picture this device can see but has never described.
+   *
+   * The bytes are not fetched here — an `<img>` does that, lazily, when a card
+   * scrolls into view. What is missing on a new device is the row that says a
+   * given id is a 1200x900 JPEG, without which `MediaFrame` cannot reserve the
+   * right shape and `Avatar` does not know there is a picture at all.
+   *
+   * Only ids this device has no row for are asked about, so this costs nothing
+   * on every sync after the first.
+   */
+  async hydrateMedia(): Promise<void> {
+    if (!enabled || !profileId) return
+    try {
+      const [posts, stories, users] = await Promise.all([
+        db.posts.toArray(),
+        db.stories.toArray(),
+        db.users.toArray(),
+      ])
+      const referenced = new Set<string>([
+        ...posts.flatMap((post) => post.mediaIds ?? []),
+        ...stories.flatMap((story) => (story.mediaId ? [story.mediaId] : [])),
+        ...users.flatMap((user) => (user.avatarMediaId ? [user.avatarMediaId] : [])),
+      ])
+      if (referenced.size === 0) return
+
+      const known = new Set(
+        (await db.media.bulkGet([...referenced]))
+          .filter((row): row is NonNullable<typeof row> => Boolean(row))
+          .map((row) => row.id),
+      )
+      const missing = [...referenced].filter((id) => !known.has(id))
+      if (missing.length === 0) return
+
+      // Chunked: the ids go in a query string, and a feed with a hundred
+      // pictures would otherwise build a URL long enough to be refused.
+      for (let i = 0; i < missing.length; i += 40) {
+        const chunk = missing.slice(i, i + 40)
+        const rows = await cloudDataService.list<MediaRow>('/media', { ids: chunk.join(',') })
+        if (rows.length === 0) continue
+        await db.media.bulkPut(
+          rows.map((row) => ({
+            id: row.id,
+            kind: row.kind as 'image' | 'video',
+            ref: row.r2_key,
+            mimeType: row.mime_type,
+            width: row.width ?? undefined,
+            height: row.height ?? undefined,
+            durationSec: row.duration_sec ?? undefined,
+            createdAt: row.created_at,
+          })),
+        )
+      }
+    } catch {
+      // A card without its metadata draws its fallback. Not worth failing over.
+    }
+  },
+
   async hydrateProfile(): Promise<void> {
     if (!enabled || !profileId) return
     const target = profileId
@@ -751,7 +816,8 @@ interface VideoRow {
 interface PostRow {
   id: string; user_id: string; type: string; text: string; visibility: string | null
   shared_type: string | null; shared_data_id: string | null
-  comment_count: number | null; motivation: number | null; created_at: string
+  comment_count: number | null; motivation: number | null
+  media_ids: string | null; created_at: string
 }
 interface PostReactionRow {
   id: string; post_id: string; user_id: string; emoji: string; created_at: string
@@ -815,4 +881,10 @@ function fromProfileRow(row: ProfileRow): Partial<User> {
   set('units', row.units)
   set('onboardedAt', row.onboarded_at)
   return out as Partial<User>
+}
+
+interface MediaRow {
+  id: string; owner_user_id: string; r2_key: string; kind: string; mime_type: string
+  bytes: number | null; width: number | null; height: number | null
+  duration_sec: number | null; created_at: string
 }

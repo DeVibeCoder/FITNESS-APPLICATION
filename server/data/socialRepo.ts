@@ -46,6 +46,17 @@ export function validatePost(input: unknown) {
     visibility: v.optionalOneOf(raw.visibility, 'visibility', VISIBILITIES) ?? 'group',
     sharedType: v.optionalOneOf(raw.sharedType, 'sharedType', SHARED_TYPES),
     sharedDataId: v.optionalId(raw.sharedDataId, 'sharedDataId'),
+    /*
+     * The pictures on this post, by id, in order.
+     *
+     * This used to be dropped on the floor: a post arrived as its words and
+     * its shape, and the `post_media` table stayed empty, because there was no
+     * object storage to point at and a reference to nothing is worse than no
+     * reference. There is now, so the link is kept — and it is only a link.
+     * The bytes went to R2 through `/media/upload` before this was ever
+     * called.
+     */
+    mediaIds: v.optionalIdList(raw.mediaIds, 'mediaIds', 8),
     createdAt: v.optionalTimestamp(raw.createdAt, 'createdAt') ?? nowIso(),
   }
 }
@@ -145,9 +156,26 @@ async function exists(db: D1Database, table: string, rowId: string): Promise<boo
 
 export const socialRepo = {
   /** The group feed. Readable by any approved account, hence no owner filter. */
+  /**
+   * The group feed. Readable by any approved account, hence no owner filter.
+   *
+   * `media_ids` is a comma-joined list rather than a second request: the feed
+   * draws pictures on nearly every row, and one round trip per post to learn
+   * which picture is a feed that pages badly. The inner ordered select is what
+   * keeps them in the order they were attached — `group_concat` has no ordering
+   * of its own.
+   */
   async listPosts(db: D1Database, limit: number) {
     const { results } = await db
-      .prepare('SELECT * FROM posts ORDER BY created_at DESC LIMIT ?')
+      .prepare(
+        `SELECT p.*,
+                (SELECT group_concat(media_id)
+                   FROM (SELECT media_id FROM post_media WHERE post_id = p.id ORDER BY position))
+                AS media_ids
+           FROM posts p
+          ORDER BY p.created_at DESC
+          LIMIT ?`,
+      )
       .bind(limit)
       .all()
     return results ?? []
@@ -166,6 +194,27 @@ export const socialRepo = {
         input.sharedType, input.sharedDataId, input.createdAt, userId,
       )
       .run()
+
+    /*
+     * Replace the set rather than add to it, so editing a post to remove its
+     * photograph actually removes it. The delete and the inserts are one batch:
+     * a post briefly carrying no pictures because the second half has not run
+     * yet is a post that renders wrong for whoever asks in that instant.
+     */
+    const links = input.mediaIds ?? []
+    const statements = [
+      db.prepare('DELETE FROM post_media WHERE post_id = ?').bind(input.id),
+      ...links.map((mediaId, position) =>
+        db
+          .prepare(
+            `INSERT INTO post_media (id, post_id, media_id, position)
+             VALUES (?, ?, ?, ?)
+             ON CONFLICT(post_id, media_id) DO UPDATE SET position = excluded.position`,
+          )
+          .bind(`pm_${input.id}_${position}`, input.id, mediaId, position),
+      ),
+    ]
+    await db.batch(statements)
   },
 
   removePost: (db: D1Database, userId: string, id: string) => removeOwn(db, 'posts', 'user_id', userId, id),
