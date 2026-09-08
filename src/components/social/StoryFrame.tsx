@@ -23,6 +23,31 @@ export const STORY_BACKGROUNDS: { value: StoryBackground; label: string }[] = [
 
 export const DEFAULT_STORY_BACKGROUND: StoryBackground = 'ember'
 
+/** Every ground that has a class in the stylesheet. */
+const GROUNDS: readonly StoryBackground[] = [
+  'ember', 'violet', 'ocean', 'forest', 'blossom', 'midnight', 'stone',
+]
+
+/**
+ * The ground to draw, from whatever the row happens to hold.
+ *
+ * `styles[ground]` is a lookup in a CSS module: a name that is not a key
+ * silently yields `undefined`, the class is dropped, and the story renders on
+ * the frame's bare near-black with no indication that anything went wrong.
+ * That is exactly what happened while the server stored these JSON-encoded —
+ * `"ember"`, quotes and all — and it is too quiet a failure to leave
+ * unguarded now that it has happened once.
+ *
+ * So the quotes are stripped and the result is checked against the grounds
+ * that actually exist. Anything unrecognised falls back to the default rather
+ * than to nothing.
+ */
+function groundName(stored: string | undefined | null): StoryBackground {
+  if (!stored) return DEFAULT_STORY_BACKGROUND
+  const cleaned = stored.replace(/^"+|"+$/g, '') as StoryBackground
+  return GROUNDS.includes(cleaned) ? cleaned : DEFAULT_STORY_BACKGROUND
+}
+
 /**
  * What a story looks like.
  *
@@ -56,7 +81,7 @@ export function StoryFrame({
   compact?: boolean
 }) {
   const written = !media
-  const ground = story.background ?? DEFAULT_STORY_BACKGROUND
+  const ground = groundName(story.background)
 
   return (
     <div

@@ -67,6 +67,11 @@ function inlineUnion(interfaceName: string, field: string): string[] {
 const pairs: { label: string; model: string[]; server: string[] }[] = [
   { label: 'post types', model: modelUnion('PostType'), server: serverList('server/data/socialRepo.ts', 'POST_TYPES') },
   { label: 'story types', model: modelUnion('StoryType'), server: serverList('server/data/socialRepo.ts', 'STORY_TYPES') },
+  {
+    label: 'story backgrounds',
+    model: modelUnion('StoryBackground'),
+    server: serverList('server/data/socialRepo.ts', 'STORY_BACKGROUNDS'),
+  },
   { label: 'visibility', model: modelUnion('Visibility'), server: serverList('server/data/socialRepo.ts', 'VISIBILITIES') },
   { label: 'shared types', model: modelUnion('SharedType'), server: serverList('server/data/socialRepo.ts', 'SHARED_TYPES') },
   { label: 'update kinds', model: modelUnion('UpdateKind'), server: serverList('server/data/socialRepo.ts', 'UPDATE_KINDS') },

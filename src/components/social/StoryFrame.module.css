@@ -112,12 +112,25 @@
   overflow-wrap: anywhere;
 }
 
-/* A story that is only words. Large, centred, and the point of the screen. */
+/*
+ * A story that is only words. Large, centred, and the point of the screen.
+ *
+ * White, literally, for the same reason the grounds above are literal values:
+ * a story is something somebody made, and it has to look the same to everyone
+ * who opens it. This read `var(--accent-ink)`, which is white in the dark
+ * theme and `#2a0d00` — a near-black brown — in the light one. The ground
+ * stayed dark either way, because it is imagery and never followed the theme,
+ * so a reader in light mode got dark brown text on a dark orange gradient and
+ * a story that was, in practice, unreadable.
+ *
+ * Every ground here was picked against white text. Nothing about which theme
+ * the reader happens to prefer changes what the author wrote.
+ */
 .words {
   position: relative;
   padding: var(--s-6) var(--s-5) calc(env(safe-area-inset-bottom) + var(--s-6));
   white-space: pre-wrap;
-  color: var(--accent-ink);
+  color: #fff;
   font-family: var(--font-display);
   font-size: 1.5rem;
   font-weight: 700;

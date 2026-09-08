@@ -31,6 +31,18 @@ const POST_TYPES = [
 ] as const
 const VISIBILITIES = ['private', 'group', 'public'] as const
 const STORY_TYPES = ['text', 'photo', 'video', 'workout', 'weigh_in', 'achievement', 'motivation'] as const
+/*
+ * The grounds a written story can be drawn on. A fixed vocabulary of seven
+ * names, which is why it is validated as one.
+ *
+ * It went through `jsonBlob` before, which JSON-encodes whatever it is given —
+ * so `ember` was stored as `"ember"`, quotes included. The client looks the
+ * name up in a CSS module (`styles[ground]`), a quoted name matches nothing,
+ * and every written story fell back to the frame's bare near-black. Stories
+ * had been rendering with no ground at all, which read as a theme bug because
+ * the only thing left on screen was the text.
+ */
+const STORY_BACKGROUNDS = ['ember', 'violet', 'ocean', 'forest', 'blossom', 'midnight', 'stone'] as const
 const SHARED_TYPES = ['workout', 'weigh_in', 'steps', 'achievement', 'challenge'] as const
 const UPDATE_KINDS = [
   'workout_completed', 'weight_logged', 'steps_logged', 'checkin',
@@ -77,7 +89,7 @@ export function validateStory(input: unknown) {
     id: v.id(raw.id),
     type: v.oneOf(raw.type, 'type', STORY_TYPES),
     text: v.optionalText(raw.text, 'text', 1000),
-    background: v.jsonBlob(raw.background, 'background', 500),
+    background: v.optionalOneOf(raw.background, 'background', STORY_BACKGROUNDS),
     mediaId: v.optionalId(raw.mediaId, 'mediaId'),
     expiresAt: v.timestamp(raw.expiresAt, 'expiresAt'),
     createdAt: v.optionalTimestamp(raw.createdAt, 'createdAt') ?? nowIso(),
