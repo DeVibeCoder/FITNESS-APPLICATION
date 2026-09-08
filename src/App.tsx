@@ -11,6 +11,7 @@ import { AppShell } from '@/layouts/AppShell'
 import { LoadingScreen } from '@/components/ui/EmptyState'
 import { challengeService } from '@/services'
 import { installReferenceData } from '@/data/reference'
+import { purgeLegacyDemoData } from '@/data/purgeLegacyDemo'
 import { todayKey } from '@/utils/date'
 import { Login } from '@/pages/Login'
 import { Home } from '@/pages/Home'
@@ -70,6 +71,12 @@ export default function App() {
      * Dexie and must therefore find there.
      */
     const boot = async () => {
+      /*
+       * First, before anything reads a profile. Devices seeded by an older
+       * build still hold the demo group, and taking the fixture out of the
+       * bundle did nothing about them — see purgeLegacyDemo.
+       */
+      await purgeLegacyDemoData()
       await installReferenceData()
       // Creating the week here keeps every later read side-effect free,
       // which matters because the challenge is read from live queries.

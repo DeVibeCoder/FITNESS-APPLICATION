@@ -59,9 +59,6 @@ const FORBIDDEN: { needle: string; word?: boolean; why: string }[] = [
   { needle: 'ahmed', word: true, why: 'a fixture account' },
   { needle: 'nadia', word: true, why: 'a fixture account' },
   { needle: 'samir', word: true, why: 'a fixture account' },
-  { needle: 'u_ahmed', why: 'a fixture user id' },
-  { needle: 'u_nadia', why: 'a fixture user id' },
-  { needle: 'u_samir', why: 'a fixture user id' },
   { needle: 'seedDatabase', why: 'the fixture seeder' },
   { needle: 'ensureSeeded', why: 'the fixture seeder’s entry point' },
   { needle: 'resetDatabase', why: 'the reset-to-demo control' },
@@ -90,6 +87,32 @@ for (const { needle, word, why } of FORBIDDEN) {
     .filter(([, text]) => pattern.test(text))
     .map(([file]) => file)
   check(`no "${needle}" anywhere — ${why}`, hits.length === 0, hits.length ? hits : undefined)
+}
+
+/*
+ * The fixture user ids are the one thing allowed in, and only in one place.
+ *
+ * `purgeLegacyDemo` names them because its job is deleting them: devices
+ * seeded by an older build still hold those rows, and removing the fixture
+ * from the bundle did nothing about the phones that already had it. So the
+ * rule is not "these strings must not appear" — it is "these strings may
+ * appear only in the module that exists to remove them", which is identified
+ * by the marker only that module writes.
+ *
+ * The distinction that matters is data versus a delete list. An id is a
+ * handful of characters naming a row; the fixture itself — the names, the
+ * password, the invented history — is checked for above and must still be
+ * absent everywhere.
+ */
+const FIXTURE_IDS = ['u_ahmed', 'u_nadia', 'u_samir', 'u_leila']
+const purgeFiles = [...contents].filter(([, text]) => text.includes('demoPurgedAt')).map(([file]) => file)
+check('the legacy purge is in the bundle', purgeFiles.length > 0, purgeFiles)
+
+for (const id of FIXTURE_IDS) {
+  const elsewhere = [...contents]
+    .filter(([file, text]) => text.includes(id) && !purgeFiles.includes(file))
+    .map(([file]) => file)
+  check(`"${id}" appears only in the purge module`, elsewhere.length === 0, elsewhere.length ? elsewhere : undefined)
 }
 
 /*
