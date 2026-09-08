@@ -130,21 +130,65 @@ export default defineConfig(({ mode }) => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
           cleanupOutdatedCaches: true,
-          // The scan endpoints must always hit the network; nothing about a
-          // photo or its analysis belongs in a cache.
-          navigateFallbackDenylist: [/^\/api\//],
           /*
-           * The app shell is precached as `/`, not as `index.html`.
+           * The document comes from the network first. This is the whole fix
+           * for a returning browser running last week's app.
            *
-           * Cloudflare Pages answers `/index.html` with a 308 to `/`, and a
-           * redirected response cannot be written to the Cache API — so the
-           * install step threw, no cache was ever committed, and the installed
-           * app did not open offline in production even though the worker
-           * registered and activated. Asking for the URL Pages actually serves
-           * is the whole fix; the file, its revision and every other entry are
-           * untouched.
+           * `navigateFallback` below serves the *precached* shell for every
+           * navigation, which is cache-first by construction. That is correct
+           * offline and wrong online: after a deploy the old service worker
+           * kept answering navigations from its own precache, so a returning
+           * browser was served the previous build's HTML — measured at two
+           * full page loads before it caught up, and indefinitely if the new
+           * worker could not install. The stale HTML then asks for the chunk
+           * hashes it was built against, and once those age out of the hosting
+           * platform the dynamic imports reject and the screen goes blank with
+           * no way to recover, because every reload is answered from the same
+           * stale cache.
+           *
+           * So: try the network, fall back to the cached copy. Online, you are
+           * never more than one request behind. Offline, the fallback below
+           * still opens the app. Four seconds because a slow connection should
+           * open the app, not hang on a white page.
            */
-          navigateFallback: '/',
+          runtimeCaching: [
+            {
+              urlPattern: ({ request }: { request: Request }) => request.mode === 'navigate',
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'rally-shell',
+                networkTimeoutSeconds: 4,
+                expiration: { maxEntries: 8 },
+                cacheableResponse: { statuses: [200] },
+              },
+            },
+          ],
+          /*
+           * `navigateFallback` is deliberately not set.
+           *
+           * It registers a NavigationRoute backed by the precache, and workbox
+           * registers it *before* the runtime rules above — first match wins,
+           * so it would answer every navigation from the cache and the rule
+           * above would never run. That ordering is exactly how a returning
+           * browser ended up two builds behind.
+           *
+           * The shell is still precached (the manifest transform below keeps
+           * `/`), so it is on the device; what changed is that the network is
+           * asked first. Offline, the NetworkFirst rule serves whatever
+           * navigation it cached last — which for an installed app is
+           * `start_url`, `/`. An offline deep link to a URL this browser has
+           * never opened online is the one case that now falls through to the
+           * browser's offline page, and it is worth that: the alternative was
+           * a blank screen online, with no way out of it.
+           *
+           * `null` rather than omitted: left out, vite-plugin-pwa defaults it
+           * to `index.html`, and `index.html` is not in this manifest — the
+           * transform below rewrites it to `/`. That default produced a
+           * `createHandlerBoundToURL("index.html")` that throws while the
+           * worker is starting, which breaks the worker for every request
+           * rather than just navigations.
+           */
+          navigateFallback: null,
           manifestTransforms: [
             (entries) => ({
               manifest: entries.map((entry) =>
