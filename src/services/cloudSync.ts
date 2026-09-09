@@ -55,6 +55,28 @@ let syncing: Promise<void> | null = null
 let lastSyncAt = 0
 const MIN_SYNC_GAP_MS = 20_000
 
+/**
+ * How long a locally-written row is left alone before hydration may conclude
+ * the server does not have it.
+ *
+ * A push is fired the moment a row is written, so a minute is generous — but
+ * generous is the right side to be wrong on. The cost of waiting is that a row
+ * deleted elsewhere lingers for one more sync; the cost of not waiting is
+ * deleting something the person just created.
+ */
+const RECONCILE_GRACE_MS = 60_000
+
+/*
+ * The page sizes these reads actually get, which is what makes "the server did
+ * not return it" mean "it is gone" rather than "it was on the next page".
+ * These mirror the defaults in functions/api/data — `lim(url)` and its
+ * per-route fallbacks — and reconciliation simply does not run when a response
+ * fills its page.
+ */
+const LIMIT_POSTS = 200
+const LIMIT_COMMENTS = 500
+const LIMIT_STORIES = 200
+
 /** Pushes that did not land. Retried before the next one, then dropped. */
 const outbox: { path: string; payload: unknown }[] = []
 
@@ -65,13 +87,32 @@ const shelve = (path: string, payload: unknown) => {
   outbox.push({ path, payload })
 }
 
+/**
+ * Whether the server will ever accept this, or has settled the matter.
+ *
+ * A 404 means the row it hangs off is gone; a 400 means the payload is not
+ * something this route accepts; a 403 means this account may not. None of the
+ * three improves by being sent again in ten seconds, and retrying them is not
+ * harmless: the outbox is drained in order, so one permanently-refused entry
+ * at the head blocks every write behind it and re-fails on every subsequent
+ * push. That is what a console full of repeating 404s is.
+ */
+const permanentlyRefused = (error: unknown): boolean =>
+  error instanceof CloudDataError &&
+  (error.kind === 'not_found' || error.kind === 'invalid' || error.kind === 'forbidden')
+
 async function drain(): Promise<void> {
   while (outbox.length > 0) {
     const next = outbox[0]
     try {
       await cloudDataService.post(next.path, next.payload)
       outbox.shift()
-    } catch {
+    } catch (error) {
+      // Discard it and carry on: the queue behind it is not at fault.
+      if (permanentlyRefused(error)) {
+        outbox.shift()
+        continue
+      }
       return
     }
   }
@@ -141,7 +182,8 @@ export const cloudSync = {
       await drain()
       await cloudDataService.post(path, payload)
     } catch (error) {
-      shelve(path, payload)
+      // Only worth keeping if sending it again could plausibly work.
+      if (!permanentlyRefused(error)) shelve(path, payload)
       if (error instanceof CloudDataError && error.kind === 'unauthenticated') {
         // The session went away underneath us. Stop pretending otherwise.
         enabled = false
@@ -238,15 +280,62 @@ export const cloudSync = {
     /** Whose row this is, in the ids the screens ask by. */
     const owner = (serverUserId: string) => (serverUserId === serverSelf ? mine : serverUserId)
 
-    const pull = async <T>(path: string, into: (rows: T[]) => Promise<unknown>) => {
+    const pull = async <T>(path: string, into: (rows: T[]) => Promise<unknown>): Promise<T[] | null> => {
       try {
         const found = await cloudDataService.list<T>(path)
-        if (found.length === 0) return
-        await into(found)
-        pulled += found.length
+        if (found.length > 0) {
+          await into(found)
+          pulled += found.length
+        }
+        return found
       } catch {
         // One domain being unreachable must not stop the others.
+        return null
       }
+    }
+
+    /**
+     * Deletes local rows the server did not return.
+     *
+     * Hydration only ever added. A row that was removed on the server — a post
+     * somebody deleted, an account that was removed — stayed on every other
+     * device for good, because nothing ever looked for absences. It also meant
+     * the app went on acting on those rows: marking a story seen that no longer
+     * exists is a `POST` the server answers 404, forever.
+     *
+     * Two conditions, and both matter:
+     *
+     * `complete` — the response has to be the whole set. These reads are
+     * paginated, so a full page means there may be more beyond it, and
+     * "everything I did not see is deleted" would then wipe the older half of
+     * the table. Fewer rows than the limit is the only case where the absence
+     * of a row is evidence it is gone.
+     *
+     * And an age floor. A row written on this device a moment ago may not have
+     * finished its push yet, so the server legitimately does not know about it.
+     * Anything younger than the grace period is left alone; the next sync will
+     * consider it once its push has certainly been attempted.
+     */
+    const reconcile = async <T extends { id: string; createdAt?: string }>(
+      table: { toArray: () => Promise<T[]>; bulkDelete: (keys: string[]) => Promise<void> },
+      found: T extends never ? never : { id: string }[] | null,
+      limit: number,
+      keep: (row: T) => boolean = () => false,
+    ) => {
+      if (!found) return
+      const complete = found.length < limit
+      if (!complete) return
+
+      const live = new Set(found.map((row) => row.id))
+      const cutoff = Date.now() - RECONCILE_GRACE_MS
+      const stale = (await table.toArray())
+        .filter((row) => {
+          if (live.has(row.id) || keep(row)) return false
+          const born = row.createdAt ? Date.parse(row.createdAt) : 0
+          return !Number.isFinite(born) || born < cutoff
+        })
+        .map((row) => row.id)
+      if (stale.length > 0) await table.bulkDelete(stale)
     }
 
     // --- The caller's own logs ---------------------------------------------
@@ -411,7 +500,7 @@ export const cloudSync = {
       )
     })
 
-    await pull<PostRow>('/social/posts', async (found) => {
+    const postRows = await pull<PostRow>('/social/posts', async (found) => {
       /*
        * A post's media stays on the device that made it until object storage
        * exists — see server/data/mediaRepo. So the local row's `mediaIds` are
@@ -450,7 +539,9 @@ export const cloudSync = {
       )
     })
 
-    await pull<CommentRow>('/social/comments', (found) =>
+    await reconcile(db.posts, postRows, LIMIT_POSTS)
+
+    const commentRows = await pull<CommentRow>('/social/comments', (found) =>
       db.comments.bulkPut(
         found.map((row) => ({
           id: row.id, postId: row.post_id, userId: owner(row.user_id),
@@ -459,7 +550,9 @@ export const cloudSync = {
       ),
     )
 
-    await pull<StoryRow>('/social/stories', async (found) => {
+    await reconcile(db.comments, commentRows, LIMIT_COMMENTS)
+
+    const storyRows = await pull<StoryRow>('/social/stories', async (found) => {
       const local = new Map(
         (await db.stories.bulkGet(found.map((row) => row.id)))
           .filter((row): row is NonNullable<typeof row> => Boolean(row))
@@ -477,6 +570,8 @@ export const cloudSync = {
         })),
       )
     })
+
+    await reconcile(db.stories, storyRows, LIMIT_STORIES)
 
     await pull<StoryViewRow>('/social/story-views', (found) =>
       db.storyViews.bulkPut(
@@ -658,6 +753,24 @@ export const cloudSync = {
     try {
       const people = await cloudDataService.list<RosterRow>('/roster')
       const others = people.filter((row) => row.id !== serverSelf)
+
+      /*
+       * Anybody this device knows who is not on the roster is no longer in the
+       * group, and their row goes. Without this a removed account stayed in
+       * everybody else's member list for good — which is how four test
+       * accounts I created against production outlived being deleted from it
+       * and went on appearing in a real group.
+       *
+       * The viewer's own profile is kept by id: it is a local row with a local
+       * id, and the roster deliberately does not include the person reading
+       * it. Deleting it would sign them out of their own data.
+       */
+      const live = new Set([...others.map((row) => row.id), profileId])
+      const strangers = (await db.users.toArray())
+        .filter((row) => !live.has(row.id))
+        .map((row) => row.id)
+      if (strangers.length > 0) await db.users.bulkDelete(strangers)
+
       if (others.length === 0) return
       const existing = new Map(
         (await db.users.bulkGet(others.map((row) => row.id)))
