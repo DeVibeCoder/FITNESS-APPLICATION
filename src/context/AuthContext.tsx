@@ -244,10 +244,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         workoutData.useCloud(true)
         cloudSync.useCloud(true, localUserId, account.id)
 
-        // Only when the server has nothing of its own to lose.
-        if (!serverProfile || serverProfile.heightCm === undefined) {
-          await pushFreshProfile(localUserId)
-        }
+        /*
+         * Only a profile somebody actually filled in gets sent up.
+         *
+         * `onboardedAt` is set by `startFresh` when — and only when — setup's
+         * answers were used. Without them the local row is defaults, and
+         * pushing defaults is how an account that had deliberately been left
+         * blank kept acquiring a height of 175, a weight of 80 and a goal of
+         * "stay healthy" every time it signed in somewhere new. The previous
+         * guard asked whether the server had a height yet, which is the same
+         * question as "is it blank" — so it re-filled the very rows it was
+         * meant to protect.
+         */
+        const created = await db.users.get(localUserId)
+        if (created?.onboardedAt) await pushFreshProfile(localUserId)
         void cloudSync.sync(true)
         setNeedsLink(false)
         return

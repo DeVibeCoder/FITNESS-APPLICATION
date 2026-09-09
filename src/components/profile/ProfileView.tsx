@@ -38,6 +38,22 @@ export function ProfileView({ snapshot, headerAction, variant = 'self' }: Profil
   const isSelf = variant === 'self'
   const { user, progress, bmi, energy } = snapshot
 
+  /*
+   * Somebody else, known only from the group roster.
+   *
+   * The roster carries a name, a handle and a colour — deliberately, since it
+   * exists to draw a face beside a message. It does not carry a height, a
+   * starting weight or a goal, and the row is padded with defaults so the
+   * shape is a `User`. Rendering those defaults says "Stay healthy, 80 kg"
+   * about a person who is in fact working towards 65, which is worse than
+   * saying nothing: it is not missing data, it is wrong data with a name on
+   * it.
+   *
+   * So the body numbers are omitted for a member whose profile this device was
+   * never given. What is shown is what is actually known.
+   */
+  const unknownBody = !isSelf && user.remote === true
+
   const weights = useLiveQuery(() => progressService.weightSeries(user.id, 120), [user.id])
   const sessions = useLiveQuery(() => workoutService.sessionsForUser(user.id), [user.id])
   const achievements = useLiveQuery(() => achievementService.listForUser(user.id), [user.id])
@@ -76,22 +92,28 @@ export function ProfileView({ snapshot, headerAction, variant = 'self' }: Profil
         )}
         <div className={styles.headText}>
           <h2 className={styles.name}>{user.name}</h2>
-          <p className={styles.goal}>{goalLabel(user.goal)}</p>
+          {unknownBody ? null : <p className={styles.goal}>{goalLabel(user.goal)}</p>}
 
-          <p className={styles.journey}>
-            <span className="tnum">{num(user.startWeightKg, 1)}</span>
-            <span className={styles.arrow} aria-label="to">
-              →
-            </span>
-            <span className={`${styles.now} tnum`}>{num(snapshot.currentWeightKg, 1)}</span>
-            <span className={styles.unit}>kg</span>
-          </p>
-          {usesTarget ? (
-            <p className={styles.target}>
-              <span className="tnum">{num(user.targetWeightKg, 1)} kg</span> goal
-            </p>
+          {unknownBody ? (
+            <p className={styles.target}>@{user.handle}</p>
           ) : (
-            <p className={styles.target}>{profile.tagline}</p>
+            <>
+              <p className={styles.journey}>
+                <span className="tnum">{num(user.startWeightKg, 1)}</span>
+                <span className={styles.arrow} aria-label="to">
+                  →
+                </span>
+                <span className={`${styles.now} tnum`}>{num(snapshot.currentWeightKg, 1)}</span>
+                <span className={styles.unit}>kg</span>
+              </p>
+              {usesTarget ? (
+                <p className={styles.target}>
+                  <span className="tnum">{num(user.targetWeightKg, 1)} kg</span> goal
+                </p>
+              ) : (
+                <p className={styles.target}>{profile.tagline}</p>
+              )}
+            </>
           )}
 
           <div className={styles.badges}>
@@ -113,15 +135,20 @@ export function ProfileView({ snapshot, headerAction, variant = 'self' }: Profil
 
       <Section title="At a glance">
         <div className={styles.stats}>
-          <Stat label="Current" value={`${num(snapshot.currentWeightKg, 1)} kg`} />
-          <Stat label="Started" value={`${num(user.startWeightKg, 1)} kg`} />
+          {unknownBody ? (
+            <Stat label="Their numbers" value="Not shared" hint="Only they can see these" />
+          ) : null}
+          {unknownBody ? null : <Stat label="Current" value={`${num(snapshot.currentWeightKg, 1)} kg`} />}
+          {unknownBody ? null : <Stat label="Started" value={`${num(user.startWeightKg, 1)} kg`} />}
           {/* A weight target is meaningless for "get fitter" — omit rather than fake one. */}
-          {usesTarget ? <Stat label="Goal" value={`${num(user.targetWeightKg, 1)} kg`} /> : null}
-          <Stat
-            label="Change"
-            value={`${signed(progress.changeKg)} kg`}
-            tone={movedWell ? 'good' : undefined}
-          />
+          {usesTarget && !unknownBody ? <Stat label="Goal" value={`${num(user.targetWeightKg, 1)} kg`} /> : null}
+          {unknownBody ? null : (
+            <Stat
+              label="Change"
+              value={`${signed(progress.changeKg)} kg`}
+              tone={movedWell ? 'good' : undefined}
+            />
+          )}
           {isSelf ? (
             <>
               <Stat label="BMI" value={num(bmi.value, 1)} hint={bmi.label} />

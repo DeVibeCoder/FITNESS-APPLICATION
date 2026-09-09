@@ -4,6 +4,7 @@ import { uid, now } from '@/lib/id'
 import { assertOwner } from './ownership'
 import { cloudSync } from './cloudSync'
 import { mediaService, type MediaInput } from './mediaService'
+import { storageService } from './storageService'
 
 export const userService = {
   async list(): Promise<User[]> {
@@ -18,10 +19,48 @@ export const userService = {
    * not appear in the group, the chat, the stories rail or any total. Accounts
    * predating the approval flow have no status and are members.
    */
+  /**
+   * The people in the group: everybody on the roster, plus you.
+   *
+   * This used to be every row in `db.users`, which was right when the only
+   * rows were the ones this device had authored. It stopped being right once
+   * the roster hydrated, because a browser that has been signed into more than
+   * one account holds a leftover local profile for each of them — and the
+   * roster carries that same person again, under their server id. The result
+   * was somebody appearing twice in the group, once with their real numbers
+   * and once with the roster's.
+   *
+   * A row belongs here if it came from the roster (`remote`, or a server id
+   * rather than a locally-minted `u_` one), or if it is the profile being read
+   * by the person looking. Anything else is another account's leftovers on a
+   * shared browser and is nobody's business on this screen.
+   */
   async listMembers(): Promise<User[]> {
-    const users = await db.users.toArray()
+    const [users, meta] = await Promise.all([db.users.toArray(), db.meta.toArray()])
+    const mine = storageService.getSessionUserId()
+
+    /*
+     * A local profile that is linked to an account the roster also describes
+     * is the same person twice, and the roster row is the one to keep — it is
+     * the server's, and it is the id everybody else's posts are authored by.
+     *
+     * This only happens on a browser that more than one account has signed
+     * into: the earlier sign-in leaves its profile behind, the roster brings
+     * the same person back under their server id, and the group lists them
+     * both. Filtering by "is it a local id" instead would have been simpler
+     * and wrong — a device from before the backend has local profiles for
+     * everybody, and they are the only rows it has.
+     */
+    const duplicated = new Set(
+      meta
+        .filter((row) => String(row.key).startsWith('link:local:'))
+        .filter((row) => users.some((user) => user.id === row.value))
+        .map((row) => String(row.key).slice('link:local:'.length)),
+    )
+
     return users
       .filter((user) => (user.status ?? 'approved') === 'approved')
+      .filter((user) => user.id === mine || !duplicated.has(user.id))
       .sort((a, b) => a.name.localeCompare(b.name))
   },
 
