@@ -757,17 +757,21 @@ export const cloudSync = {
       /*
        * Anybody this device knows who is not on the roster is no longer in the
        * group, and their row goes. Without this a removed account stayed in
-       * everybody else's member list for good — which is how four test
-       * accounts I created against production outlived being deleted from it
-       * and went on appearing in a real group.
+       * everybody else's member list for good.
        *
-       * The viewer's own profile is kept by id: it is a local row with a local
-       * id, and the roster deliberately does not include the person reading
-       * it. Deleting it would sign them out of their own data.
+       * What is kept is every profile this device authored and linked to an
+       * account — not merely the one currently signed in. The roster never
+       * contains them: they have local ids, and it deliberately omits the
+       * reader. Deleting one detaches its account from its own data and leaves
+       * a link pointing at nothing, which is a state the app could not get out
+       * of.
        */
-      const live = new Set([...others.map((row) => row.id), profileId])
+      const linked = (await db.meta.toArray())
+        .filter((row) => String(row.key).startsWith('link:local:'))
+        .map((row) => String(row.key).slice('link:local:'.length))
+      const live = new Set([...others.map((row) => row.id), profileId, ...linked])
       const strangers = (await db.users.toArray())
-        .filter((row) => !live.has(row.id))
+        .filter((row) => !live.has(row.id) && row.id !== profileId)
         .map((row) => row.id)
       if (strangers.length > 0) await db.users.bulkDelete(strangers)
 
@@ -788,6 +792,9 @@ export const cloudSync = {
             avatarColor: row.avatar_color ?? current?.avatarColor ?? '#c2410c',
             avatarMediaId: row.avatar_media_id ?? current?.avatarMediaId,
             joinedAt: row.joined_at,
+            // Another member, not a profile authored here. The account-link
+            // screen uses this to know it must never offer them.
+            remote: true,
           }
         }),
       )

@@ -116,6 +116,17 @@ export interface User {
   /** The workout apps this person actually uses, for the quick-log shortlist. */
   workoutApps: WorkoutSource[]
   units: Units
+  /**
+   * True when this row is another member, copied from the group roster, rather
+   * than a profile created on this device.
+   *
+   * The distinction matters in exactly one place and it matters a lot: the
+   * screen that asks "this device already holds training history, is it
+   * yours?" must never offer somebody else. Before the roster hydrated, every
+   * local user row genuinely was a local profile; now most of them are other
+   * people.
+   */
+  remote?: boolean
   /** Set once the setup flow has been completed. */
   onboardedAt?: Timestamp
   joinedAt: Timestamp

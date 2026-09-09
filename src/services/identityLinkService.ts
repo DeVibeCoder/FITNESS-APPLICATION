@@ -55,13 +55,29 @@ export const identityLinkService = {
   /**
    * Which local identities are available to claim.
    *
+   * Two rules, and the second one was missing.
+   *
    * A local user already spoken for by a different account is not offered —
-   * that is the rule that stops one cloud account taking another's history.
+   * that is what stops one cloud account taking another's history.
+   *
+   * And a row has to be a *local profile* rather than another member of the
+   * group. Once the roster started hydrating, `db.users` filled up with
+   * everybody else, and every one of them looked like unclaimed history: an
+   * administrator signing in was invited to adopt a member's identity and
+   * training. Nothing on this device was ever theirs to adopt.
+   *
+   * Two tests, because one of them has to work on devices that already hold
+   * roster rows written before the flag existed. `remote` is set by
+   * `cloudSync.hydrateGroup` going forward; the id prefix is the older
+   * evidence — a profile authored here is minted by `uid('u')` and starts
+   * `u_`, while a server account id never does.
    */
   async availableLocalUsers(serverUserId: string): Promise<User[]> {
     const users = await db.users.toArray()
     const free: User[] = []
     for (const user of users) {
+      if (user.remote === true) continue
+      if (!user.id.startsWith('u_')) continue
       const owner = await this.linkedServerUserId(user.id)
       if (owner === null || owner === serverUserId) free.push(user)
     }
@@ -78,9 +94,18 @@ export const identityLinkService = {
   async resolve(serverUser: { id: string; email?: string | null }): Promise<Resolution> {
     const existing = await this.linkedLocalUserId(serverUser.id)
     if (existing) {
-      // A link pointing at a user that no longer exists is stale, not binding.
       const stillThere = await db.users.get(existing)
       if (stillThere) return { kind: 'linked', localUserId: existing }
+      /*
+       * A link pointing at a profile that is gone is stale, not binding — and
+       * leaving it in place is a deadlock. `resolve` fell through to the
+       * choice screen, and `startFresh` then refused because the link still
+       * existed, so the account could neither carry on nor begin again: "a new
+       * profile could not be created", on every attempt, for good.
+       *
+       * Clearing it is what lets the next line create a profile.
+       */
+      await this.unlink(serverUser.id)
     }
 
     const localUsers = await this.availableLocalUsers(serverUser.id)
